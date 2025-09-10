@@ -1,4 +1,4 @@
-import foodPartnerModel from "../models/foodPartner.Model";
+import foodPartnerModel from "../models/foodPartner.Model.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 
@@ -67,8 +67,13 @@ async function login(req,res){
 }
 
 async function logout(req, res) {
-    res.clearCokie(token);
+    res.clearCookie('token');
     res.status(200).json({message: "food partner logout successfully"})
     
 }
 
+export default {
+    register,
+    login,
+    logout
+}
