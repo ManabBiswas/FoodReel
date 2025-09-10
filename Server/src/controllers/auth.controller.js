@@ -1,4 +1,4 @@
-import userModel from "../models/userModel";
+import userModel from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -37,5 +37,5 @@ async function register(req, res) {
 
 
 export default {
-    register
+    register,
 }
