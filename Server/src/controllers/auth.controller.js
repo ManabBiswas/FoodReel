@@ -35,7 +35,46 @@ async function register(req, res) {
     }
 }
 
+async function login(req, res) {
+    try{
+        const {email, password} = req.body;
+        const user = await userModel.findOne({email});
+        if(!user){
+            return res.status(400).json({
+                error: "Invalid email and Password"
+            });
+        }
+        else{
+            const isPasswordMatched = await bcrypt.compare(password,user.password,(err,result)=>{
+                if(result){
+                    const token = jwt.sign({ id: user._id,email: user.email }, process.env.JWT_SECRET);
+                    res.cookie('token',token)
+                    res.status(200).json({
+                        message: "User logged in successfully",
+                        _id: user._id,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        email: user.email,
+                        mobile: user.mobile
+                    });
+                }else{
+                    return res.status(400).json({
+                        error: "Invalid email and Password"
+                    });
+
+                }
+            });
+                
+
+                
+        }
+    }catch(error){
+        res.status(400).json({ error: error.message });
+    }
+}
+
 
 export default {
     register,
+    login
 }
