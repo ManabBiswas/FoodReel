@@ -9,7 +9,7 @@ router.post('/user/register',authController.register, (req, res) => {
     
 })
 
-router.get('/logout', (req, res) => {
+router.get('/user/logout',authController.logout, (req, res) => {
     req.session.destroy(() => {
         res.redirect('/login');
     });
