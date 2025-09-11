@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 const foodSchema = new mongoose.Schema({
-    name: {
+    foodName: {
         type: String,
         required: true,
     },
@@ -13,7 +13,7 @@ const foodSchema = new mongoose.Schema({
     },
     foodPartner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "foodpartner"
+        ref: "foodPartner"
     },
     likeCount: {
         type: Number,
