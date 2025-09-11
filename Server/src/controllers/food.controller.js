@@ -26,21 +26,22 @@ const createFood = async (req, res) => {
         console.log(fileUploadReasult);
         
         // Create new food document
-        const newFood = await foodModel.create({
+        const newFoodItem = await foodModel.create({
             name,
             description: description || "",
-            video: req.file.buffer, // Store video as buffer, or you could store as base64
+            video: fileUploadReasult, // uploadImage returns the URL string directly
             foodPartner: req.foodPartner._id,
         });
         
         res.status(201).json({
             message: "Food created successfully",
-            food: {
-                _id: newFood._id,
-                name: newFood.name,
-                description: newFood.description,
-                foodPartner: newFood.foodPartner
-            }
+            food: newFoodItem
+            // {
+            //     _id: newFoodItem._id,
+            //     name: newFoodItem.name,
+            //     description: newFoodItem.description,
+            //     foodPartner: newFoodItem.foodPartner
+            // }
         });
     } catch (error) {
         console.error("Error creating food:", error);
