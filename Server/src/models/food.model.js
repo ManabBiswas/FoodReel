@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 const foodSchema = new mongoose.Schema({
-    foodName: {
+    name: {
         type: String,
         required: true,
     },
     video: {
-        type: String,
+        type: Buffer, // Changed to Buffer to store file data
         required: true,
     },
     description: {
@@ -13,7 +13,7 @@ const foodSchema = new mongoose.Schema({
     },
     foodPartner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "foodPartner"
+        ref: "FoodPartner" // Fixed reference name
     },
     likeCount: {
         type: Number,
@@ -23,7 +23,7 @@ const foodSchema = new mongoose.Schema({
         type: Number,
         default: 0
     }
-})
+}, { timestamps: true })
 
 
 const foodModel = mongoose.model("food", foodSchema);
