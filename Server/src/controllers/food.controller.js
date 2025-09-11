@@ -1,4 +1,6 @@
 import foodModel from "../models/food.model.js";
+import storageService from "../services/storage.service.js";
+import { v4 as uuid } from "uuid";
 
 
 const createFood = async (req, res) => {
@@ -20,6 +22,8 @@ const createFood = async (req, res) => {
             mimetype: req.file.mimetype,
             size: req.file.size
         });
+        const fileUploadReasult = await storageService.uploadImage(req.file.buffer, uuid() );
+        console.log(fileUploadReasult);
         
         // Create new food document
         const newFood = await foodModel.create({
