@@ -30,4 +30,4 @@ const foodPartnerSchema = new mongoose.Schema({
 
 })
 
-export default mongoose.model('Food', foodPartnerSchema)
+export default mongoose.model('FoodPartner', foodPartnerSchema)
