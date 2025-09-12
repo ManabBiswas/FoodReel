@@ -39,4 +39,10 @@ router.post('/',
     foodController.createFood
 );
 
+// GET /api/food
+router.get('/',
+    isFoodPartnerLoggedin,
+    foodController.getAllFoods
+);
+
 export default router
