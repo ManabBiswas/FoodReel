@@ -1,6 +1,8 @@
 import express from 'express';
 import foodController from '../controllers/food.controller.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
+import isLoggedin from '../middlewares/isLoggedin.js';
+
 import multer from 'multer';
 
 
@@ -41,8 +43,7 @@ router.post('/',
 
 // GET /api/food
 router.get('/',
-    isFoodPartnerLoggedin,
-    foodController.getAllFoods
+    isLoggedin,
 );
 
 export default router

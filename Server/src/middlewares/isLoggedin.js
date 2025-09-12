@@ -1,4 +1,4 @@
-import userModel from "../models/user.Model";
+import userModel from "../models/user.Model.js";
 import jwt from "jsonwebtoken";
 
 async function isLoggedin(req, res, next) {
