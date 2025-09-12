@@ -5,7 +5,7 @@ const foodSchema = new mongoose.Schema({
         required: true,
     },
     video: {
-        type: Buffer, // Changed to Buffer to store file data
+        type: String, // Changed to Buffer to store file data
         required: true,
     },
     description: {
