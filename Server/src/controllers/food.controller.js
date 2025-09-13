@@ -49,4 +49,27 @@ const createFood = async (req, res) => {
     }
 };
 
-export default {createFood}
+const getFoodItems = async (req, res) => {
+    try {
+        const foods = await foodModel.find({ foodPartner: req.foodPartner._id });
+        res.status(200).json({ foods });
+    } catch (error) {
+        console.error("Error getting foods:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const getAllFoods = async (req, res) => {
+    try {
+        const foods = await foodModel.find().populate('foodPartner', 'restaurantName email');
+        res.status(200).json({ 
+            message: "Foods retrieved successfully",
+            foods 
+        });
+    } catch (error) {
+        console.error("Error getting all foods:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export default { createFood, getFoodItems, getAllFoods }

@@ -24,8 +24,8 @@ const router = express.Router();
 const handleMulterError = (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({ 
-                error: 'Unexpected field. Only "video" field is allowed for file upload.' 
+            return res.status(400).json({
+                error: 'Unexpected field. Only "video" field is allowed for file upload.'
             });
         }
         return res.status(400).json({ error: error.message });
@@ -44,6 +44,8 @@ router.post('/',
 // GET /api/food
 router.get('/',
     isLoggedin,
+    foodController.getAllFoods
+
 );
 
 export default router
