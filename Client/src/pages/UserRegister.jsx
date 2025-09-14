@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import axios from 'axios'
+import { Navigate, useNavigate } from 'react-router-dom'
 
 const UserRegister = () => {
   const [formData, setFormData] = useState({
@@ -17,7 +18,7 @@ const UserRegister = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, files } = e.target
-    console.log(e.target)
+    // console.log(e.target)
 
     if (type === 'file') {
       setFormData(prev => ({
@@ -72,70 +73,69 @@ const UserRegister = () => {
     return newErrors
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+const handleSubmit = async (e) => {
+  e.preventDefault()
 
-    const newErrors = validateForm()
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      // Create FormData for file upload
-      const submitData = new FormData()
-      submitData.append('firstName', formData.firstName)
-      submitData.append('lastName', formData.lastName)
-      submitData.append('email', formData.email)
-      submitData.append('password', formData.password)
-      submitData.append('mobile', formData.mobile)
-
-      if (formData.profileImage) {
-        submitData.append('profileImage', formData.profileImage)
-      }
-
-      const response = await axios.post('http://localhost:3000/api/auth/user/register', submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
-      const data = await response.json()
-      console.log('Registration successful:', data)
-      // redirect to dashboard
-
-      setMessage('Registration successful! Please check your email for verification.')
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        mobile: '',
-        profileImage: null
-      })
-
-      // Clear file input
-      const fileInput = document.querySelector('input[type="file"]')
-      if (fileInput) fileInput.value = ''
-
-    } catch (error) {
-      console.error('Registration error:', error)
-      setMessage(
-        error.response?.data?.message ||
-        'Registration failed. Please try again.'
-      )
-    } finally {
-      setLoading(false)
-    }
+  const newErrors = validateForm()
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors)
+    return
   }
+
+  setLoading(true)
+  setMessage('')
+
+  try {
+    // Create FormData for file upload
+    const submitData = new FormData()
+    submitData.append('firstName', formData.firstName)
+    submitData.append('lastName', formData.lastName)
+    submitData.append('email', formData.email)
+    submitData.append('password', formData.password)
+    submitData.append('mobile', formData.mobile)
+
+    if (formData.profileImage) {
+      submitData.append('profileImage', formData.profileImage)
+    }
+
+    const response = await axios.post(
+      'http://localhost:3000/api/auth/user/register',
+      submitData,
+      {
+        withCredentials: true
+      }
+    );
+
+    // Success - axios automatically throws for 4xx and 5xx status codes
+    console.log('Registration successful:', response.data)
+    
+    setMessage('Registration successful! Please check your email for verification.')
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      mobile: '',
+      profileImage: null
+    })
+
+    // Clear file input
+    const fileInput = document.querySelector('input[type="file"]')
+    if (fileInput) fileInput.value = ''
+
+    // Optionally navigate to another page
+    // navigate('/dashboard') // uncomment if you want to redirect
+
+  } catch (error) {
+    console.error('Registration error:', error)
+    setMessage(
+      error.response?.data?.message ||
+      'Registration failed. Please try again.'
+    )
+  } finally {
+    setLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
