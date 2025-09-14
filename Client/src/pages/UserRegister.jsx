@@ -9,7 +9,7 @@ const UserRegister = () => {
     email: '',
     password: '',
     mobile: '',
-    profileImage: null
+    // profileImage: null
   })
 
   const [errors, setErrors] = useState({})
@@ -94,9 +94,9 @@ const handleSubmit = async (e) => {
     submitData.append('password', formData.password)
     submitData.append('mobile', formData.mobile)
 
-    if (formData.profileImage) {
-      submitData.append('profileImage', formData.profileImage)
-    }
+    // if (formData.profileImage) {
+    //   submitData.append('profileImage', formData.profileImage)
+    // }
 
     const response = await axios.post(
       'http://localhost:3000/api/auth/user/register',
@@ -116,7 +116,7 @@ const handleSubmit = async (e) => {
       email: '',
       password: '',
       mobile: '',
-      profileImage: null
+      // profileImage: null
     })
 
     // Clear file input
@@ -232,7 +232,7 @@ const handleSubmit = async (e) => {
             )}
           </div>
 
-          <div>
+         {/*  <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Profile Image
             </label>
@@ -244,7 +244,7 @@ const handleSubmit = async (e) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
           </div>
-
+ */}
           <button
             type="submit"
             onClick={handleSubmit}
