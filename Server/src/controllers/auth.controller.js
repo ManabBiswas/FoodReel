@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 async function register(req, res) {
     try {
-        const {firstName, lastName, email, password, mobile, profileImage} = req.body;
+        const {firstName, lastName, email, password, mobile} = req.body;
         const isUserExist = await userModel.findOne({ email });
         if (isUserExist) {
             return res.status(400).json({ error: "User already exist" });
@@ -16,8 +16,7 @@ async function register(req, res) {
             lastName, 
             email, 
             password:hashPassword, 
-            mobile, 
-            profileImage
+            mobile    
         });
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
         res.cookie("token", token, { httpOnly: true });
@@ -79,8 +78,24 @@ async function logout(req, res) {
     
 }
 
+async function verify(req, res) {
+    // This endpoint uses the isLoggedin middleware to verify the token
+    // If we reach here, the user is authenticated
+    res.status(200).json({ 
+        message: "User is authenticated",
+        user: {
+            _id: req.user._id,
+            firstName: req.user.firstName,
+            lastName: req.user.lastName,
+            email: req.user.email,
+            mobile: req.user.mobile
+        }
+    });
+}
+
 export default {
     register,
     login,
-    logout
+    logout,
+    verify
 }

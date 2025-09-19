@@ -15,6 +15,7 @@ const UserRegister = () => {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const navigate = useNavigate()
 
   const handleInputChange = (e) => {
     const { name, value, type, files } = e.target

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Navigate, useNavigate } from 'react-router-dom'
 
@@ -12,10 +12,41 @@ const UserLogin = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // if already logged in, send to home
-  const token = localStorage.getItem('userToken')
-  if (token) return <Navigate to="/home" replace />
+  // Check authentication status by making API call to verify cookie
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        // Make a request to a protected endpoint to check if user is authenticated
+        // The cookie will be automatically sent with this request
+        const response = await axios.get('http://localhost:3000/api/auth/verify', {
+          withCredentials: true
+        });
+        
+        console.log('Auth check response:', response.data);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.log('User not authenticated:', error.response?.status);
+        setIsLoggedIn(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkAuthStatus();
+  }, []);
+
+  // Show loading while checking auth status
+  if (checkingAuth) {
+    return <div className="min-h-screen flex items-center justify-center">Checking authentication...</div>;
+  }
+
+  // Redirect if already logged in
+  if (isLoggedIn) {
+    return <Navigate to="/" replace />;
+  }
 
   const validate = () => {
     const errs = {}
@@ -53,14 +84,17 @@ const UserLogin = () => {
       const response = await axios.post('http://localhost:3000/api/auth/user/login', formData,{
         withCredentials: true
       })
-      // const { token: jwt, user } = response.data || {}
-      // if (jwt) {
-      //   localStorage.setItem('userToken', jwt)
-      //   if (user) localStorage.setItem('user', JSON.stringify(user))
-      //   navigate('/home')
-      // } else {
-      //   setMessage('Login succeeded but no token returned')
-      // }
+      console.log(response)
+      
+      // Server uses cookie-based auth, token is in httpOnly cookie
+      // Response contains user data, check for successful login
+      if (response.data && response.data.message === "User logged in successfully") {
+        console.log('Login successful, cookie set by server');
+        setIsLoggedIn(true); // Update local state
+        navigate('/');
+      } else {
+        setMessage('Login failed - unexpected response format');
+      }
     } catch (error) {
       console.error(error)
       const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
