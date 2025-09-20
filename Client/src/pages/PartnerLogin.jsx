@@ -1,9 +1,10 @@
 import React from 'react'
+import axios from 'axios'
 
 const PartnerLogin = () => {
   return (
     <>
-      Partner ragister
+      Partner login
     </>
   )
 }

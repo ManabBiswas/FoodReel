@@ -119,10 +119,14 @@ const handleSubmit = async (e) => {
       mobile: '',
       // profileImage: null
     })
+    setTimeout(() => {
+      navigate('/')
+    },2000)
+    
 
     // Clear file input
-    const fileInput = document.querySelector('input[type="file"]')
-    if (fileInput) fileInput.value = ''
+    // const fileInput = document.querySelector('input[type="file"]')
+    // if (fileInput) fileInput.value = ''
 
     // Optionally navigate to another page
     // navigate('/dashboard') // uncomment if you want to redirect

@@ -13,7 +13,7 @@ const UserLogin = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  // const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Check authentication status by making API call to verify cookie
   useEffect(() => {
@@ -31,7 +31,7 @@ const UserLogin = () => {
         console.log('User not authenticated:', error.response?.status);
         setIsLoggedIn(false);
       } finally {
-        setCheckingAuth(false);
+        // setCheckingAuth(false);
       }
     };
     
@@ -39,9 +39,9 @@ const UserLogin = () => {
   }, []);
 
   // Show loading while checking auth status
-  if (checkingAuth) {
-    return <div className="min-h-screen flex items-center justify-center">Checking authentication...</div>;
-  }
+  // if (checkingAuth) {
+  //   return <div className="min-h-screen flex items-center justify-center">Checking authentication...</div>;
+  // }
 
   // Redirect if already logged in
   if (isLoggedIn) {
