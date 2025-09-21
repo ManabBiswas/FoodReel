@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 
 async function register(req,res) {
     try{
-        const {companyName,email,password,profileImage,mobile,address,} =req.body;
+        const {companyName,email,password,profileImage,mobile,address,latitude,longitude} =req.body;
         const isPartnerExist = await foodPartnerModel.findOne({email})
         if(isPartnerExist){
             res.status(400).json({error: "FoodPartner already exist"})
@@ -16,6 +16,8 @@ async function register(req,res) {
                 mobile,
                 password: hashPassword,
                 address,
+                latitude,
+                longitude,
                 profileImage
             })
             const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET);

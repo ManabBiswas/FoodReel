@@ -18,20 +18,15 @@ const UserRegister = () => {
   const navigate = useNavigate()
 
   const handleInputChange = (e) => {
-    const { name, value, type, files } = e.target
+    const { name, value } = e.target
     // console.log(e.target)
 
-    if (type === 'file') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: files[0]
-      }))
-    } else {
+    
       setFormData(prev => ({
         ...prev,
         [name]: value
       }))
-    }
+    
 
     // Clear error when user starts typing
     if (errors[name]) {
