@@ -78,18 +78,22 @@ const PartnerRegister = () => {
       setMessage('Getting your location...')
       const location = await getLocation()
       
-      const submitData = new FormData()
-      submitData.append('companyName', formData.companyName)
-      submitData.append('email', formData.email)
-      submitData.append('mobile', formData.mobile)
-      submitData.append('password', formData.password)
-      submitData.append('address', formData.address)
-      submitData.append('latitude', location.latitude)
-      submitData.append('longitude', location.longitude)
+      const submitData = {
+        companyName: formData.companyName,
+        email: formData.email,
+        mobile: formData.mobile,
+        password: formData.password,
+        address: formData.address,
+        latitude: location.latitude,
+        longitude: location.longitude
+      }
 
       setMessage('Registering your account...')
       const response = await axios.post('http://localhost:3000/api/auth/partner/register', submitData, {
-        withCredentials: true
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
       
       console.log(response)

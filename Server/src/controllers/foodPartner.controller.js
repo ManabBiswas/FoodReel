@@ -4,7 +4,18 @@ import jwt from 'jsonwebtoken'
 
 async function register(req,res) {
     try{
-        const {companyName,email,password,profileImage,mobile,address,latitude,longitude} =req.body;
+        const {companyName,email,password,mobile,address,latitude,longitude} = req.body;
+        
+        // Convert mobile to number and validate
+        const mobileNumber = parseInt(mobile);
+        if (isNaN(mobileNumber)) {
+            return res.status(400).json({error: "Invalid mobile number format"});
+        }
+        
+        // Convert coordinates to numbers if provided
+        const lat = latitude ? parseFloat(latitude) : null;
+        const lng = longitude ? parseFloat(longitude) : null;
+        
         const isPartnerExist = await foodPartnerModel.findOne({email})
         if(isPartnerExist){
             res.status(400).json({error: "FoodPartner already exist"})
@@ -13,12 +24,12 @@ async function register(req,res) {
             const foodPartner = await foodPartnerModel.create({
                 companyName,
                 email,
-                mobile,
+                mobile: mobileNumber,
                 password: hashPassword,
                 address,
-                latitude,
-                longitude,
-                profileImage
+                latitude: lat,
+                longitude: lng
+                // profileImage will be added later via profile update
             })
             const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET);
             res.cookie('token',token)
@@ -31,6 +42,7 @@ async function register(req,res) {
             })
         }
     }catch(error){
+        console.error('Registration error:', error);
         res.status(400).json({error: error.message});
     }
 }

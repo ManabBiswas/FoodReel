@@ -40,7 +40,7 @@ router.get('/verify', isLoggedin, authController.verify);
 router.post('/partner/login',foodPartnerAuthController.login, (req, res) => {
     // res.render('login');
 });
-router.post('/partner/register',foodPartnerAuthController.register, (req, res) => {
+router.post('/partner/register', foodPartnerAuthController.register, (req, res) => {
     // console.log(req.body);
 })
 
