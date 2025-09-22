@@ -1,12 +1,14 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from '../pages/Home'
-import UserRegister from '../pages/UserRegister'
-import UserLogin from '../pages/UserLogin'
-import PartnerRegister from '../pages/PartnerRegister'
-import PartnerLogin from '../pages/PartnerLogin'
+import UserRegister from '../pages/User/UserRegister'
+import UserLogin from '../pages/User/UserLogin'
+import PartnerRegister from '../pages/FoodPartner/PartnerRegister'
+import PartnerLogin from '../pages/FoodPartner/PartnerLogin'
+import PartnerProfile from '../pages/FoodPartner/PartnerProfile'
 import CreateFood from '../pages/FoodPartner/CrateFood'
 import Dashboard from '../pages/FoodPartner/Dashboard'
+import UserProfile from '../pages/User/UserProfile'
 
 const AppRoutes = () => {
   return (
@@ -18,7 +20,9 @@ const AppRoutes = () => {
         <Route path='/partner-register' element={<PartnerRegister />} />
         <Route path='/partner-login' element={<PartnerLogin />} />
         <Route path='/CreateFood' element={<CreateFood />} />
-        <Route path='/Partner-Dashboard' element={<Dashboard />} />
+        <Route path='/partner-dashboard' element={<Dashboard />} />
+        <Route path='/profile' element={<UserProfile />} />
+        <Route path='/partner-profile' element={<PartnerProfile />} />
       </Routes>
     </Router>
   )
