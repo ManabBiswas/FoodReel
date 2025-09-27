@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../assets/logo.png'
+import { Menu, X } from 'lucide-react'
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -14,9 +15,9 @@ const Navbar = () => {
               <img 
                 src={Logo} 
                 alt="FoodReel Logo" 
-                className="h-12 w-12 rounded-lg object-contain"
+                className="h-12 w-32 rounded-lg object-contain"
               />
-              <span className="text-lg font-semibold text-gray-800">FoodReel</span>
+              
             </Link>
           </div>
 
@@ -33,13 +34,11 @@ const Navbar = () => {
               aria-label="Toggle menu"
               className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {mobileOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
+              {mobileOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
             </button>
           </div>
         </div>
