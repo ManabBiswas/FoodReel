@@ -37,23 +37,7 @@ const Navbar = () => {
             <Link to="/CreateFood" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Create Food</Link>
             <Link to="/partner-register" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Partner</Link>
             <Link to="/user-login" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Login</Link>
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="ml-2 p-2 rounded-md bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            >
-              {theme === 'dark' ? (
-                // Sun icon (light)
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-300" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 4.5a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5A.75.75 0 0110 4.5zM10 15.25a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5a.75.75 0 01-.75-.75zM4.5 10a.75.75 0 01-.75-.75v-.5a.75.75 0 011.5 0v.5A.75.75 0 014.5 10zM15.25 10a.75.75 0 01-.75-.75v-.5a.75.75 0 011.5 0v.5a.75.75 0 01-.75.75zM6.22 6.22a.75.75 0 011.06 0l.35.35a.75.75 0 01-1.06 1.06l-.35-.35a.75.75 0 010-1.06zM12.37 12.37a.75.75 0 011.06 0l.35.35a.75.75 0 01-1.06 1.06l-.35-.35a.75.75 0 010-1.06zM6.22 13.78a.75.75 0 010-1.06l.35-.35a.75.75 0 011.06 1.06l-.35.35a.75.75 0 01-1.06 0zM12.37 7.63a.75.75 0 010-1.06l.35-.35a.75.75 0 011.06 1.06l-.35.35a.75.75 0 01-1.06 0zM10 7.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z" />
-                </svg>
-              ) : (
-                // Moon icon (dark)
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-200" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M17.293 13.293A8 8 0 116.707 2.707a7 7 0 1010.586 10.586z" />
-                </svg>
-              )}
-            </button>
+
           </div>
 
           <div className="flex items-center sm:hidden">
@@ -81,7 +65,7 @@ const Navbar = () => {
             <Link to="/CreateFood" onClick={() => setMobileOpen(false)} className="block text-gray-700 dark:text-gray-300">Create Food</Link>
             <Link to="/partner-register" onClick={() => setMobileOpen(false)} className="block text-gray-700 dark:text-gray-300">Partner</Link>
             <Link to="/user-login" onClick={() => setMobileOpen(false)} className="block text-gray-700 dark:text-gray-300">Login</Link>
-            <button onClick={() => { toggleTheme(); setMobileOpen(false) }} className="w-full text-left text-gray-700 dark:text-gray-300">Toggle Theme</button>
+           
           </div>
         </div>
       )}

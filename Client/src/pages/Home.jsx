@@ -1,12 +1,190 @@
 import React from 'react'
 import Navbar from '../Components/Navbar'
-const Home = () => {
-  return (
-    <div>
-      <Navbar />
-      <h1>Home</h1>
-      <p>This is the home page</p>
+import Footer from '../Components/Footer'
 
+const Home = () => {
+  const featuredFoods = [
+    {
+      id: 1,
+      name: "Spaghetti Masterpiece",
+      description: "Delicious homemade pasta with rich tomato sauce",
+      image: "/api/placeholder/300/400",
+      chef: "Chef Mario",
+      likes: "1.2K",
+      duration: "15s"
+    },
+    {
+      id: 2,
+      name: "Burger Delight",
+      description: "Juicy beef burger with fresh vegetables",
+      image: "/api/placeholder/300/400",
+      chef: "Chef Sarah",
+      likes: "892",
+      duration: "12s"
+    },
+    {
+      id: 3,
+      name: "Pizza Paradise",
+      description: "Wood-fired pizza with premium ingredients",
+      image: "/api/placeholder/300/400",
+      chef: "Chef Tony",
+      likes: "2.1K",
+      duration: "20s"
+    }
+  ]
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Navbar />
+      
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-yellow-400 via-red-400 to-red-500 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              Discover Food Through 
+              <span className="block text-yellow-200">Short Videos</span>
+            </h1>
+            <p className="text-lg md:text-xl mb-8 text-red-100 max-w-2xl mx-auto">
+              Watch mouth-watering food reels and order directly from talented chefs and restaurants
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition">
+                Watch Food Reels
+              </button>
+              <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition">
+                Join as Partner
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Decorative shapes */}
+        <div className="absolute top-20 left-10 opacity-20">
+          <div className="w-20 h-20 bg-yellow-300 rounded-full animate-bounce"></div>
+        </div>
+        <div className="absolute bottom-20 right-10 opacity-20">
+          <div className="w-16 h-16 bg-red-300 rounded-full animate-pulse"></div>
+        </div>
+      </section>
+
+      {/* Featured Food Reels */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Trending Food Reels
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 text-lg">
+              Discover the most popular food videos from our community
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredFoods.map((food) => (
+              <div key={food.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+                <div className="relative">
+                  <div className="aspect-[3/4] bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                    <div className="text-center p-8">
+                      <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-400">Food Video Preview</p>
+                    </div>
+                  </div>
+                  <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
+                    {food.duration}
+                  </div>
+                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm flex items-center">
+                    <svg className="w-4 h-4 mr-1 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    {food.likes}
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{food.name}</h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">{food.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">by {food.chef}</span>
+                    <button className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition">
+                      Order Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it Works */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              How FoodReel Works
+            </h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Watch Food Reels</h3>
+              <p className="text-gray-600 dark:text-gray-300">Browse through amazing short food videos from top chefs and restaurants</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Find Your Favorite</h3>
+              <p className="text-gray-600 dark:text-gray-300">Like and save the food videos that make your mouth water</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Order Directly</h3>
+              <p className="text-gray-600 dark:text-gray-300">Order the exact dish from the reel and get it delivered to your door</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action */}
+      <section className="py-16 bg-gradient-to-r from-red-500 to-yellow-500">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to Start Your Food Journey?
+          </h2>
+          <p className="text-xl text-red-100 mb-8">
+            Join thousands of food lovers discovering amazing dishes every day
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition">
+              Start Watching
+            </button>
+            <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition">
+              Become a Partner
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
     </div>
   )
 }
