@@ -1,10 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import BackToTop from './BackToTop'
+import Logo from '../assets/logo.png'
 
 const Footer = () => {
   return (
-    <footer className="bg-gradient-to-br from-gray-100 to-gray-200 dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700">
+    <footer className="bg-gradient-to-br from-gray-100 to-gray-200 border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
@@ -13,17 +14,19 @@ const Footer = () => {
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-0 lg:space-y-4">
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-yellow-400 to-red-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                  FR
-                </div>
+                <img 
+                  src={Logo} 
+                  alt="FoodReel Logo" 
+                  className="h-16 w-16 rounded-xl object-contain shadow-lg"
+                />
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">FoodReel</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Delivering joy, one bite at a time.</p>
+                  <h3 className="text-xl font-bold text-gray-900">FoodReel</h3>
+                  <p className="text-sm text-gray-600">Delivering joy, one bite at a time.</p>
                 </div>
               </div>
               
               <div className="text-center sm:text-left lg:text-left">
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-sm">
+                <p className="text-xs text-gray-500 leading-relaxed max-w-sm">
                   Discover amazing food through short videos and order directly from talented chefs and restaurants near you.
                 </p>
               </div>
@@ -32,24 +35,24 @@ const Footer = () => {
 
           {/* Navigation Links */}
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white border-b-2 border-red-400 pb-2 inline-block">
+            <h4 className="text-lg font-semibold text-gray-900 border-b-2 border-red-400 pb-2 inline-block">
               Explore
             </h4>
             <ul className="space-y-3">
               <li>
-                <Link to="/" className="text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200 flex items-center group">
+                <Link to="/" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/CreateFood" className="text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200 flex items-center group">
+                <Link to="/CreateFood" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
                   Create Food Reel
                 </Link>
               </li>
               <li>
-                <Link to="/partner-register" className="text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200 flex items-center group">
+                <Link to="/partner-register" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
                   Become Partner
                 </Link>
@@ -59,30 +62,30 @@ const Footer = () => {
 
           {/* Company Links */}
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white border-b-2 border-yellow-400 pb-2 inline-block">
+            <h4 className="text-lg font-semibold text-gray-900 border-b-2 border-yellow-400 pb-2 inline-block">
               Company
             </h4>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors duration-200 flex items-center group">
+                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   About Us
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors duration-200 flex items-center group">
+                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Careers
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors duration-200 flex items-center group">
+                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Contact
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors duration-200 flex items-center group">
+                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Support
                 </a>
@@ -92,33 +95,16 @@ const Footer = () => {
 
           {/* Newsletter Section */}
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white border-b-2 border-green-400 pb-2 inline-block">
+            <h4 className="text-lg font-semibold text-gray-900 border-b-2 border-green-400 pb-2 inline-block">
               Stay Connected
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed">
               Get the latest food reels and exclusive offers delivered to your inbox.
             </p>
             
-            {/* Newsletter Form */}
-            <form className="space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-all duration-200" 
-                />
-                <button 
-                  type="submit" 
-                  className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-yellow-500 text-white font-semibold rounded-lg hover:from-red-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105"
-                >
-                  Subscribe
-                </button>
-              </div>
-            </form>
-
             {/* Social Media Links */}
             <div className="pt-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Follow Us</p>
+              <p className="text-sm font-medium text-gray-700 mb-3">Follow Us</p>
               <div className="flex items-center space-x-4">
                 <a 
                   href="#" 
@@ -162,21 +148,21 @@ const Footer = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-12 pt-8 border-t border-gray-300 dark:border-gray-600">
+        <div className="mt-12 pt-8 border-t border-gray-300">
           <div className="flex flex-col lg:flex-row justify-between items-center space-y-4 lg:space-y-0">
             <div className="text-center lg:text-left">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                © {new Date().getFullYear()} FoodReel. All rights reserved. Made with ❤️ for food lovers.
+              <p className="text-sm text-gray-500">
+                © {new Date().getFullYear()} FoodReel. All rights reserved. Made by Manab for food lovers.
               </p>
             </div>
             <div className="flex flex-wrap justify-center lg:justify-end items-center space-x-6 text-sm">
-              <a href="#" className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Terms of Service
               </a>
-              <a href="#" className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Cookie Policy
               </a>
             </div>
@@ -187,5 +173,6 @@ const Footer = () => {
     </footer>
   )
 }
+
 
 export default Footer

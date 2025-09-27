@@ -34,7 +34,7 @@ const Home = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
       
       {/* Hero Section */}
@@ -72,26 +72,26 @@ const Home = () => {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Trending Food Reels
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 text-lg">
+            <p className="text-gray-600 text-lg">
               Discover the most popular food videos from our community
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredFoods.map((food) => (
-              <div key={food.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+              <div key={food.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
                 <div className="relative">
-                  <div className="aspect-[3/4] bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                  <div className="aspect-[3/4] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
                     <div className="text-center p-8">
                       <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M8 5v14l11-7z"/>
                         </svg>
                       </div>
-                      <p className="text-gray-600 dark:text-gray-400">Food Video Preview</p>
+                      <p className="text-gray-600">Food Video Preview</p>
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
@@ -106,10 +106,10 @@ const Home = () => {
                 </div>
                 
                 <div className="p-6">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{food.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">{food.description}</p>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">{food.name}</h3>
+                  <p className="text-gray-600 text-sm mb-3">{food.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">by {food.chef}</span>
+                    <span className="text-sm text-gray-500">by {food.chef}</span>
                     <button className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition">
                       Order Now
                     </button>
@@ -122,10 +122,10 @@ const Home = () => {
       </section>
 
       {/* How it Works */}
-      <section className="py-16 bg-white dark:bg-gray-800">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               How FoodReel Works
             </h2>
           </div>
@@ -137,8 +137,8 @@ const Home = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Watch Food Reels</h3>
-              <p className="text-gray-600 dark:text-gray-300">Browse through amazing short food videos from top chefs and restaurants</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Watch Food Reels</h3>
+              <p className="text-gray-600">Browse through amazing short food videos from top chefs and restaurants</p>
             </div>
             
             <div className="text-center">
@@ -147,8 +147,8 @@ const Home = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Find Your Favorite</h3>
-              <p className="text-gray-600 dark:text-gray-300">Like and save the food videos that make your mouth water</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Find Your Favorite</h3>
+              <p className="text-gray-600">Like and save the food videos that make your mouth water</p>
             </div>
             
             <div className="text-center">
@@ -157,8 +157,8 @@ const Home = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Order Directly</h3>
-              <p className="text-gray-600 dark:text-gray-300">Order the exact dish from the reel and get it delivered to your door</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Order Directly</h3>
+              <p className="text-gray-600">Order the exact dish from the reel and get it delivered to your door</p>
             </div>
           </div>
         </div>
