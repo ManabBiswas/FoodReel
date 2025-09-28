@@ -1,10 +1,27 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import Navbar from '../../Components/Navbar'
-import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Bookmark, Tag, CheckCircle, Video, Image, Play, MessageCircle } from 'lucide-react'
+import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
+import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User } from 'lucide-react'
 
 const PartnerProfile = () => {
   const [activeTab, setActiveTab] = useState('posts')
+  const [isEditingBio, setIsEditingBio] = useState(false)
+  const [bioText, setBioText] = useState("🍝 Authentic Italian Cuisine since 1995\n🏆 Award-winning pasta & pizza\n📍 Downtown location • Delivery available")
+
+  // Handle bio editing
+  const handleSaveBio = () => {
+    // Here you would typically make an API call to save the bio
+    // For now, we'll just update the partnerData bio and close edit mode
+    partnerData.bio = bioText
+    setIsEditingBio(false)
+  }
+
+  const handleCancelBio = () => {
+    // Reset bio text to original value
+    setBioText(partnerData.bio)
+    setIsEditingBio(false)
+  }
 
   // Mock data - in real app, this would come from API
   const partnerData = {
@@ -65,9 +82,12 @@ const PartnerProfile = () => {
                   )}
                 </div>
                 <div className="flex justify-center sm:justify-start gap-2">
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+                  <button 
+                    onClick={() => setIsEditingBio(!isEditingBio)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                  >
                     <Settings className="w-4 h-4 cursor-pointer" />
-                    Edit Profile
+                    {isEditingBio ? 'Cancel Edit' : 'Edit Profile'}
                   </button>
                   <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
                     <Plus className="w-4 h-4" />
@@ -81,13 +101,48 @@ const PartnerProfile = () => {
           </div>
 
 
-          <div className=""></div>
-          <div>
-              {/* Bio */}
-              <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-line mb-3">
-                {partnerData.bio}
+          <div className="">
+            {/* Bio Section */}
+            {isEditingBio ? (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bio Description
+                </label>
+                <textarea
+                  value={bioText}
+                  onChange={(e) => setBioText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  rows={4}
+                  placeholder="Tell customers about your restaurant..."
+                  maxLength={300}
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-xs text-gray-500">
+                    {bioText.length}/300 characters
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancelBio}
+                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveBio}
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
               </div>
-
+            ) : (
+              <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-line mb-3">
+                {bioText}
+              </div>
+            )}
+          </div>
+          <div>
               {/* Contact Info */}
               <div className="space-y-1 text-xs text-gray-600">
                 <div className="flex sm:justify-start gap-2">
@@ -136,14 +191,14 @@ const PartnerProfile = () => {
                 <span className="hidden sm:inline">Posts</span>
               </button>
               <button
-                onClick={() => setActiveTab('saved')}
-                className={`flex items-center justify-center gap-1 px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors ${activeTab === 'saved'
+                onClick={() => setActiveTab('reviews')}
+                className={`flex items-center justify-center gap-1 px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors ${activeTab === 'reviews'
                   ? 'text-gray-900 border-t-2 border-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
-                <Bookmark className="w-4 h-4" />
-                <span className="hidden sm:inline">Saved</span>
+                <Star className="w-4 h-4" />
+                <span className="hidden sm:inline">Reviews</span>
               </button>
               <button
                 onClick={() => setActiveTab('tagged')}
@@ -246,14 +301,8 @@ const PartnerProfile = () => {
             </>
           )}
 
-          {activeTab === 'saved' && (
-            <div className="text-center py-16 px-4">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-gray-900 flex items-center justify-center">
-                <Bookmark className="w-6 h-6 text-gray-900" />
-              </div>
-              <h3 className="text-xl font-light text-gray-900 mb-2">No Saved Posts</h3>
-              <p className="text-gray-500">Save posts you like to see them here</p>
-            </div>
+          {activeTab === 'reviews' && (
+            <FoodPartnersReviews />
           )}
 
           {activeTab === 'tagged' && (
