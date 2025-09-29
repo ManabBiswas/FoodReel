@@ -10,6 +10,7 @@ import CreateFood from '../pages/FoodPartner/CrateFood'
 import Dashboard from '../pages/FoodPartner/Dashboard'
 import UserProfile from '../pages/User/UserProfile'
 import ErrorPage from '../pages/404'
+import WorkingProgress from '../pages/WorkingProgress'
 
 const AppRoutes = () => {
   return (
@@ -25,6 +26,7 @@ const AppRoutes = () => {
         <Route path='/profile' element={<UserProfile />} />
         <Route path='/partner-profile' element={<PartnerProfile />} />
         <Route path='*' element={<ErrorPage />} />
+        <Route path='/work' element={<WorkingProgress />} />
       </Routes>
     </Router>
   )

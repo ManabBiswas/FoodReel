@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Home, Wrench, Clock, Coffee, UtensilsCrossed, ChefHat, Sparkles } from 'lucide-react'
+import { ArrowLeft, Home, Wrench, Clock, Coffee, UtensilsCrossed, Users, Sparkles, Link as LinkIcon } from 'lucide-react'
 
 const WorkingProgress = () => {
   return (
@@ -11,7 +11,7 @@ const WorkingProgress = () => {
           <UtensilsCrossed className="w-8 h-8 text-white" />
         </div>
         <div className="absolute top-20 right-20 animate-bounce delay-300">
-          <ChefHat className="w-10 h-10 text-white" />
+          <Users className="w-10 h-10 text-white" />
         </div>
         <div className="absolute bottom-20 left-20 animate-bounce delay-500">
           <Coffee className="w-6 h-6 text-white" />
@@ -93,14 +93,14 @@ const WorkingProgress = () => {
             <p className="text-orange-100/80 text-sm">New features in development</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105 hover:rotate-1">
-            <ChefHat className="w-8 h-8 text-orange-200 mx-auto mb-2" />
-            <h3 className="text-white font-semibold mb-1">Chef's Special</h3>
-            <p className="text-orange-100/80 text-sm">Carefully crafted experience</p>
+            <Users className="w-8 h-8 text-orange-200 mx-auto mb-2" />
+            <h3 className="text-white font-semibold mb-1">Community</h3>
+            <p className="text-orange-100/80 text-sm">Connecting food lovers & partners</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105 hover:rotate-[-1deg]">
-            <Sparkles className="w-8 h-8 text-orange-200 mx-auto mb-2" />
-            <h3 className="text-white font-semibold mb-1">Enhanced</h3>
-            <p className="text-orange-100/80 text-sm">Better than ever before</p>
+            <LinkIcon className="w-8 h-8 text-orange-200 mx-auto mb-2" />
+            <h3 className="text-white font-semibold mb-1">Bridge</h3>
+            <p className="text-orange-100/80 text-sm">Creating seamless connections</p>
           </div>
         </div>
 
@@ -111,20 +111,14 @@ const WorkingProgress = () => {
             className="group bg-white hover:bg-orange-50 text-orange-500 hover:text-orange-600 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 hover:rotate-[1deg] shadow-xl hover:shadow-2xl flex items-center gap-2 cursor-pointer"
           >
             <Home className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-            <span className="transition-transform duration-300 group-hover:translate-y-[-1px]">Back to Kitchen</span>
+            <span className="transition-transform duration-300 group-hover:translate-y-[-1px]">Back to Home</span>
           </Link>
           
-          <button 
-            onClick={() => window.location.reload()} 
-            className="group bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white border-2 border-white/40 hover:border-white/60 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 hover:rotate-[-1deg] shadow-lg hover:shadow-2xl flex items-center gap-2 cursor-pointer"
-          >
-            <Wrench className="w-5 h-5 transition-transform duration-300 group-hover:rotate-[15deg]" />
-            <span className="transition-transform duration-300 group-hover:translate-y-[-1px]">Check Progress</span>
-          </button>
+          
         </div>
 
         {/* Fun Message */}
-        <div className="mt-8 text-orange-100/70 text-sm">
+        <div className="mt-8 pb-8 text-orange-100/70 text-sm">
           <p>🔥 Good things take time, like a perfectly cooked meal! 🔥</p>
         </div>
       </div>
