@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import axios from 'axios'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, UserPlus, Loader2, Navigation } from 'lucide-react'
 
 const PartnerRegister = () => {
@@ -377,9 +377,9 @@ const PartnerRegister = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <a href="/partner-login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/partner-login" className="font-medium text-blue-600 hover:text-blue-500">
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
       </div>
