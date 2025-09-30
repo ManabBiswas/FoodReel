@@ -1,8 +1,32 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Home, Wrench, Clock, Coffee, UtensilsCrossed, Users, Sparkles, Link as LinkIcon } from 'lucide-react'
+import { createTimeline, stagger, splitText } from 'animejs';
 
 const WorkingProgress = () => {
+  const textRef = useRef(null);
+
+  useEffect(() => {
+    if (textRef.current) {
+      const { words, chars } = splitText(textRef.current, {
+        words: { wrap: 'clip' },
+        chars: true,
+      });
+      
+      createTimeline({
+        loop: true,
+        defaults: { ease: 'easeInOut', duration: 1250 }
+      })
+      .add(words, {
+        y:$el => +$el.dataset.line % 2 ? '100%' : '-100%',
+      }, stagger(125))
+      .add(chars, {
+        y: $el => +$el.dataset.line % 2 ? '100%' : '-100%',
+      }, stagger(10, { from: 'random' }))
+      .init();
+    }
+  }, []);
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-orange-500 to-red-500 flex items-center justify-center px-4 relative overflow-hidden">
       {/* Background Pattern */}
@@ -57,7 +81,7 @@ const WorkingProgress = () => {
         <div className="mb-8">
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-white mb-6 drop-shadow-2xl">
             <span className="inline-block animate-bounce">🍳</span>
-            <span className="mx-4">Cooking Up</span>
+            <span className="mx-4 py-4" ref={textRef}>Cooking Up</span>
             <span className="inline-block animate-bounce delay-200">🔧</span>
           </h1>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-orange-100 mb-4 drop-shadow-lg">
