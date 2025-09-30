@@ -8,25 +8,23 @@ const WorkingProgress = () => {
 
   useEffect(() => {
     if (textRef.current) {
-      const { words, chars } = splitText(textRef.current, {
+      const { chars } = splitText(textRef.current, {
         words: { wrap: 'clip' },
         chars: true,
+        clone: 'bottom'
       });
-      
-      createTimeline({
-        loop: true,
-        defaults: { ease: 'easeInOut', duration: 1250 }
-      })
-      .add(words, {
-        y:$el => +$el.dataset.line % 2 ? '100%' : '-100%',
-      }, stagger(125))
-      .add(chars, {
-        y: $el => +$el.dataset.line % 2 ? '100%' : '-100%',
-      }, stagger(10, { from: 'random' }))
-      .init();
+
+      createTimeline()
+        .add(chars, {
+          y: '-100%',
+          loop: true,
+          loopDelay: 450,
+          duration: 850,
+          ease: 'inOut(1, 0)',
+        }, stagger(150, { from: 'right' }));
     }
   }, []);
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-400 via-orange-500 to-red-500 flex items-center justify-center px-4 relative overflow-hidden">
       {/* Background Pattern */}
@@ -47,8 +45,8 @@ const WorkingProgress = () => {
 
       {/* Go Back Button - Top Left */}
       <div className="absolute top-6 left-6 z-10">
-        <button 
-          onClick={() => window.history.back()} 
+        <button
+          onClick={() => window.history.back()}
           className="group bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white hover:text-orange-100 p-3 rounded-full font-medium transition-all duration-300 transform hover:scale-110 hover:rotate-[-5deg] shadow-lg hover:shadow-2xl border border-white/20 hover:border-white/40 cursor-pointer"
         >
           <div className="flex items-center gap-2">
@@ -78,10 +76,19 @@ const WorkingProgress = () => {
         </div>
 
         {/* Progress Text */}
-        <div className="mb-8">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-white mb-6 drop-shadow-2xl">
+        <div className="mb-8 py-8">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-white mb-6 drop-shadow-2xl overflow-visible leading-tight">
             <span className="inline-block animate-bounce">🍳</span>
-            <span className="mx-4 py-4" ref={textRef}>Cooking Up</span>
+            <span className="mx-4 inline-block overflow-visible relative"
+              style={{
+                minHeight: '1.7em',
+                display: 'inline-block',
+                verticalAlign: 'top',
+                paddingTop: '0.2em',
+                paddingBottom: '0.3em'
+              }}
+              ref={textRef}
+            >Cooking Up</span>
             <span className="inline-block animate-bounce delay-200">🔧</span>
           </h1>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-orange-100 mb-4 drop-shadow-lg">
@@ -130,15 +137,15 @@ const WorkingProgress = () => {
 
         {/* Call to Action */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="group bg-white hover:bg-orange-50 text-orange-500 hover:text-orange-600 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 hover:rotate-[1deg] shadow-xl hover:shadow-2xl flex items-center gap-2 cursor-pointer"
           >
             <Home className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
             <span className="transition-transform duration-300 group-hover:translate-y-[-1px]">Back to Home</span>
           </Link>
-          
-          
+
+
         </div>
 
         {/* Fun Message */}
