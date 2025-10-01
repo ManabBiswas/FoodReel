@@ -1,60 +1,96 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import Navbar from '../../Components/Navbar'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
-import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User } from 'lucide-react'
+import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2 } from 'lucide-react'
 
 const PartnerProfile = () => {
   const [activeTab, setActiveTab] = useState('posts')
   const [isEditingBio, setIsEditingBio] = useState(false)
-  const [bioText, setBioText] = useState("🍝 Authentic Italian Cuisine since 1995\n🏆 Award-winning pasta & pizza\n📍 Downtown location • Delivery available")
+  const [bioText, setBioText] = useState("")
+  const [partnerData, setPartnerData] = useState(null)
+  const [foodItems, setFoodItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [bioLoading, setBioLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  // Fetch partner profile data
+  useEffect(() => {
+    fetchProfileData()
+  }, [])
+
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true)
+      const response = await axios.get('http://localhost:3000/api/auth/partner/profile', {
+        withCredentials: true
+      })
+      
+      setPartnerData(response.data.partner)
+      setFoodItems(response.data.foodItems)
+      setBioText(response.data.partner.bio)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      setMessage('Error loading profile data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Handle bio editing
-  const handleSaveBio = () => {
-    // Here you would typically make an API call to save the bio
-    // For now, we'll just update the partnerData bio and close edit mode
-    partnerData.bio = bioText
-    setIsEditingBio(false)
+  const handleSaveBio = async () => {
+    try {
+      setBioLoading(true)
+      await axios.put('http://localhost:3000/api/auth/partner/bio', 
+        { bio: bioText },
+        { withCredentials: true }
+      )
+      
+      setPartnerData(prev => ({ ...prev, bio: bioText }))
+      setIsEditingBio(false)
+      setMessage('Bio updated successfully!')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      console.error('Error updating bio:', error)
+      setMessage('Error updating bio')
+      setTimeout(() => setMessage(''), 3000)
+    } finally {
+      setBioLoading(false)
+    }
   }
 
   const handleCancelBio = () => {
-    // Reset bio text to original value
-    setBioText(partnerData.bio)
+    setBioText(partnerData?.bio || "")
     setIsEditingBio(false)
   }
 
-  // Mock data - in real app, this would come from API
-  const partnerData = {
-    companyName: "Mario's Italian Kitchen",
-    username: "@marios_kitchen",
-    email: "mario@italienkitchen.com",
-    phone: "+1 234 567 8900",
-    address: "123 Food Street, Culinary District, City 12345",
-    bio: "🍝 Authentic Italian Cuisine since 1995\n🏆 Award-winning pasta & pizza\n📍 Downtown location • Delivery available",
-    followers: 1250,
-    foodItems: 24,
-    following: 89,
-    verified: true,
-    profileImage: "/api/placeholder/150/150"
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-5xl mx-auto bg-white min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
-
-  // Mock food items data
-  const foodItems = [
-    { id: 1, name: "Spaghetti Special", image: "/api/placeholder/300/533", likes: 156, comments: 23, type: "video", duration: "0:45" },
-    { id: 2, name: "Pizza Margherita", image: "/api/placeholder/300/533", likes: 243, comments: 18, type: "image" },
-    { id: 3, name: "Lasagna Delight", image: "/api/placeholder/300/533", likes: 198, comments: 31, type: "video", duration: "1:20" },
-    { id: 4, name: "Risotto Mushroom", image: "/api/placeholder/300/533", likes: 134, comments: 12, type: "video", duration: "0:38" },
-    { id: 5, name: "Tiramisu", image: "/api/placeholder/300/533", likes: 278, comments: 45, type: "image" },
-    { id: 6, name: "Bruschetta", image: "/api/placeholder/300/533", likes: 167, comments: 28, type: "video", duration: "0:52" },
-    { id: 7, name: "Carbonara", image: "/api/placeholder/300/533", likes: 223, comments: 19, type: "video", duration: "1:05" },
-    { id: 8, name: "Gelato Mix", image: "/api/placeholder/300/533", likes: 189, comments: 33, type: "image" },
-    { id: 9, name: "Minestrone", image: "/api/placeholder/300/533", likes: 145, comments: 15, type: "video", duration: "0:41" }
-  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-5xl mx-auto bg-white min-h-screen">
+        {message && (
+          <div className={`mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm ${
+            message.includes('successfully') 
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
+            {message}
+          </div>
+        )}
         {/* Profile Section */}
         <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="flex flex-row gap-6 mb-6">
@@ -129,8 +165,10 @@ const PartnerProfile = () => {
                     </button>
                     <button
                       onClick={handleSaveBio}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
+                      disabled={bioLoading}
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white text-sm rounded transition-colors flex items-center gap-1"
                     >
+                      {bioLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                       Save
                     </button>
                   </div>

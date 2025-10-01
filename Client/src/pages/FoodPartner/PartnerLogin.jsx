@@ -26,7 +26,7 @@ const PartnerLogin = () => {
         // If authenticated, redirect to dashboard
         if (response.data.isAuthenticated) {
           setMessage('Already logged in! Redirecting to dashboard...')
-          setTimeout(() => navigate('/Dashboard'), 1000)
+          setTimeout(() => navigate('/partner-dashboard'), 1000)
         }
       } catch (error) {
         // User is not authenticated, stay on login page

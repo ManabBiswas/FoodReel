@@ -54,4 +54,9 @@ router.get('/partner/logout',foodPartnerAuthController.logout, (req, res) => {
 // Food Partner auth verification endpoint
 router.get('/partner/check', isFoodPartnerLoggedin, foodPartnerAuthController.check);
 
+// Food Partner profile endpoints
+router.get('/partner/profile', isFoodPartnerLoggedin, foodPartnerAuthController.getProfile);
+router.put('/partner/bio', isFoodPartnerLoggedin, foodPartnerAuthController.updateBio);
+router.get('/partner/reviews', isFoodPartnerLoggedin, foodPartnerAuthController.getReviews);
+
 export default router;

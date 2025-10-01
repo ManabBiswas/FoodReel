@@ -1,73 +1,58 @@
-import React from 'react'
-import { Star, CheckCircle, User } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
+import { Star, CheckCircle, User, Loader2 } from 'lucide-react'
 
 const FoodPartnersReviews = () => {
-  // Mock reviews data
-  const reviews = [
-    {
-      id: 1,
-      customerName: "Sarah Johnson",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Spaghetti Special",
-      rating: 5,
-      comment: "Absolutely delicious! The pasta was cooked perfectly and the sauce was amazing. Will definitely order again!",
-      date: "2 days ago",
-      verified: true
-    },
-    {
-      id: 2,
-      customerName: "Mike Chen",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Pizza Margherita",
-      rating: 4,
-      comment: "Great pizza with fresh ingredients. The crust was crispy and the mozzarella was perfect. Only wish the delivery was a bit faster.",
-      date: "3 days ago",
-      verified: true
-    },
-    {
-      id: 3,
-      customerName: "Emily Rodriguez",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Tiramisu",
-      rating: 5,
-      comment: "Best tiramisu in the city! So creamy and the coffee flavor was spot on. Thank you for this amazing dessert!",
-      date: "5 days ago",
-      verified: false
-    },
-    {
-      id: 4,
-      customerName: "David Wilson",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Lasagna Delight",
-      rating: 4,
-      comment: "Hearty portion and very tasty. The layers were well balanced. Would love to see a vegetarian option too!",
-      date: "1 week ago",
-      verified: true
-    },
-    {
-      id: 5,
-      customerName: "Lisa Thompson",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Carbonara",
-      rating: 5,
-      comment: "Authentic Italian carbonara! The eggs were perfectly creamy and the pancetta was crispy. Felt like I was in Rome!",
-      date: "1 week ago",
-      verified: true
-    },
-    {
-      id: 6,
-      customerName: "James Miller",
-      customerAvatar: "/api/placeholder/40/40",
-      foodItem: "Bruschetta",
-      rating: 3,
-      comment: "Good flavors but the bread was a bit soggy when it arrived. Maybe package the toppings separately for delivery?",
-      date: "2 weeks ago",
-      verified: false
-    }
-  ]
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [reviewStats, setReviewStats] = useState({ totalReviews: 0, averageRating: 0 })
 
-  const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-  const totalReviews = reviews.length
+  useEffect(() => {
+    fetchReviews()
+  }, [])
+
+  const fetchReviews = async () => {
+    try {
+      setLoading(true)
+      const response = await axios.get('http://localhost:3000/api/auth/partner/reviews', {
+        withCredentials: true
+      })
+      
+      setReviews(response.data.reviews || [])
+      setReviewStats({
+        totalReviews: response.data.totalReviews || 0,
+        averageRating: response.data.averageRating || 0
+      })
+    } catch (error) {
+      console.error('Error fetching reviews:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = now - date // Remove Math.abs to get proper direction
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) // Use Math.floor instead of Math.ceil
+    
+    if (diffDays === 0) return "Today"
+    if (diffDays === 1) return "1 day ago"
+    if (diffDays < 7) return `${diffDays} days ago`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${Math.floor(diffDays / 7) === 1 ? 'week' : 'weeks'} ago`
+    
+    const diffMonths = Math.floor(diffDays / 30)
+    return `${diffMonths} ${diffMonths === 1 ? 'month' : 'months'} ago`
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-16 px-4">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+        <p className="text-gray-600">Loading reviews...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
@@ -83,7 +68,7 @@ const FoodPartnersReviews = () => {
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(averageRating)
+                        i < Math.floor(reviewStats.averageRating)
                           ? 'text-yellow-400 fill-yellow-400'
                           : 'text-gray-300'
                       }`}
@@ -91,7 +76,7 @@ const FoodPartnersReviews = () => {
                   ))}
                 </div>
                 <span className="text-sm text-gray-600 ml-1">
-                  {averageRating.toFixed(1)} ({totalReviews} reviews)
+                  {reviewStats.averageRating} ({reviewStats.totalReviews} reviews)
                 </span>
               </div>
             </div>
@@ -114,7 +99,7 @@ const FoodPartnersReviews = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-gray-900">{review.customerName}</h4>
+                          <h4 className="font-medium text-gray-900">{review.user.name}</h4>
                           {review.verified && (
                             <div className="flex items-center gap-1 text-xs text-blue-600">
                               <CheckCircle className="w-3 h-3" />
@@ -125,7 +110,7 @@ const FoodPartnersReviews = () => {
                         <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                           <span>Ordered: {review.foodItem}</span>
                           <span>•</span>
-                          <span>{review.date}</span>
+                          <span>{formatDate(review.createdAt)}</span>
                         </div>
                       </div>
                       
