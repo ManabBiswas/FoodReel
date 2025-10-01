@@ -5,14 +5,31 @@ import { v4 as uuid } from "uuid";
 
 const createFood = async (req, res) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, type, duration, tags } = req.body;
         
-        if (!name) {
+        // Validation
+        if (!name || !name.trim()) {
             return res.status(400).json({ error: "Food name is required" });
         }
         
+        if (!type || !['video', 'image'].includes(type)) {
+            return res.status(400).json({ error: "Valid type (video/image) is required" });
+        }
+        
         if (!req.file) {
-            return res.status(400).json({ error: "Video file is required" });
+            return res.status(400).json({ error: `${type} file is required` });
+        }
+        
+        // Validate file type based on selected type
+        const isVideo = req.file.mimetype.startsWith('video/');
+        const isImage = req.file.mimetype.startsWith('image/');
+        
+        if (type === 'video' && !isVideo) {
+            return res.status(400).json({ error: "Please upload a valid video file" });
+        }
+        
+        if (type === 'image' && !isImage) {
+            return res.status(400).json({ error: "Please upload a valid image file" });
         }
         
         console.log("Food Partner:", req.foodPartner);
@@ -22,30 +39,56 @@ const createFood = async (req, res) => {
             mimetype: req.file.mimetype,
             size: req.file.size
         });
-        const fileUploadReasult = await storageService.uploadImage(req.file.buffer, uuid() );
-        console.log(fileUploadReasult);
         
-        // Create new food document
-        const newFoodItem = await foodModel.create({
-            name,
-            description: description || "",
-            video: fileUploadReasult, // uploadImage returns the URL string directly
+        // Upload file to storage
+        const fileUploadResult = await storageService.uploadImage(req.file.buffer, uuid());
+        console.log("File upload result:", fileUploadResult);
+        
+        // Parse tags from string to array
+        let parsedTags = [];
+        if (tags) {
+            try {
+                parsedTags = JSON.parse(tags);
+            } catch (e) {
+                // If parsing fails, treat as comma-separated string
+                parsedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+            }
+        }
+        
+        // Create food document with appropriate field based on type
+        const foodData = {
+            name: name.trim(),
+            description: description?.trim() || "",
+            type,
             foodPartner: req.foodPartner._id,
-        });
+            tags: parsedTags,
+        };
+        
+        // Set the appropriate field based on type
+        if (type === 'video') {
+            foodData.video = fileUploadResult;
+            if (duration) {
+                foodData.duration = duration;
+            }
+        } else {
+            foodData.image = fileUploadResult;
+        }
+        
+        const newFoodItem = await foodModel.create(foodData);
+        
+        // Populate the food partner info for response
+        await newFoodItem.populate('foodPartner', 'restaurantName email verified');
         
         res.status(201).json({
             message: "Food created successfully",
             food: newFoodItem
-            // {
-            //     _id: newFoodItem._id,
-            //     name: newFoodItem.name,
-            //     description: newFoodItem.description,
-            //     foodPartner: newFoodItem.foodPartner
-            // }
         });
     } catch (error) {
         console.error("Error creating food:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            error: "Failed to create food item",
+            details: error.message 
+        });
     }
 };
 

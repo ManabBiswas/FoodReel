@@ -23,7 +23,7 @@ const Navbar = () => {
 
           <div className="hidden sm:flex sm:items-center sm:space-x-6">
             <Link to="/" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Home</Link>
-            <Link to="/create-food" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
+            <Link to="/CreateFood" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
             <Link to="/partner-register" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
             <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
             <Link to="/login" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Login</Link>
@@ -49,7 +49,7 @@ const Navbar = () => {
         <div className="sm:hidden bg-white border-t border-gray-100">
           <div className="px-4 pt-4 pb-4 space-y-3">
             <Link to="/" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Home</Link>
-            <Link to="/create-food" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
+            <Link to="/CreateFood" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
             <Link to="/partner-register" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
             <Link to="/user-profile" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
             <Link to="/user-login" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Login</Link>

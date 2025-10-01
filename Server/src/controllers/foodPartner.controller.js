@@ -134,13 +134,17 @@ async function getProfile(req, res) {
         const formattedFoodItems = foodItems.map(item => ({
             id: item._id,
             name: item.name,
-            image: item.image || "/api/placeholder/300/533",
+            image: item.image,
             video: item.video,
-            likes: item.likeCount,
-            comments: item.commentCount,
+            likeCount: item.likeCount || 0,
+            commentCount: item.commentCount || 0,
             type: item.type,
-            duration: item.duration
+            duration: item.duration,
+            description: item.description,
+            tags: item.tags || []
         }));
+
+        console.log('Formatted food items:', formattedFoodItems);
 
         res.status(200).json({
             partner: {

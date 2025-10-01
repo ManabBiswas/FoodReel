@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import Navbar from '../../Components/Navbar'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
+import FoodDetailModal from '../../Components/FoodDetailModal'
 import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2 } from 'lucide-react'
 
 const PartnerProfile = () => {
@@ -13,6 +14,8 @@ const PartnerProfile = () => {
   const [loading, setLoading] = useState(true)
   const [bioLoading, setBioLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [selectedFood, setSelectedFood] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Fetch partner profile data
   useEffect(() => {
@@ -25,6 +28,9 @@ const PartnerProfile = () => {
       const response = await axios.get('http://localhost:3000/api/auth/partner/profile', {
         withCredentials: true
       })
+      
+      console.log('Profile response:', response.data)
+      console.log('Food items received:', response.data.foodItems)
       
       setPartnerData(response.data.partner)
       setFoodItems(response.data.foodItems)
@@ -62,6 +68,16 @@ const PartnerProfile = () => {
   const handleCancelBio = () => {
     setBioText(partnerData?.bio || "")
     setIsEditingBio(false)
+  }
+
+  const handleFoodClick = (food) => {
+    setSelectedFood(food)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedFood(null)
   }
 
   if (loading) {
@@ -261,11 +277,37 @@ const PartnerProfile = () => {
                   {foodItems.map((item) => (
                     <div
                       key={item.id}
-                      className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100"
+                      onClick={() => handleFoodClick(item)}
+                      className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100 hover:scale-105 transition-transform duration-200"
                     >
                       {/* Portrait 9:16 Aspect Ratio Container (like reels) */}
-                      <div className="aspect-[9/16] w-full bg-gray-200 flex items-center justify-center relative">
-                        <UtensilsCrossed className="w-8 h-8 text-gray-400" />
+                      <div className="aspect-[9/16] w-full bg-gray-200 flex items-center justify-center relative overflow-hidden">
+                        {/* Show actual image or video */}
+                        {item.type === 'video' && item.video ? (
+                          <video
+                            src={item.video}
+                            className="w-full h-full object-cover"
+                            muted
+                            playsInline
+                            onError={(e) => {
+                              console.error('Video load error:', e.target.src)
+                              e.target.style.display = 'none'
+                            }}
+                          />
+                        ) : item.type === 'image' && item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Image load error:', e.target.src)
+                              e.target.style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          // Fallback placeholder
+                          <UtensilsCrossed className="w-8 h-8 text-gray-400" />
+                        )}
 
                         {/* Content Type Indicators */}
                         <div className="absolute top-2 right-2 z-10">
@@ -292,28 +334,58 @@ const PartnerProfile = () => {
                       </div>
 
                       {/* Hover Stats Overlay */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                        <div className="w-full">
-                          <div className="flex items-center justify-between text-white text-sm font-medium mb-2">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1">
-                                <Heart className="w-4 h-4" />
-                                <span>{item.likes}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MessageCircle className="w-4 h-4" />
-                                <span>{item.comments}</span>
-                              </div>
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3">
+                        {/* Top section with stats */}
+                        <div className="flex items-center justify-center">
+                          <div className="flex items-center gap-4 text-white">
+                            <div className="flex items-center gap-1">
+                              <Heart className="w-5 h-5" />
+                              <span className="font-semibold">{item.likeCount || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MessageCircle className="w-5 h-5" />
+                              <span className="font-semibold">{item.commentCount || 0}</span>
                             </div>
                           </div>
-                          <h3 className="text-white text-xs font-medium truncate">
+                        </div>
+
+                        {/* Bottom section with food details */}
+                        <div className="space-y-2">
+                          <h3 className="text-white text-sm font-semibold truncate">
                             {item.name}
                           </h3>
+                          
+                          {item.description && (
+                            <p className="text-white/90 text-xs line-clamp-2 leading-tight">
+                              {item.description}
+                            </p>
+                          )}
+                          
+                          {/* Tags */}
+                          {item.tags && item.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {item.tags.slice(0, 3).map((tag, index) => (
+                                <span key={index} className="text-white/80 text-xs bg-white/20 px-1.5 py-0.5 rounded-full">
+                                  #{tag}
+                                </span>
+                              ))}
+                              {item.tags.length > 3 && (
+                                <span className="text-white/80 text-xs">+{item.tags.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Click to view indicator */}
+                          <div className="text-center">
+                            <span className="text-white/90 text-xs bg-white/20 px-2 py-1 rounded-full">
+                              Click to view
+                            </span>
+                          </div>
                         </div>
                       </div>
 
                       {/* Content Type Badge at Bottom */}
-                      <div className="absolute bottom-2 left-2 z-10">
+                      <div className="absolute bottom-2 right-2 z-10">
                         <div className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'video'
                           ? 'bg-red-500/80 text-white'
                           : 'bg-blue-500/80 text-white'
@@ -354,6 +426,14 @@ const PartnerProfile = () => {
           )}
         </div>
       </div>
+      
+      {/* Food Detail Modal */}
+      <FoodDetailModal 
+        food={selectedFood}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        partnerData={partnerData}
+      />
     </div>
   )
 }
