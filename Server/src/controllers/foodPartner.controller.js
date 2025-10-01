@@ -83,11 +83,32 @@ async function login(req,res){
 async function logout(req, res) {
     res.clearCookie('token');
     res.status(200).json({message: "food partner logout successfully"})
-    
+}
+
+async function check(req, res) {
+    try {
+        // If middleware passes, user is authenticated
+        const foodPartner = req.foodPartner;
+        res.status(200).json({
+            isAuthenticated: true,
+            user: {
+                _id: foodPartner._id,
+                companyName: foodPartner.companyName,
+                email: foodPartner.email,
+                mobile: foodPartner.mobile
+            }
+        });
+    } catch (error) {
+        res.status(401).json({
+            isAuthenticated: false,
+            message: "Not authenticated"
+        });
+    }
 }
 
 export default {
     register,
     login,
-    logout
+    logout,
+    check
 }

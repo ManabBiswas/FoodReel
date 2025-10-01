@@ -1,9 +1,114 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { LogIn, Building2 } from 'lucide-react'
+import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 const PartnerLogin = () => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [message, setMessage] = useState('')
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        // Check if user is already authenticated
+        const response = await axios.get('http://localhost:3000/api/auth/partner/check', {
+          withCredentials: true
+        })
+        
+        // If authenticated, redirect to dashboard
+        if (response.data.isAuthenticated) {
+          setMessage('Already logged in! Redirecting to dashboard...')
+          setTimeout(() => navigate('/Dashboard'), 1000)
+        }
+      } catch (error) {
+        // User is not authenticated, stay on login page
+        console.log('User not authenticated:', error.response?.data?.message)
+      }
+    }
+
+    checkAuthStatus()
+  }, [navigate])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('')
+
+    // Validate form first
+    const validationErrors = validateForm()
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setLoading(false)
+      return
+    }
+
+    try {
+      setMessage('Logging in...')
+      const response = await axios.post('http://localhost:3000/api/auth/partner/login', formData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      console.log(response)
+      setMessage('Login successful! Redirecting...')
+      
+      setFormData({
+        email: '',
+        password: ''
+      })
+      
+      setTimeout(() => navigate('/partner-dashboard'), 1500)
+      
+    } catch (error) {
+      console.error("Login error: ", error)
+      const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
+      setMessage(serverMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required'
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email format is invalid'
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required'
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters'
+    }
+
+    return newErrors
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
+  }
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8"
       style={{
@@ -12,39 +117,105 @@ const PartnerLogin = () => {
       }}
     >
       <div className="min-h-screen flex items-center justify-center "
-      >
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <Building2 className="w-8 h-8 text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Partner Login</h1>
-            <p className="text-gray-600 mt-2">Login here to access your food partner dashboard</p>
+    >
+      <div className="max-w-md mx-auto rounded-lg shadow-lg p-8 backdrop-blur-sm bg-white/95">
+        <div className="text-center mb-8">
+          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <Building2 className="w-8 h-8 text-blue-600" />
           </div>
-
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" id="email" className="mt-1 p-2 w-full border border-gray-300 rounded-md" />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" id="password" className="mt-1 p-2 w-full border border-gray-300 rounded-md" />
-          </div>
-
-          <button className="w-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-md cursor-pointer">
-            Login
-            <LogIn className="w-4 h-4 mr-2 hover:translate-x-[2px]" />
-          </button>
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/partner-register" className="font-medium text-blue-600 hover:text-blue-500">
-                Register now
-              </Link>
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Partner Login</h1>
+          <p className="text-gray-600">Access your food partner dashboard</p>
         </div>
+
+        {message && (
+          <div className={`mb-6 p-4 rounded-md ${message.includes('successful') || message.includes('Logging')
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-800 border border-red-200'
+            }`}>
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Email Address"
+                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+              />
+            </div>
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Password"
+                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                )}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                Logging in...
+              </div>
+            ) : (
+              <div className="flex items-center justify-center">
+                <LogIn className="h-4 w-4 mr-2" />
+                Login to Dashboard
+              </div>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/partner-register" className="font-medium text-blue-600 hover:text-blue-500">
+              Register now
+            </Link>
+          </p>
+        </div>
+      </div>
       </div>
     </div>
   )

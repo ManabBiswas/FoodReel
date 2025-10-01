@@ -2,6 +2,7 @@ import express from 'express';
 import authController from '../controllers/auth.controller.js';
 import foodPartnerAuthController from '../controllers/foodPartner.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
+import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import multer from 'multer';
 
 const upload = multer({
@@ -49,5 +50,8 @@ router.get('/partner/logout',foodPartnerAuthController.logout, (req, res) => {
         res.redirect('/login');
     });
 });
+
+// Food Partner auth verification endpoint
+router.get('/partner/check', isFoodPartnerLoggedin, foodPartnerAuthController.check);
 
 export default router;
