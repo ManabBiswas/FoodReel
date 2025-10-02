@@ -104,6 +104,12 @@ const getFoodItems = async (req, res) => {
 
 const getTrendingFoods = async (req, res) => {
     try {
+        // Get limit from query parameter, default to 3 if not provided
+        const limit = parseInt(req.query.limit) || 3;
+        
+        const maxLimit = 50; 
+        const validLimit = Math.min(limit, maxLimit);
+        
         // Calculate trending score based on likes, comments, and saves
         const foods = await foodModel.aggregate([
             {
@@ -111,7 +117,6 @@ const getTrendingFoods = async (req, res) => {
             },
             {
                 $addFields: {
-                    // Calculate trending score (you can adjust the weights)
                     trendingScore: {
                         $add: [
                             { $multiply: ["$likeCount", 1] },      // likes weight: 1
@@ -125,7 +130,7 @@ const getTrendingFoods = async (req, res) => {
                 $sort: { trendingScore: -1 } // Sort by trending score descending
             },
             {
-                $limit: 3 // Get top 3
+                $limit: validLimit // Use dynamic limit
             },
             {
                 $lookup: {
@@ -160,6 +165,8 @@ const getTrendingFoods = async (req, res) => {
 
         res.status(200).json({ 
             message: "Trending foods retrieved successfully",
+            count: foods.length,
+            limit: validLimit,
             foods 
         });
     } catch (error) {

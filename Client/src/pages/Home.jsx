@@ -15,6 +15,7 @@ const Home = () => {
       try {
         setLoading(true)
         const response = await axios.get('http://localhost:3000/api/food/trending', {
+          params: { limit: 5 },
           withCredentials: true
         })
         

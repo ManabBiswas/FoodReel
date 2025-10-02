@@ -252,7 +252,17 @@ Base URL: `http://localhost:3000`
 - POST `/api/food` – create food post (multipart/form-data, protected)
   - Fields: `file` (file), `name`, `description`, `type` ('image'|'video'), `tags` (JSON string or CSV), `duration` (optional)
 
-- GET `/api/food` – list all foods
+- GET `/api/food` – list all foods (protected)
+
+- GET `/api/food/trending` – list trending foods
+
+- GET `/api/food/trending?limit=${limit}` -- list top `limit` trending foods
+<!-- 
+const { data } = await axios.get('/api/food/trending', {
+    params: { limit: 5 }
+});
+ -->
+
 
 See controllers in `Server/src/controllers/` for more endpoints and behavior.
 
@@ -277,4 +287,3 @@ See controllers in `Server/src/controllers/` for more endpoints and behavior.
 
 ---
 
-If you'd like, I can also add a short CONTRIBUTING.md, Postman collection for the API, or example .env files. Tell me what you'd prefer next.
