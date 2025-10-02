@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import Navbar from '../../Components/Navbar'
+import { useNavigate } from 'react-router-dom'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
 import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2 } from 'lucide-react'
 
 const PartnerProfile = () => {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('posts')
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [bioText, setBioText] = useState("")
@@ -18,11 +20,7 @@ const PartnerProfile = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Fetch partner profile data
-  useEffect(() => {
-    fetchProfileData()
-  }, [])
-
-  const fetchProfileData = async () => {
+  const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true)
       const response = await axios.get('http://localhost:3000/api/auth/partner/profile', {
@@ -37,11 +35,23 @@ const PartnerProfile = () => {
       setBioText(response.data.partner.bio)
     } catch (error) {
       console.error('Error fetching profile:', error)
+      
+      // Check if it's an authentication error (401 or 403)
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        // Redirect to partner login
+        navigate('/partner-login')
+        return
+      }
+      
       setMessage('Error loading profile data')
     } finally {
       setLoading(false)
     }
-  }
+  }, [navigate])
+
+  useEffect(() => {
+    fetchProfileData()
+  }, [fetchProfileData])
 
   // Handle bio editing
   const handleSaveBio = async () => {
@@ -62,6 +72,17 @@ const PartnerProfile = () => {
       setTimeout(() => setMessage(''), 3000)
     } finally {
       setBioLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await axios.get('http://localhost:3000/api/auth/partner/logout', { withCredentials: true })
+    } catch (err) {
+      console.warn('Logout request failed:', err)
+    } finally {
+      // Ensure client navigates to login page
+      navigate('/partner-login')
     }
   }
 
@@ -144,7 +165,7 @@ const PartnerProfile = () => {
                   <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
                     <Plus className="w-4 h-4" />
                   </button>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                  <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>

@@ -1,38 +1,52 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
-import { Play, Heart, Video, ShoppingBag } from 'lucide-react'
+import { Play, Heart, Video, ShoppingBag, Loader2, MessageCircle } from 'lucide-react'
 
 const Home = () => {
-  const featuredFoods = [
-    {
-      id: 1,
-      name: "Spaghetti Masterpiece",
-      description: "Delicious homemade pasta with rich tomato sauce",
-      image: "/api/placeholder/300/400",
-      chef: "Chef Mario",
-      likes: "1.2K",
-      duration: "15s"
-    },
-    {
-      id: 2,
-      name: "Burger Delight",
-      description: "Juicy beef burger with fresh vegetables",
-      image: "/api/placeholder/300/400",
-      chef: "Chef Sarah",
-      likes: "892",
-      duration: "12s"
-    },
-    {
-      id: 3,
-      name: "Pizza Paradise",
-      description: "Wood-fired pizza with premium ingredients",
-      image: "/api/placeholder/300/400",
-      chef: "Chef Tony",
-      likes: "2.1K",
-      duration: "20s"
+  const [featuredFoods, setFeaturedFoods] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Fetch food reels from API
+  useEffect(() => {
+    const fetchFoodReels = async () => {
+      try {
+        setLoading(true)
+        const response = await axios.get('http://localhost:3000/api/food/trending', {
+          withCredentials: true
+        })
+        
+        console.log('Food reels response:', response.data)
+        
+        // Format the food data for display
+        const formattedFoods = response.data.foods?.map(food => ({
+          id: food._id,
+          name: food.name,
+          description: food.description || "Delicious food post",
+          image: food.image,
+          video: food.video,
+          type: food.type,
+          duration: food.duration || "15s",
+          likes: food.likeCount || 0,
+          comments: food.commentCount || 0,
+          tags: food.tags || [],
+          partner: food.foodPartner?.restaurantName || food.foodPartner?.companyName || "Food Partner",
+          createdAt: food.createdAt
+        })) || []
+        
+        setFeaturedFoods(formattedFoods)
+      } catch (error) {
+        console.error('Error fetching food reels:', error)
+        setError('Failed to load food reels')
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    fetchFoodReels()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,40 +95,122 @@ const Home = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredFoods.map((food) => (
-              <div key={food.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
-                <div className="relative">
-                  <div className="aspect-[3/4] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                    <div className="text-center p-8">
-                      <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Play className="w-8 h-8 text-white" fill="currentColor" />
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+              <span className="ml-2 text-gray-600">Loading delicious food reels...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="text-center py-12">
+              <p className="text-red-600 mb-4">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 transition"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+
+          {/* Food Reels Grid */}
+          {!loading && !error && (
+            <>
+              {featuredFoods.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {featuredFoods.map((food) => (
+                    <div key={food.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+                      <div className="relative">
+                        <div className="aspect-[3/4] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative overflow-hidden">
+                          {food.type === 'video' && food.video ? (
+                            <video
+                              src={food.video}
+                              className="w-full h-full object-cover"
+                              muted
+                              loop
+                              onMouseEnter={(e) => e.target.play()}
+                              onMouseLeave={(e) => e.target.pause()}
+                            />
+                          ) : food.type === 'image' && food.image ? (
+                            <img
+                              src={food.image}
+                              alt={food.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="text-center p-8">
+                              <div className="w-16 h-16 bg-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Play className="w-8 h-8 text-white" fill="currentColor" />
+                              </div>
+                              <p className="text-gray-600">Food {food.type || 'Post'}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Duration badge for videos */}
+                        {food.type === 'video' && food.duration && (
+                          <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
+                            {food.duration}
+                          </div>
+                        )}
+                        
+                        {/* Likes and comments */}
+                        <div className="absolute bottom-4 left-4 flex gap-2">
+                          <div className="bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm flex items-center">
+                            <Heart className="w-4 h-4 mr-1 text-red-400" fill="currentColor" />
+                            {food.likes}
+                          </div>
+                          {food.comments > 0 && (
+                            <div className="bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm flex items-center">
+                              <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
+                              {food.comments}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-gray-600">Food Video Preview</p>
+                      
+                      <div className="p-6">
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">{food.name}</h3>
+                        <p className="text-gray-600 text-sm mb-3">{food.description}</p>
+                        
+                        {/* Tags */}
+                        {food.tags && food.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {food.tags.slice(0, 3).map((tag, index) => (
+                              <span key={index} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">by {food.partner}</span>
+                          <button className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition cursor-pointer">
+                            Order Now
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
-                    {food.duration}
-                  </div>
-                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm flex items-center">
-                    <Heart className="w-4 h-4 mr-1 text-red-400" fill="currentColor" />
-                    {food.likes}
-                  </div>
+                  ))}
                 </div>
-                
-                <div className="p-6">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{food.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{food.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">by {food.chef}</span>
-                    <button className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition">
-                      Order Now
-                    </button>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Video className="w-8 h-8 text-gray-400" />
                   </div>
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No Food Reels Yet</h3>
+                  <p className="text-gray-500 mb-4">Be the first to discover amazing food content!</p>
+                  <button className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 transition">
+                    Become a Partner
+                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </>
+          )}
         </div>
       </section>
 

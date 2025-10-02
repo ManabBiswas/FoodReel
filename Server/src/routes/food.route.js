@@ -60,5 +60,9 @@ router.get('/',
     foodController.getAllFoods
 
 );
+// GET /api/food/trending
+router.get('/trending',
+    foodController.getTrendingFoods
+);
 
 export default router
