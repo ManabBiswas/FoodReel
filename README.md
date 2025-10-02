@@ -45,27 +45,137 @@ This app supports:
 
 ## Repo structure
 
-Top-level folders:
+Complete folder and file tree with explanations:
 
-- `Client/` – React frontend
-  - `src/` – React source files
-    - `pages/` – route pages (including `FoodPartner/CreateFood.jsx`, `PartnerProfile.jsx`)
-    - `Components/` – reusable UI components (e.g. `Navbar`, `FoodDetailModal`)
-  - `package.json`, `vite.config.js` etc.
+```
+FoodReel/
+│
+├── README.md                     # Project overview, setup, and API docs
+├── BUSINESS_MODEL.md             # Detailed India-focused business model, pricing, GTM
+│
+├── Client/                       # React frontend application
+│   ├── package.json              # Frontend dependencies (React, Vite, Axios, Lucide icons)
+│   ├── package-lock.json         # Locked dependency versions
+│   ├── vite.config.js            # Vite bundler configuration
+│   ├── eslint.config.js          # ESLint rules for code quality
+│   ├── index.html                # HTML entry point
+│   ├── .gitignore                # Git ignore rules for node_modules, build artifacts
+│   ├── README.md                 # Client-specific setup notes
+│   │
+│   ├── public/                   # Static assets served directly
+│   │   └── vite.svg              # Vite logo
+│   │
+│   └── src/                      # React source code
+│       ├── main.jsx              # React app entry point (mounts App to DOM)
+│       ├── App.jsx               # Root component with router outlet
+│       ├── App.css               # App-level styles
+│       ├── index.css             # Global styles and Tailwind imports
+│       │
+│       ├── routes/               # Route definitions
+│       │   └── AppRoutes.jsx     # React Router route configuration for all pages
+│       │
+│       ├── pages/                 # Full page components
+│       │   ├── Home.jsx           # Landing page / feed
+│       │   ├── 404.jsx            # Not found page
+│       │   ├── WorkingProgress.jsx # Placeholder for features under development
+│       │   │
+│       │   ├── FoodPartner/       # Partner/restaurant pages
+│       │   │   ├── CreateFood.jsx      # Form to upload image/video food posts
+│       │   │   ├── PartnerProfile.jsx  # Partner profile with posts, reviews, bio editing
+│       │   │   ├── Dashboard.jsx       # Partner analytics and campaign management
+│       │   │   ├── PartnerLogin.jsx    # Partner login with JWT cookie auth
+│       │   │   └── PartnerRegister.jsx # Partner registration form
+│       │   │
+│       │   └── User/              # User pages
+│       │       ├── UserLogin.jsx       # User login
+│       │       ├── UserRegister.jsx    # User registration
+│       │       └── UserProfile.jsx     # User profile and order history
+│       │
+│       ├── Components/            # Reusable UI components
+│       │   ├── Navbar.jsx              # Top navigation bar
+│       │   ├── Footer.jsx              # Footer with links
+│       │   ├── MenuBarBottom.jsx       # Bottom navigation for mobile
+│       │   ├── BackToTop.jsx           # Scroll-to-top button
+│       │   ├── FoodDetailModal.jsx     # Instagram-like modal for viewing food posts
+│       │   ├── FoodPartnersReviews.jsx # Display partner reviews with ratings
+│       │   └── UserPosts.jsx           # User-generated content grid
+│       │
+│       ├── Contexts/              # React Context providers (global state)
+│       │   └── (auth, cart, ads contexts - to be added)
+│       │
+│       ├── hooks/                 # Custom React hooks
+│       │   └── (useAuth, useFetch, useCart - to be added)
+│       │
+│       └── assets/                # Images, icons, logos
+│           ├── logo.png           # FoodReel logo
+│           └── react.svg          # React logo
+│
+├── Server/                        # Express backend API
+│   ├── package.json               # Backend dependencies 
+│   ├── package-lock.json          # Locked dependency versions
+│   ├── server.js                  # Entry point - starts Express server
+│   ├── .env                       # Environment variables (not committed)
+│   ├── .env.example               # Example env file for developers
+│   ├── .gitignore                 # Git ignore for node_modules, .env
+│   ├── NeedToSearch.txt           # Development notes / TODOs
+│   │
+│   └── src/                       # Backend source code
+│       ├── app.js                 # Express app setup, middleware, CORS, route mounting
+│       │
+│       ├── db/                    # Database connection
+│       │   └── db.js              # Mongoose connection helper
+│       │
+│       ├── models/                # Mongoose schemas (MongoDB collections)
+│       │   ├── user.Model.js           # User/customer schema 
+│       │   ├── foodPartner.Model.js    # Partner schema 
+│       │   ├── food.model.js           # Food post schema 
+│       │   └── review.model.js         # Review schema 
+│       │
+│       ├── controllers/           # Route handlers (business logic)
+│       │   ├── auth.controller.js       # Authentication (login, register, check session)
+│       │   ├── food.controller.js       # Food CRUD (create post, list, get by ID)
+│       │   └── foodPartner.controller.js # Partner profile, bio update, reviews, stats
+│       │
+│       ├── routes/                # Express routers
+│       │   ├── auth.route.js       # Auth endpoints (/api/auth/*)
+│       │   └── food.route.js       # Food endpoints (/api/food/*)
+│       │
+│       ├── middlewares/           # Auth and validation middleware
+│       │   ├── isLoggedin.js           # Verify user JWT cookie
+│       │   └── isFoodPartnerLoggedin.js # Verify partner JWT cookie
+│       │
+│       └── services/              # External service integrations
+│           └── storage.service.js  # ImageKit wrapper for file upload (returns CDN URLs)
+│
+└── Videos/                        # Sample video files for testing
+    └── Spegeti.mp4                # Sample food video
+```
 
-- `Server/` – Express backend
-  - `src/`
-    - `controllers/` – route handlers (auth, food, foodPartner)
-    - `models/` – Mongoose models (User, FoodPartner, Food, Review)
-    - `routes/` – Express routers (auth.route.js, food.route.js)
-    - `services/` – third-party services (ImageKit wrapper)
-    - `middlewares/` – authentication middlewares
-    - `db/` – database connection helper
-  - `server.js` – starts the server
-  - `package.json`
+### Key file purposes
 
-Other:
-- `Videos/` – sample videos used during development
+**Frontend (Client)**
+- `main.jsx`: React entry - renders `<App />` into `#root` div
+- `AppRoutes.jsx`: Defines all routes (/, /partner-login, /create-food, etc.)
+- `CreateFood.jsx`: Multi-step form for uploading food images/videos with tags and description
+- `PartnerProfile.jsx`: Instagram-like profile showing partner's posts, reviews, follower counts, and bio editing
+- `FoodDetailModal.jsx`: Full-screen modal for viewing food posts with like/comment/save actions
+- `Navbar.jsx`: Top navigation with links to login, register, profile, and create post
+
+**Backend (Server)**
+- `server.js`: Starts Express server and imports `app.js`
+- `app.js`: Configures Express middleware (CORS, JSON parsing, cookie parser) and mounts routes
+- `db.js`: Connects to MongoDB using Mongoose
+- `auth.controller.js`: Handles partner/user registration, login (sets JWT cookie), session verification
+- `food.controller.js`: Creates food posts (with file upload), lists posts, validates file types
+- `foodPartner.controller.js`: Gets partner profile data, updates bio, retrieves partner reviews
+- `storage.service.js`: Uploads files to ImageKit CDN and returns public URLs
+- `isLoggedin.js` / `isFoodPartnerLoggedin.js`: JWT middleware to protect routes
+
+**Models**
+- `user.Model.js`: Customer accounts
+- `foodPartner.Model.js`: Restaurant/partner accounts with business details
+- `food.model.js`: Food posts (image/video URL, tags, likes, comments, type)
+- `review.model.js`: Partner reviews with ratings and timestamps
 
 ## Local setup
 
@@ -163,6 +273,7 @@ See controllers in `Server/src/controllers/` for more endpoints and behavior.
 - Add pagination/feed endpoints and infinite scroll
 - Add more robust validation & unit tests
 - Add CI pipeline and Docker setup
+-
 
 ---
 
