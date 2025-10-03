@@ -1,0 +1,76 @@
+import express from 'express'
+import * as advertisementController from '../controllers/advertisement.controller.js'
+import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js'
+import multer from 'multer'
+
+const router = express.Router()
+
+// Configure multer for file uploads (same as food route)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: (req, file, cb) => {
+        // Accept both image and video files
+        const allowedTypes = /^(image\/|video\/)/;
+        if (allowedTypes.test(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image and video files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit to match frontend
+    }
+});
+
+// Multer error handling middleware
+const handleMulterError = (error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+            return res.status(400).json({
+                error: 'Unexpected field. Only "file" field is allowed for file upload.'
+            });
+        }
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                error: 'File too large. Maximum size is 5MB.'
+            });
+        }
+        return res.status(400).json({ error: error.message });
+    }
+    if (error.message.includes('Only image and video files are allowed')) {
+        return res.status(400).json({ error: error.message });
+    }
+    next(error);
+};
+
+// Create advertisement post
+// POST /api/advertisement
+router.post('/', 
+    isFoodPartnerLoggedin, 
+    upload.single('file'), 
+    handleMulterError,
+    advertisementController.createAdvertisement
+)
+
+// Get all advertisements (optional)
+// GET /api/advertisement
+router.get('/', advertisementController.getAllAdvertisements)
+
+// Get advertisement by ID (optional)
+// GET /api/advertisement/:id
+router.get('/:id', advertisementController.getAdvertisementById)
+
+// Update advertisement (optional)
+// PUT /api/advertisement/:id
+router.put('/:id', 
+    isFoodPartnerLoggedin, 
+    upload.single('file'), 
+    handleMulterError,
+    advertisementController.updateAdvertisement
+)
+
+// Delete advertisement (optional)
+// DELETE /api/advertisement/:id
+router.delete('/:id', isFoodPartnerLoggedin, advertisementController.deleteAdvertisement)
+
+export default router

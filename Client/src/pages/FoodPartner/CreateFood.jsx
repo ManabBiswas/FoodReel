@@ -18,6 +18,7 @@ import {
   Calendar
 } from 'lucide-react'
 import Navbar from '../../Components/Navbar'
+import ErrorBoundary from '../../Components/ErrorBoundary'
 
 const CreateFood = () => {
   const navigate = useNavigate()
@@ -33,9 +34,11 @@ const CreateFood = () => {
     isAvailable: true,
     preparationTime: '',
     // Advertisement-specific fields
-    promotionType: 'sale', // 'sale', 'discount', 'special_offer'
-    originalPrice: '',
-    discountedPrice: '',
+    promotionType: '',
+    prices: {
+      original: '',
+      discounted: ''
+    },
     validUntil: '',
     promoCode: ''
   })
@@ -151,14 +154,19 @@ const CreateFood = () => {
 
     // Advertisement-specific validation
     if (formData.postType === 'advertisement') {
-      if (formData.promotionType === 'sale' || formData.promotionType === 'discount') {
-        if (!formData.originalPrice || formData.originalPrice <= 0) {
-          newErrors.originalPrice = 'Original price is required'
+      // For promotion types that require pricing, validate prices
+      const promoTypesRequiringPrices = ['discount', 'sale', 'combo'];
+      if (promoTypesRequiringPrices.includes(formData.promotionType)) {
+        const original = parseFloat(formData.prices?.original || '')
+        const discounted = parseFloat(formData.prices?.discounted || '')
+
+        if (!original || isNaN(original) || original <= 0) {
+          newErrors.originalPrice = 'Original price is required and must be positive'
         }
-        if (!formData.discountedPrice || formData.discountedPrice <= 0) {
-          newErrors.discountedPrice = 'Discounted price is required'
+        if (!discounted || isNaN(discounted) || discounted <= 0) {
+          newErrors.discountedPrice = 'Discounted price is required and must be positive'
         }
-        if (formData.discountedPrice >= formData.originalPrice) {
+        if (!newErrors.discountedPrice && !newErrors.originalPrice && discounted >= original) {
           newErrors.discountedPrice = 'Discounted price must be less than original price'
         }
       }
@@ -179,7 +187,7 @@ const CreateFood = () => {
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      setMessage('Please fix the errors below')
+      setMessage('Please fill up form correctly')
       setLoading(false)
       return
     }
@@ -228,7 +236,13 @@ const CreateFood = () => {
       submitData.append('file', file)
 
       setMessage('Uploading your post...')
-      const response = await axios.post('http://localhost:3000/api/food', submitData, {
+      
+      // Use different API endpoints based on post type
+      const apiUrl = formData.postType === 'food' 
+        ? 'http://localhost:3000/api/food'
+        : 'http://localhost:3000/api/advertisement'
+      
+      const response = await axios.post(apiUrl, submitData, {
         withCredentials: true,
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -300,16 +314,17 @@ const CreateFood = () => {
         {/* Message */}
         {message && (
           <div className={`mb-6 p-4 rounded-md ${
-            message.includes('successfully') || message.includes('Uploading')
+            (typeof message === 'string' && (message.includes('successfully') || message.includes('Uploading')))
               ? 'bg-green-50 text-green-800 border border-green-200'
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
-            {message}
+            {String(message)}
           </div>
         )}
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <ErrorBoundary>
+          <div className="bg-white rounded-lg shadow-lg p-6">
           {/* Step Indicator */}
           <div className="mb-6">
             <div className="flex items-center justify-between">
@@ -545,7 +560,7 @@ const CreateFood = () => {
                     <ShoppingBag className="w-5 h-5 text-green-600" />
                     Food Details
                   </h3>
-
+<div className='grid grid-cols-2 gap-4'>
                   {/* Price */}
                   <div>
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
@@ -564,12 +579,12 @@ const CreateFood = () => {
                         placeholder="Enter price"
                         min="0"
                         step="0.01"
-                        className={`w-full pl-10 pr-20 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                        className={`w-full px-8 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                           errors.price ? 'border-red-500' : 'border-gray-300'
                         }`}
                       />
-                      <div className="absolute inset-y-0 right-0 flex items-center">
-                        <select
+                      {/* <div className="absolute inset-y-0 right-0 flex items-center"> */}
+                        {/* <select
                           name="currency"
                           value={formData.currency}
                           onChange={handleInputChange}
@@ -577,8 +592,8 @@ const CreateFood = () => {
                         >
                           <option value="INR">INR</option>
                           <option value="USD">USD</option>
-                        </select>
-                      </div>
+                        </select> */}
+                      {/* </div> */}
                     </div>
                     {errors.price && (
                       <p className="mt-1 text-sm text-red-600">{errors.price}</p>
@@ -588,13 +603,14 @@ const CreateFood = () => {
                   {/* Preparation Time */}
                   <div>
                     <label htmlFor="preparationTime" className="block text-sm font-medium text-gray-700 mb-2">
-                      Preparation Time
+                      Preparation Time *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Clock className="h-4 w-4 text-gray-400" />
                       </div>
-                      <input
+                      <input 
+                      required
                         type="number"
                         id="preparationTime"
                         name="preparationTime"
@@ -602,12 +618,13 @@ const CreateFood = () => {
                         onChange={handleInputChange}
                         placeholder="Enter time in minutes"
                         min="0"
-                        className="w-full pl-10 pr-16 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       />
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      {/* <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                         <span className="text-gray-500 sm:text-sm">min</span>
-                      </div>
+                      </div> */}
                     </div>
+                  </div>
                   </div>
                 </div>
               ) : (
@@ -862,7 +879,8 @@ const CreateFood = () => {
               </button>
             </form>
           )}
-        </div>
+          </div>
+        </ErrorBoundary>
       </div>
     </div>
   )

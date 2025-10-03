@@ -4,15 +4,16 @@ import Navbar from '../../Components/Navbar'
 import { useNavigate } from 'react-router-dom'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
-import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2 } from 'lucide-react'
+import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2, Megaphone, ShoppingBag } from 'lucide-react'
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('posts')
+  const [postFilter, setPostFilter] = useState('all') // 'all', 'food', 'advertisement'
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [bioText, setBioText] = useState("")
   const [partnerData, setPartnerData] = useState(null)
-  const [foodItems, setFoodItems] = useState([])
+  const [postItems, setPostItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [bioLoading, setBioLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -23,16 +24,53 @@ const PartnerProfile = () => {
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await axios.get('http://localhost:3000/api/auth/partner/profile', {
+      
+      // Fetch partner profile
+      const profileResponse = await axios.get('http://localhost:3000/api/auth/partner/profile', {
         withCredentials: true
       })
       
-      console.log('Profile response:', response.data)
-      console.log('Food items received:', response.data.foodItems)
+      // Fetch food posts
+      const foodResponse = await axios.get('http://localhost:3000/api/food/my-posts', {
+        withCredentials: true
+      })
       
-      setPartnerData(response.data.partner)
-      setFoodItems(response.data.foodItems)
-      setBioText(response.data.partner.bio)
+      // Fetch advertisement posts
+      const adResponse = await axios.get('http://localhost:3000/api/advertisement', {
+        withCredentials: true
+      })
+      
+      console.log('Profile response:', profileResponse.data)
+      console.log('Food posts:', foodResponse.data)
+      console.log('Advertisement posts:', adResponse.data)
+      
+      // Extract food posts from the response structure
+      const foodPostsData = foodResponse.data?.foods?.all || foodResponse.data?.foods?.food || []
+      const adPostsData = Array.isArray(adResponse.data) ? adResponse.data : []
+      
+      // Combine food and advertisement posts
+      const foodPosts = foodPostsData.map(post => ({
+        ...post,
+        postType: 'food',
+        image: post.image || post.file,
+        video: post.video || post.file
+      }))
+      
+      const adPosts = adPostsData.map(post => ({
+        ...post,
+        postType: 'advertisement',
+        image: post.type === 'image' ? post.file : null,
+        video: post.type === 'video' ? post.file : null
+      }))
+      
+      // Combine and sort by creation date (newest first)
+      const allPosts = [...foodPosts, ...adPosts].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      )
+      
+      setPartnerData(profileResponse.data.partner)
+      setPostItems(allPosts)
+      setBioText(profileResponse.data.partner.bio)
     } catch (error) {
       console.error('Error fetching profile:', error)
       
@@ -100,6 +138,16 @@ const PartnerProfile = () => {
     setIsModalOpen(false)
     setSelectedFood(null)
   }
+
+  // Filter posts based on selected filter
+  const getFilteredPosts = () => {
+    if (postFilter === 'all') return postItems
+    return postItems.filter(item => item.postType === postFilter)
+  }
+
+  const filteredPosts = getFilteredPosts()
+  const foodPostsCount = postItems.filter(item => item.postType === 'food').length
+  const adPostsCount = postItems.filter(item => item.postType === 'advertisement').length
 
   if (loading) {
     return (
@@ -238,7 +286,7 @@ const PartnerProfile = () => {
         {/* Stats */}
         <div className="flex justify-center sm:justify-start gap-6 mb-4 text-sm">
           <div>
-            <span className="font-semibold text-gray-900">{partnerData.foodItems}</span>
+            <span className="font-semibold text-gray-900">{postItems.length}</span>
             <span className="text-gray-600 ml-1">posts</span>
           </div>
           <div>
@@ -293,9 +341,47 @@ const PartnerProfile = () => {
         <div className="pb-8">
           {activeTab === 'posts' && (
             <>
-              {foodItems.length > 0 ? (
+              {/* Post Filter Buttons */}
+              <div className="px-4 sm:px-6 lg:px-8 mb-4">
+                <div className="flex justify-center gap-2">
+                  <button
+                    onClick={() => setPostFilter('all')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      postFilter === 'all'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Posts ({postItems.length})
+                  </button>
+                  <button
+                    onClick={() => setPostFilter('food')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      postFilter === 'food'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4 inline mr-1" />
+                    Food ({foodPostsCount})
+                  </button>
+                  <button
+                    onClick={() => setPostFilter('advertisement')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      postFilter === 'advertisement'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Megaphone className="w-4 h-4 inline mr-1" />
+                    Ads ({adPostsCount})
+                  </button>
+                </div>
+              </div>
+
+              {filteredPosts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 px-4 sm:px-6 lg:px-8">
-                  {foodItems.map((item) => (
+                  {filteredPosts.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => handleFoodClick(item)}
@@ -331,11 +417,26 @@ const PartnerProfile = () => {
                         )}
 
                         {/* Content Type Indicators */}
-                        <div className="absolute top-2 right-2 z-10">
+                        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+                          {/* Post Type Badge */}
+                          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                            item.postType === 'food' 
+                              ? 'bg-green-500/80 text-white' 
+                              : 'bg-purple-500/80 text-white'
+                          }`}>
+                            {item.postType === 'food' ? (
+                              <ShoppingBag className="w-3 h-3" />
+                            ) : (
+                              <Megaphone className="w-3 h-3" />
+                            )}
+                            <span>{item.postType === 'food' ? 'Food' : 'Ad'}</span>
+                          </div>
+                          
+                          {/* Media Type Indicator */}
                           {item.type === 'video' ? (
                             <div className="flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5">
                               <Video className="w-3 h-3 text-white" />
-                              <span className="text-white text-xs font-medium">{item.duration}</span>
+                              <span className="text-white text-xs font-medium">{item.duration || '0:00'}</span>
                             </div>
                           ) : (
                             <div className="bg-black/60 rounded p-1">
@@ -382,6 +483,45 @@ const PartnerProfile = () => {
                             </p>
                           )}
                           
+                          {/* Post Type Specific Info */}
+                          {item.postType === 'food' ? (
+                            <div className="space-y-1">
+                              {item.price && (
+                                <div className="text-white text-xs font-semibold">
+                                  ₹{item.price}
+                                </div>
+                              )}
+                              {item.preparationTime && (
+                                <div className="text-white/80 text-xs">
+                                  {item.preparationTime} mins
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <div className="text-white text-xs font-semibold">
+                                {item.promotionType ? item.promotionType.charAt(0).toUpperCase() + item.promotionType.slice(1) : 'Advertisement'}
+                              </div>
+                              {item.prices && (item.prices.original || item.prices.discounted) && (
+                                <div className="text-white/80 text-xs">
+                                  {item.prices.original && item.prices.discounted ? (
+                                    <>
+                                      <span className="line-through">₹{item.prices.original}</span>
+                                      <span className="ml-1 font-semibold">₹{item.prices.discounted}</span>
+                                    </>
+                                  ) : (
+                                    item.prices.original && `₹${item.prices.original}`
+                                  )}
+                                </div>
+                              )}
+                              {item.promoCode && (
+                                <div className="text-white/90 text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                                  {item.promoCode}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {/* Tags */}
                           {item.tags && item.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -406,12 +546,20 @@ const PartnerProfile = () => {
                       </div>
 
                       {/* Content Type Badge at Bottom */}
-                      <div className="absolute bottom-2 right-2 z-10">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${item.type === 'video'
-                          ? 'bg-red-500/80 text-white'
-                          : 'bg-blue-500/80 text-white'
-                          }`}>
-                          {item.type === 'video' ? 'Reel' : 'Post'}
+                      <div className="absolute bottom-2 left-2 z-10">
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.postType === 'food'
+                            ? item.type === 'video' 
+                              ? 'bg-green-500/80 text-white' 
+                              : 'bg-green-600/80 text-white'
+                            : item.type === 'video'
+                              ? 'bg-purple-500/80 text-white'
+                              : 'bg-purple-600/80 text-white'
+                        }`}>
+                          {item.postType === 'food' 
+                            ? (item.type === 'video' ? 'Food Reel' : 'Food Post')
+                            : (item.type === 'video' ? 'Ad Reel' : 'Ad Post')
+                          }
                         </div>
                       </div>
                     </div>
