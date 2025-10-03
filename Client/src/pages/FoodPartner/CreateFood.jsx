@@ -10,17 +10,34 @@ import {
   Loader2, 
   X,
   Plus,
-  Tag as TagIcon
+  Tag as TagIcon,
+  ShoppingBag,
+  Megaphone,
+  IndianRupee,
+  Clock,
+  Calendar
 } from 'lucide-react'
 import Navbar from '../../Components/Navbar'
 
 const CreateFood = () => {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
+    postType: '', // 'food' or 'advertisement'
     name: '',
     description: '',
     type: 'image', // 'image' or 'video'
-    tags: []
+    tags: [],
+    // Food-specific fields
+    price: '',
+    currency: 'INR',
+    isAvailable: true,
+    preparationTime: '',
+    // Advertisement-specific fields
+    promotionType: 'sale', // 'sale', 'discount', 'special_offer'
+    originalPrice: '',
+    discountedPrice: '',
+    validUntil: '',
+    promoCode: ''
   })
   const [file, setFile] = useState(null)
   const [filePreview, setFilePreview] = useState(null)
@@ -28,6 +45,7 @@ const CreateFood = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [errors, setErrors] = useState({})
+  const [currentStep, setCurrentStep] = useState(1) // 1: Post Type, 2: Details Form
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -41,6 +59,11 @@ const CreateFood = () => {
         [name]: ''
       }))
     }
+  }
+
+  const handlePostTypeSelect = (postType) => {
+    setFormData(prev => ({ ...prev, postType }))
+    setCurrentStep(2)
   }
 
   const handleTypeChange = (type) => {
@@ -105,7 +128,7 @@ const CreateFood = () => {
     const newErrors = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Food name is required'
+      newErrors.name = 'Name is required'
     }
 
     if (!formData.description.trim()) {
@@ -114,6 +137,34 @@ const CreateFood = () => {
 
     if (!file) {
       newErrors.file = `${formData.type === 'image' ? 'Image' : 'Video'} is required`
+    }
+
+    // Food-specific validation
+    if (formData.postType === 'food') {
+      if (!formData.price || formData.price <= 0) {
+        newErrors.price = 'Valid price is required'
+      }
+      if (!formData.preparationTime.trim()) {
+        newErrors.preparationTime = 'Preparation time is required'
+      }
+    }
+
+    // Advertisement-specific validation
+    if (formData.postType === 'advertisement') {
+      if (formData.promotionType === 'sale' || formData.promotionType === 'discount') {
+        if (!formData.originalPrice || formData.originalPrice <= 0) {
+          newErrors.originalPrice = 'Original price is required'
+        }
+        if (!formData.discountedPrice || formData.discountedPrice <= 0) {
+          newErrors.discountedPrice = 'Discounted price is required'
+        }
+        if (formData.discountedPrice >= formData.originalPrice) {
+          newErrors.discountedPrice = 'Discounted price must be less than original price'
+        }
+      }
+      if (!formData.validUntil) {
+        newErrors.validUntil = 'Valid until date is required'
+      }
     }
 
     return newErrors
@@ -128,6 +179,14 @@ const CreateFood = () => {
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
+      setMessage('Please fix the errors below')
+      setLoading(false)
+      return
+    }
+
+    // Check file upload
+    if (!file) {
+      setMessage('Please select a file to upload')
       setLoading(false)
       return
     }
@@ -138,12 +197,37 @@ const CreateFood = () => {
       submitData.append('name', formData.name)
       submitData.append('description', formData.description)
       submitData.append('type', formData.type)
+      submitData.append('postType', formData.postType)
       submitData.append('tags', JSON.stringify(formData.tags))
+      
+      // Add post-type specific fields
+      if (formData.postType === 'food') {
+        if (formData.price) {
+          submitData.append('price', formData.price)
+          submitData.append('currency', formData.currency)
+        }
+        if (formData.preparationTime) {
+          submitData.append('preparationTime', formData.preparationTime)
+        }
+      } else if (formData.postType === 'advertisement') {
+        if (formData.promotionType) {
+          submitData.append('promotionType', formData.promotionType)
+        }
+        if (formData.prices.original || formData.prices.discounted) {
+          submitData.append('prices', JSON.stringify(formData.prices))
+        }
+        if (formData.validUntil) {
+          submitData.append('validUntil', formData.validUntil)
+        }
+        if (formData.promoCode) {
+          submitData.append('promoCode', formData.promoCode)
+        }
+      }
       
       // Always use 'file' as the field name to match backend expectation
       submitData.append('file', file)
 
-      setMessage('Uploading your food post...')
+      setMessage('Uploading your post...')
       const response = await axios.post('http://localhost:3000/api/food', submitData, {
         withCredentials: true,
         headers: {
@@ -152,23 +236,37 @@ const CreateFood = () => {
       })
 
       console.log(response)
-      setMessage('Food post created successfully! Redirecting...')
+      setMessage(`${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`)
       
       // Reset form
       setFormData({
         name: '',
         description: '',
         type: 'image',
+        postType: '',
+        price: '',
+        currency: 'INR',
+        preparationTime: '',
+        promotionType: '',
+        prices: {
+          original: '',
+          discounted: ''
+        },
+        validUntil: '',
+        promoCode: '',
         tags: []
       })
+      setCurrentStep(1)
       setFile(null)
       setFilePreview(null)
+      setTagInput('')
+      setErrors({})
       
       setTimeout(() => navigate('/partner-profile'), 2000)
       
     } catch (error) {
-      console.error('Create food error:', error)
-      const serverMsg = error?.response?.data?.error || error?.message || 'Failed to create food post'
+      console.error('Create post error:', error)
+      const serverMsg = error?.response?.data?.error || error?.message || 'Failed to create post'
       setMessage(serverMsg)
     } finally {
       setLoading(false)
@@ -212,204 +310,558 @@ const CreateFood = () => {
 
         {/* Form */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Content Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Content Type
-              </label>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleTypeChange('image')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                    formData.type === 'image'
-                      ? 'bg-blue-50 border-blue-200 text-blue-700'
-                      : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  Image Post
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTypeChange('video')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                    formData.type === 'video'
-                      ? 'bg-red-50 border-red-200 text-red-700'
-                      : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Video className="w-4 h-4" />
-                  Video Reel
-                </button>
+          {/* Step Indicator */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  currentStep >= 1 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  1
+                </div>
+                <span className="text-sm font-medium">Choose Type</span>
+              </div>
+              <div className={`flex-1 h-0.5 mx-4 ${currentStep >= 2 ? 'bg-orange-200' : 'bg-gray-200'}`}></div>
+              <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  currentStep >= 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  2
+                </div>
+                <span className="text-sm font-medium">Add Details</span>
               </div>
             </div>
+          </div>
 
-            {/* Food Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Food Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g.Biriyani, Margherita Pizza, Burger..."
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                  errors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
+          {currentStep === 1 ? (
+            // Step 1: Post Type Selection
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">What would you like to create?</h2>
+                <p className="text-gray-600">Choose the type of content you want to share</p>
+              </div>
 
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={4}
-                placeholder="Describe your dish, ingredients, preparation method..."
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none ${
-                  errors.description ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-              )}
-            </div>
-
-            {/* File Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {formData.type === 'image' ? 'Food Image' : 'Food Video'} *
-              </label>
-              
-              {!filePreview ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                  <input
-                    type="file"
-                    accept={formData.type === 'image' ? 'image/*' : 'video/*'}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2">
-                      Click to upload {formData.type === 'image' ? 'an image' : 'a video'}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Food Post Option */}
+                <div
+                  onClick={() => handlePostTypeSelect('food')}
+                  className={`cursor-pointer p-6 rounded-lg border-2 transition-all hover:shadow-md ${
+                    formData.postType === 'food'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      formData.postType === 'food'
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      <ShoppingBag className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Food Item</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Share a food item that customers can order with pricing details
                     </p>
-                    <p className="text-sm text-gray-500">
-                      {formData.type === 'image' ? 'PNG, JPG, GIF up to 5MB' : 'MP4, MOV up to 5MB'}
-                    </p>
-                  </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                        <IndianRupee className="w-4 h-4" />
+                        <span>Set pricing</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                        <Clock className="w-4 h-4" />
+                        <span>Preparation time</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="relative">
-                  {formData.type === 'image' ? (
-                    <img
-                      src={filePreview}
-                      alt="Preview"
-                      className="w-full max-h-64 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <video
-                      src={filePreview}
-                      controls
-                      className="w-full max-h-64 rounded-lg"
-                    />
-                  )}
+
+                {/* Advertisement Post Option */}
+                <div
+                  onClick={() => handlePostTypeSelect('advertisement')}
+                  className={`cursor-pointer p-6 rounded-lg border-2 transition-all hover:shadow-md ${
+                    formData.postType === 'advertisement'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      formData.postType === 'advertisement'
+                        ? 'bg-purple-100 text-purple-600'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      <Megaphone className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Advertisement</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Create promotional content like offers, discounts, or announcements
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center gap-2 text-sm text-purple-600">
+                        <TagIcon className="w-4 h-4" />
+                        <span>Promotion type</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 text-sm text-purple-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>Validity period</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {formData.postType && (
+                <div className="text-center pt-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      setFile(null)
-                      setFilePreview(null)
-                    }}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    onClick={() => setCurrentStep(2)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-8 rounded-md transition-colors"
                   >
-                    <X className="w-4 h-4" />
+                    Continue to Details
                   </button>
                 </div>
               )}
-              
-              {errors.file && (
-                <p className="mt-1 text-sm text-red-600">{errors.file}</p>
-              )}
             </div>
+          ) : (
+            // Step 2: Detailed Form
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Back Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentStep(1)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Type Selection</span>
+              </button>
 
-            {/* Tags */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags (Optional)
-              </label>
-              <div className="flex gap-2 mb-2">
+              {/* Selected Post Type Indicator */}
+              <div className={`p-4 rounded-lg border ${
+                formData.postType === 'food' 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-purple-50 border-purple-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {formData.postType === 'food' ? (
+                    <ShoppingBag className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Megaphone className="w-5 h-5 text-purple-600" />
+                  )}
+                  <span className={`font-medium ${
+                    formData.postType === 'food' ? 'text-green-800' : 'text-purple-800'
+                  }`}>
+                    Creating {formData.postType === 'food' ? 'Food Item' : 'Advertisement'} Post
+                  </span>
+                </div>
+              </div>
+
+              {/* Content Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Content Type
+                </label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => handleTypeChange('image')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
+                      formData.type === 'image'
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Image Post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTypeChange('video')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
+                      formData.type === 'video'
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Video className="w-4 h-4" />
+                    Video Reel
+                  </button>
+                </div>
+              </div>
+
+              {/* Food Name/Title */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  {formData.postType === 'food' ? 'Food Name' : 'Advertisement Title'} *
+                </label>
                 <input
                   type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                  placeholder="Add a tag..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder={formData.postType === 'food' 
+                    ? "e.g. Biriyani, Margherita Pizza, Burger..." 
+                    : "e.g. 50% Off Weekend Special, Buy 1 Get 1 Free..."
+                  }
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
-                <button
-                  type="button"
-                  onClick={addTag}
-                  className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
               </div>
-              
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
-                    >
-                      <TagIcon className="w-3 h-3" />
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                  Creating Post...
+              {/* Description */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+                  Description *
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows={4}
+                  placeholder={formData.postType === 'food'
+                    ? "Describe your dish, ingredients, preparation method..."
+                    : "Describe your offer, terms and conditions, promotional details..."
+                  }
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none ${
+                    errors.description ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.description && (
+                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+                )}
+              </div>
+
+              {/* Conditional Fields based on Post Type */}
+              {formData.postType === 'food' ? (
+                // Food-specific fields
+                <div className="space-y-6 border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-green-600" />
+                    Food Details
+                  </h3>
+
+                  {/* Price */}
+                  <div>
+                    <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                      Price *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <IndianRupee className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="number"
+                        id="price"
+                        name="price"
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        placeholder="Enter price"
+                        min="0"
+                        step="0.01"
+                        className={`w-full pl-10 pr-20 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                          errors.price ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center">
+                        <select
+                          name="currency"
+                          value={formData.currency}
+                          onChange={handleInputChange}
+                          className="h-full py-0 pl-2 pr-7 border-transparent bg-transparent text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                        >
+                          <option value="INR">INR</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </div>
+                    </div>
+                    {errors.price && (
+                      <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                    )}
+                  </div>
+
+                  {/* Preparation Time */}
+                  <div>
+                    <label htmlFor="preparationTime" className="block text-sm font-medium text-gray-700 mb-2">
+                      Preparation Time
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="number"
+                        id="preparationTime"
+                        name="preparationTime"
+                        value={formData.preparationTime}
+                        onChange={handleInputChange}
+                        placeholder="Enter time in minutes"
+                        min="0"
+                        className="w-full pl-10 pr-16 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      />
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 sm:text-sm">min</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center">
-                  <UtensilsCrossed className="h-4 w-4 mr-2" />
-                  Create Food Post
+                // Advertisement-specific fields
+                <div className="space-y-6 border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                    <Megaphone className="w-5 h-5 text-purple-600" />
+                    Promotion Details
+                  </h3>
+
+                  {/* Promotion Type */}
+                  <div>
+                    <label htmlFor="promotionType" className="block text-sm font-medium text-gray-700 mb-2">
+                      Promotion Type *
+                    </label>
+                    <select
+                      id="promotionType"
+                      name="promotionType"
+                      value={formData.promotionType}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                        errors.promotionType ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select promotion type</option>
+                      <option value="discount">Discount Offer</option>
+                      <option value="bogo">Buy One Get One</option>
+                      <option value="combo">Combo Deal</option>
+                      <option value="seasonal">Seasonal Special</option>
+                      <option value="announcement">General Announcement</option>
+                    </select>
+                    {errors.promotionType && (
+                      <p className="mt-1 text-sm text-red-600">{errors.promotionType}</p>
+                    )}
+                  </div>
+
+                  {/* Promotional Prices (Optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Promotional Pricing (Optional)
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="originalPrice" className="block text-xs text-gray-600 mb-1">Original Price</label>
+                        <div className="relative">
+                          <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="number"
+                            id="originalPrice"
+                            name="prices.original"
+                            value={formData.prices.original}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              prices: { ...prev.prices, original: e.target.value }
+                            }))}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="discountedPrice" className="block text-xs text-gray-600 mb-1">Discounted Price</label>
+                        <div className="relative">
+                          <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="number"
+                            id="discountedPrice"
+                            name="prices.discounted"
+                            value={formData.prices.discounted}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              prices: { ...prev.prices, discounted: e.target.value }
+                            }))}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Valid Until */}
+                  <div>
+                    <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-2">
+                      Valid Until
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="datetime-local"
+                        id="validUntil"
+                        name="validUntil"
+                        value={formData.validUntil}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Promo Code */}
+                  <div>
+                    <label htmlFor="promoCode" className="block text-sm font-medium text-gray-700 mb-2">
+                      Promo Code (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      id="promoCode"
+                      name="promoCode"
+                      value={formData.promoCode}
+                      onChange={handleInputChange}
+                      placeholder="e.g. SAVE20, WEEKEND50"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    />
+                  </div>
                 </div>
               )}
-            </button>
-          </form>
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {formData.type === 'image' ? 
+                    (formData.postType === 'food' ? 'Food Image' : 'Advertisement Image') : 
+                    (formData.postType === 'food' ? 'Food Video' : 'Advertisement Video')
+                  } *
+                </label>
+                
+                {!filePreview ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+                    <input
+                      type="file"
+                      accept={formData.type === 'image' ? 'image/*' : 'video/*'}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-2">
+                        Click to upload {formData.type === 'image' ? 'an image' : 'a video'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formData.type === 'image' ? 'PNG, JPG, GIF up to 5MB' : 'MP4, MOV up to 5MB'}
+                      </p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    {formData.type === 'image' ? (
+                      <img
+                        src={filePreview}
+                        alt="Preview"
+                        className="w-full max-h-64 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <video
+                        src={filePreview}
+                        controls
+                        className="w-full max-h-64 rounded-lg"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFile(null)
+                        setFilePreview(null)
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
+                {errors.file && (
+                  <p className="mt-1 text-sm text-red-600">{errors.file}</p>
+                )}
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags (Optional)
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    placeholder="Add a tag..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTag}
+                    className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                {formData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+                      >
+                        <TagIcon className="w-3 h-3" />
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  formData.postType === 'food'
+                    ? 'bg-green-500 hover:bg-green-600 disabled:bg-green-400 focus:ring-green-500'
+                    : 'bg-purple-500 hover:bg-purple-600 disabled:bg-purple-400 focus:ring-purple-500'
+                } text-white`}
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                    Creating Post...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    {formData.postType === 'food' ? (
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Megaphone className="h-4 w-4 mr-2" />
+                    )}
+                    Create {formData.postType === 'food' ? 'Food' : 'Advertisement'} Post
+                  </div>
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

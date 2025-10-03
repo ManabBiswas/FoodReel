@@ -18,8 +18,51 @@ const foodSchema = new mongoose.Schema({
         enum: ['video', 'image'],
         required: true
     },
+    postType: {
+        type: String,
+        enum: ['food', 'advertisement'],
+        default: 'food',
+        required: true
+    },
     duration: {
         type: String, // For video duration like "1:20"
+    },
+    // Food-specific fields
+    price: {
+        type: Number,
+        min: 0
+    },
+    currency: {
+        type: String,
+        enum: ['INR'],
+        default: 'INR'
+    },
+    preparationTime: {
+        type: Number, // in minutes
+        min: 0
+    },
+    // Advertisement-specific fields
+    promotionType: {
+        type: String,
+        enum: ['discount', 'bogo', 'combo', 'seasonal', 'announcement']
+    },
+    prices: {
+        original: {
+            type: Number,
+            min: 0
+        },
+        discounted: {
+            type: Number,
+            min: 0
+        }
+    },
+    validUntil: {
+        type: Date
+    },
+    promoCode: {
+        type: String,
+        uppercase: true,
+        trim: true
     },
     foodPartner: {
         type: mongoose.Schema.Types.ObjectId,
