@@ -2,7 +2,19 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
-import { Play, Heart, Video, ShoppingBag, Loader2, MessageCircle } from 'lucide-react'
+import { 
+  Play, 
+  Heart, 
+  Video, 
+  ShoppingBag, 
+  Loader2, 
+  MessageCircle, 
+  IndianRupee, 
+  Clock, 
+  Megaphone,
+  Tag,
+  Calendar
+} from 'lucide-react'
 
 const Home = () => {
   const [featuredFoods, setFeaturedFoods] = useState([])
@@ -29,12 +41,22 @@ const Home = () => {
           image: food.image,
           video: food.video,
           type: food.type,
+          postType: food.postType || 'food',
           duration: food.duration || "15s",
           likes: food.likeCount || 0,
           comments: food.commentCount || 0,
           tags: food.tags || [],
           partner: food.foodPartner?.restaurantName || food.foodPartner?.companyName || "Food Partner",
-          createdAt: food.createdAt
+          createdAt: food.createdAt,
+          // Food-specific fields
+          price: food.price,
+          currency: food.currency || 'INR',
+          preparationTime: food.preparationTime,
+          // Advertisement-specific fields
+          promotionType: food.promotionType,
+          prices: food.prices,
+          validUntil: food.validUntil,
+          promoCode: food.promoCode
         })) || []
         
         setFeaturedFoods(formattedFoods)
@@ -151,6 +173,21 @@ const Home = () => {
                           )}
                         </div>
                         
+                        {/* Post type badge */}
+                        <div className="absolute top-4 left-4">
+                          {food.postType === 'advertisement' ? (
+                            <div className="bg-purple-500 bg-opacity-90 text-white px-2 py-1 rounded flex items-center text-xs">
+                              <Megaphone className="w-3 h-3 mr-1" />
+                              Promo
+                            </div>
+                          ) : (
+                            <div className="bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded flex items-center text-xs">
+                              <ShoppingBag className="w-3 h-3 mr-1" />
+                              Food
+                            </div>
+                          )}
+                        </div>
+
                         {/* Duration badge for videos */}
                         {food.type === 'video' && food.duration && (
                           <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
@@ -181,18 +218,81 @@ const Home = () => {
                         {food.tags && food.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mb-3">
                             {food.tags.slice(0, 3).map((tag, index) => (
-                              <span key={index} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                                #{tag}
+                              <span key={index} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs flex items-center">
+                                <Tag className="w-3 h-3 mr-1" />
+                                {tag}
                               </span>
                             ))}
+                          </div>
+                        )}
+
+                        {/* Food-specific information */}
+                        {food.postType === 'food' && (
+                          <div className="mb-3 space-y-2">
+                            {food.price && (
+                              <div className="flex items-center text-green-600 font-semibold">
+                                <IndianRupee className="w-4 h-4 mr-1" />
+                                {food.price} {food.currency}
+                              </div>
+                            )}
+                            {food.preparationTime && (
+                              <div className="flex items-center text-gray-600 text-sm">
+                                <Clock className="w-4 h-4 mr-1" />
+                                {food.preparationTime} min prep time
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Advertisement-specific information */}
+                        {food.postType === 'advertisement' && (
+                          <div className="mb-3 space-y-2">
+                            {food.promotionType && (
+                              <div className="text-purple-600 text-sm font-medium capitalize">
+                                {food.promotionType.replace('_', ' ')} Offer
+                              </div>
+                            )}
+                            {food.prices && (food.prices.original || food.prices.discounted) && (
+                              <div className="flex items-center gap-2">
+                                {food.prices.original && (
+                                  <span className="text-gray-500 line-through text-sm">
+                                    ₹{food.prices.original}
+                                  </span>
+                                )}
+                                {food.prices.discounted && (
+                                  <span className="text-red-600 font-semibold">
+                                    ₹{food.prices.discounted}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {food.promoCode && (
+                              <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs inline-block">
+                                Code: {food.promoCode}
+                              </div>
+                            )}
+                            {food.validUntil && (
+                              <div className="flex items-center text-gray-600 text-xs">
+                                <Calendar className="w-3 h-3 mr-1" />
+                                Valid until {new Date(food.validUntil).toLocaleDateString()}
+                              </div>
+                            )}
                           </div>
                         )}
                         
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-500">by {food.partner}</span>
-                          <button className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition cursor-pointer">
-                            Order Now
-                          </button>
+                          {food.postType === 'food' ? (
+                            <button className="bg-green-500 text-white px-4 py-2 rounded-full text-sm hover:bg-green-600 transition cursor-pointer flex items-center">
+                              <ShoppingBag className="w-4 h-4 mr-1" />
+                              Order Now
+                            </button>
+                          ) : (
+                            <button className="bg-purple-500 text-white px-4 py-2 rounded-full text-sm hover:bg-purple-600 transition cursor-pointer flex items-center">
+                              <Megaphone className="w-4 h-4 mr-1" />
+                              View Offer
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

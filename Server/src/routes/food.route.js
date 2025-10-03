@@ -46,7 +46,7 @@ const handleMulterError = (error, req, res, next) => {
     next(error);
 };
 
-// POST /api/food
+// POST /api/food - Create food or advertisement post
 router.post('/',
     isFoodPartnerLoggedin,
     upload.single('file'), // Changed from 'video' to 'file' to match frontend
@@ -54,15 +54,36 @@ router.post('/',
     foodController.createFood
 );
 
-// GET /api/food
+// GET /api/food - Get all posts (public endpoint for home feed)
 router.get('/',
-    isLoggedin,
     foodController.getAllFoods
-
 );
-// GET /api/food/trending
+
+// GET /api/food/trending - Get trending posts
 router.get('/trending',
     foodController.getTrendingFoods
+);
+
+// GET /api/food/my-posts - Get partner's own posts
+router.get('/my-posts',
+    isFoodPartnerLoggedin,
+    foodController.getFoodItems
+);
+
+// GET /api/food/advertisements - Get active advertisements
+router.get('/advertisements',
+    foodController.getActiveAdvertisements
+);
+
+// GET /api/food/menu - Get food items with pricing (for ordering)
+router.get('/menu',
+    foodController.getFoodItemsWithPricing
+);
+
+// GET /api/food/statistics - Get post statistics for partners
+router.get('/statistics',
+    isFoodPartnerLoggedin,
+    foodController.getPostStatistics
 );
 
 export default router
