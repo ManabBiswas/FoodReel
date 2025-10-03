@@ -283,7 +283,5 @@ See controllers in `Server/src/controllers/` for more endpoints and behavior.
 - Add pagination/feed endpoints and infinite scroll
 - Add more robust validation & unit tests
 - Add CI pipeline and Docker setup
--
-
 ---
 

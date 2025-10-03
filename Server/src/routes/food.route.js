@@ -86,4 +86,27 @@ router.get('/statistics',
     foodController.getPostStatistics
 );
 
+// POST /api/food/:id/like - Toggle like on a post
+router.post('/:id/like',
+    isLoggedin,
+    foodController.toggleLike
+);
+
+// POST /api/food/:id/save - Toggle bookmark on a post
+router.post('/:id/save',
+    isLoggedin,
+    foodController.toggleSave
+);
+
+// GET /api/food/:id/reviews - Get reviews for a food item
+router.get('/:id/reviews',
+    foodController.getReviews
+);
+
+// POST /api/food/:id/review - Add a review to a food item
+router.post('/:id/review',
+    isLoggedin,
+    foodController.addReview
+);
+
 export default router

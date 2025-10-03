@@ -1,6 +1,7 @@
 import foodModel from "../models/food.model.js";
 import storageService from "../services/storage.service.js";
 import { v4 as uuid } from "uuid";
+import mongoose from "mongoose";
 
 
 const createFood = async (req, res) => {
@@ -482,6 +483,184 @@ const getAllFoods = async (req, res) => {
     }
 };
 
+// Toggle like on a post
+const toggleLike = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        
+        const userId = req.user._id;
+        
+        const food = await foodModel.findById(id);
+        if (!food) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+        
+        const likeIndex = food.likes.indexOf(userId);
+        
+        if (likeIndex > -1) {
+            // Unlike
+            food.likes.splice(likeIndex, 1);
+            food.likeCount = Math.max(0, food.likeCount - 1);
+        } else {
+            // Like
+            food.likes.push(userId);
+            food.likeCount += 1;
+        }
+        
+        await food.save();
+        
+        res.status(200).json({
+            message: likeIndex > -1 ? "Post unliked" : "Post liked",
+            isLiked: likeIndex === -1,
+            likeCount: food.likeCount
+        });
+    } catch (error) {
+        console.error("Error toggling like:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Toggle save on a post
+const toggleSave = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        
+        const userId = req.user._id;
+        
+        const food = await foodModel.findById(id);
+        if (!food) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+        
+        // Check if user has saved this post (you might need to add a saves array to food model)
+        // For now, just increment/decrement the counter
+        const isSaved = req.body.isSaved || false;
+        
+        if (isSaved) {
+            food.savesCount = Math.max(0, food.savesCount - 1);
+        } else {
+            food.savesCount += 1;
+        }
+        
+        await food.save();
+        
+        res.status(200).json({
+            message: isSaved ? "Post unsaved" : "Post saved",
+            isSaved: !isSaved,
+            savesCount: food.savesCount
+        });
+    } catch (error) {
+        console.error("Error toggling save:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Get reviews for a food item
+const getReviews = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit = 20, page = 1 } = req.query;
+        
+        const validLimit = Math.min(parseInt(limit), 50);
+        const skip = (parseInt(page) - 1) * validLimit;
+        
+        const reviewModel = (await import('../models/review.model.js')).default;
+        
+        const reviews = await reviewModel
+            .find({ foodItem: id, isActive: true })
+            .populate('user', 'username name email')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(validLimit)
+            .lean();
+        
+        const totalCount = await reviewModel.countDocuments({ foodItem: id, isActive: true });
+        
+        // Calculate average rating
+        const avgRating = await reviewModel.aggregate([
+            { $match: { foodItem: mongoose.Types.ObjectId(id), isActive: true } },
+            { $group: { _id: null, avgRating: { $avg: "$rating" } } }
+        ]);
+        
+        res.status(200).json({
+            message: "Reviews retrieved successfully",
+            reviews,
+            totalCount,
+            averageRating: avgRating[0]?.avgRating || 0,
+            page: parseInt(page),
+            totalPages: Math.ceil(totalCount / validLimit)
+        });
+    } catch (error) {
+        console.error("Error getting reviews:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Add a review to a food item
+const addReview = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        
+        const userId = req.user._id;
+        const { rating, comment } = req.body;
+        
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: "Rating must be between 1 and 5" });
+        }
+        
+        if (!comment || !comment.trim()) {
+            return res.status(400).json({ error: "Comment is required" });
+        }
+        
+        const food = await foodModel.findById(id);
+        if (!food) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+        
+        const reviewModel = (await import('../models/review.model.js')).default;
+        
+        // Check if user already reviewed this item
+        const existingReview = await reviewModel.findOne({
+            user: userId,
+            foodItem: id
+        });
+        
+        if (existingReview) {
+            return res.status(400).json({ error: "You have already reviewed this item" });
+        }
+        
+        const newReview = await reviewModel.create({
+            user: userId,
+            foodPartner: food.foodPartner,
+            foodItem: id,
+            rating,
+            comment: comment.trim()
+        });
+        
+        await newReview.populate('user', 'username name email');
+        
+        res.status(201).json({
+            message: "Review added successfully",
+            review: newReview
+        });
+    } catch (error) {
+        console.error("Error adding review:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export default { 
     createFood, 
     getFoodItems, 
@@ -489,5 +668,9 @@ export default {
     getTrendingFoods,
     getActiveAdvertisements,
     getFoodItemsWithPricing,
-    getPostStatistics
+    getPostStatistics,
+    toggleLike,
+    toggleSave,
+    getReviews,
+    addReview
 };
