@@ -71,11 +71,18 @@ FoodReel/
 │       ├── App.css               # App-level styles
 │       ├── index.css             # Global styles and Tailwind imports
 │       │
+│       ├── .env                  # ENV variables (not committed)
+│       ├── .env.example          # ENV variables Examples
+│       │
+│       ├── config/               # Route definitions
+│       │   └── Api.jsx           # Api configuration for all pages
+│       │
 │       ├── routes/               # Route definitions
 │       │   └── AppRoutes.jsx     # React Router route configuration for all pages
 │       │
 │       ├── pages/                 # Full page components
-│       │   ├── Home.jsx           # Landing page / feed
+│       │   ├── Home.jsx           # Landing page 
+│       │   ├── Reel.jsx           # Reels page 
 │       │   ├── 404.jsx            # Not found page
 │       │   ├── WorkingProgress.jsx # Placeholder for features under development
 │       │   │
@@ -94,7 +101,8 @@ FoodReel/
 │       ├── Components/            # Reusable UI components
 │       │   ├── Navbar.jsx              # Top navigation bar
 │       │   ├── Footer.jsx              # Footer with links
-│       │   ├── MenuBarBottom.jsx       # Bottom navigation for mobile
+│       │   ├── ErrorBoundary.jsx       # Error handling component
+│       │   ├── MenuBarBottom.jsx       # Bottom navigation for Reels
 │       │   ├── BackToTop.jsx           # Scroll-to-top button
 │       │   ├── FoodDetailModal.jsx     # Instagram-like modal for viewing food posts
 │       │   ├── FoodPartnersReviews.jsx # Display partner reviews with ratings
@@ -127,7 +135,10 @@ FoodReel/
 │       │
 │       ├── models/                # Mongoose schemas (MongoDB collections)
 │       │   ├── user.Model.js           # User/customer schema 
-│       │   ├── foodPartner.Model.js    # Partner schema 
+│       │   ├── advertisement.Model.js  # Ad schema 
+│       │   ├── order.Model.js          # Order schema 
+│       │   ├── review.Model.js         # Review schema 
+│       │   ├── user.Model.js           # user schema 
 │       │   ├── food.model.js           # Food post schema 
 │       │   └── review.model.js         # Review schema 
 │       │
@@ -137,8 +148,11 @@ FoodReel/
 │       │   └── foodPartner.controller.js # Partner profile, bio update, reviews, stats
 │       │
 │       ├── routes/                # Express routers
-│       │   ├── auth.route.js       # Auth endpoints (/api/auth/*)
-│       │   └── food.route.js       # Food endpoints (/api/food/*)
+│       │   ├── adnertisement.route.js    # Advertisement endpoints (/api/ads/*)
+│       │   ├── auth.route.js             # Auth endpoints (/api/auth/*)
+│       │   ├── user.route.js             # User endpoints (/api/auth/*)
+│       │   ├── order.route.js            # Order endpoints (/api/auth/*)
+│       │   └── food.route.js             # Food endpoints (/api/food/*)
 │       │
 │       ├── middlewares/           # Auth and validation middleware
 │       │   ├── isLoggedin.js           # Verify user JWT cookie
