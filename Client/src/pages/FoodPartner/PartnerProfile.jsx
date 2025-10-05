@@ -39,7 +39,7 @@ const PartnerProfile = () => {
 
       // Extract food posts from the response structure
       const foodPostsData = foodResponse.data?.foods?.all || foodResponse.data?.foods?.food || []
-      const adPostsData = Array.isArray(adResponse.data) ? adResponse.data : []
+      const adPostsData = adResponse.data?.data || []
 
       // Combine food and advertisement posts
       const foodPosts = foodPostsData.map(post => ({
