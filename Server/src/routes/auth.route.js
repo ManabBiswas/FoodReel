@@ -28,12 +28,12 @@ router.post('/user/login',authController.login, (req, res) => {
 router.post('/user/register', upload.single('profileImage'), authController.register, (req, res) => {
     
 })
+router.get('/user/profile', isLoggedin, authController.getProfile);
+router.put('/user/profile', isLoggedin, upload.single('profileImage'), authController.updateProfile);
+router.put('/user/change-password', isLoggedin, authController.changePassword);
+router.delete('/user/account', isLoggedin, authController.deleteAccount);
 
-router.get('/user/logout',authController.logout, (req, res) => {
-    req.session.destroy(() => {
-        res.redirect('/login');
-    });
-});
+router.post('/user/logout', authController.logout);
 
 // Auth verification endpoint
 router.get('/verify', isLoggedin, authController.verify);
@@ -45,11 +45,7 @@ router.post('/partner/register', foodPartnerAuthController.register, (req, res) 
     // console.log(req.body);
 })
 
-router.get('/partner/logout',foodPartnerAuthController.logout, (req, res) => {
-    req.session.destroy(() => {
-        res.redirect('/login');
-    });
-});
+router.post('/partner/logout', foodPartnerAuthController.logout);
 
 // Food Partner auth verification endpoint
 router.get('/partner/check', isFoodPartnerLoggedin, foodPartnerAuthController.check);

@@ -9,6 +9,7 @@ import PartnerProfile from '../pages/FoodPartner/PartnerProfile'
 import CreateFood from '../pages/FoodPartner/CreateFood'
 import Dashboard from '../pages/FoodPartner/Dashboard'
 import UserProfile from '../pages/User/UserProfile'
+import ProfileSettings from '../pages/User/ProfileSettings'
 import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
 import Reel from '../pages/Reel'
@@ -25,6 +26,7 @@ const AppRoutes = () => {
         <Route path='/CreateFood' element={<CreateFood />} />
         <Route path='/partner-dashboard' element={<Dashboard />} />
         <Route path='/profile' element={<UserProfile />} />
+        <Route path='/profile/settings' element={<ProfileSettings />} />
         <Route path='/partner-profile' element={<PartnerProfile />} />
         <Route path='*' element={<ErrorPage />} />
         <Route path='/reels' element={<Reel />} />

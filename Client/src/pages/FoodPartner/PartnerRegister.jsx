@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
-import { Navigate, useNavigate, Link } from 'react-router-dom'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useNavigate, Link } from 'react-router-dom'
 import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, UserPlus, Loader2, Navigation } from 'lucide-react'
 
 const PartnerRegister = () => {
@@ -93,14 +94,14 @@ const PartnerRegister = () => {
       }
 
       setMessage('Registering your account...')
-      const response = await axios.post('http://localhost:3000/api/auth/partner/register', submitData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await axios.post(API_ENDPOINTS.FOOD_PARTNER_REGISTER, submitData, axiosConfig)
       
-      console.log(response)
+      if (response.data.isAuthenticated) {
+          setMessage('Already logged in! Redirecting to dashboard...')
+          setTimeout(() => navigate('/partner-dashboard'), 1000)
+        }
+        
+      // console.log(response)
       setMessage('Registration successful! Redirecting...')
       
       setFormData({

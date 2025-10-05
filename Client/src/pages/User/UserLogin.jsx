@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
 
 const UserLogin = () => {
@@ -21,90 +22,86 @@ const UserLogin = () => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        // Make a request to a protected endpoint to check if user is authenticated
-        // The cookie will be automatically sent with this request
-        const response = await axios.get('http://localhost:3000/api/auth/verify', {
-          withCredentials: true
-        });
-        
-        console.log('Auth check response:', response.data);
-        setIsLoggedIn(true);
+        const response = await axios.get(API_ENDPOINTS.auth.userVerify, axiosConfig)
+        if (response.data && response.data.user) {
+          // navigate('/')
+          setIsLoggedIn(true)
+        }
       } catch (error) {
-        console.log('User not authenticated:', error.response?.status);
+        console.error('User not authenticated:', error.response?.status);
         setIsLoggedIn(false);
       } finally {
         // setCheckingAuth(false);
       }
-    };
-    
-    checkAuthStatus();
-  }, []);
+    }
+    checkAuthStatus()
+  }, [navigate])
 
-  // Show loading while checking auth status
-  // if (checkingAuth) {
-  //   return <div className="min-h-screen flex items-center justify-center">Checking authentication...</div>;
-  // }
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/')
+    }
+  }, [isLoggedIn, navigate])
 
-  // Redirect if already logged in
-  if (isLoggedIn) {
-    return <Navigate to="/" replace />;
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
   }
 
-  const validate = () => {
-    const errs = {}
-    if (!formData.email) errs.email = 'Email is required'
-    else {
-      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!re.test(formData.email)) errs.email = 'Enter a valid email'
-    }
-    if (!formData.password) errs.password = 'Password is required'
-    return errs
-  }
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
     setMessage('')
-    const clientErrors = validate()
-    if (Object.keys(clientErrors).length) {
-      setErrors(clientErrors)
+    setErrors({}) // Clear previous errors
+
+    // Basic validation
+    const newErrors = {}
+    if (!formData.email) {
+      newErrors.email = 'Email is required'
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required'
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      setLoading(false)
       return
     }
-    setErrors({})
-    setLoading(true)
+
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/user/login', formData,{
-        withCredentials: true
-      })
-      console.log(response)
+      const response = await axios.post(
+        API_ENDPOINTS.auth.userLogin,
+        formData,
+        axiosConfig
+      )
       
-      // Server uses cookie-based auth, token is in httpOnly cookie
-      // Response contains user data, check for successful login
       if (response.data && response.data.message === "User logged in successfully") {
-        console.log('Login successful, cookie set by server');
-        setIsLoggedIn(true); // Update local state
-        navigate('/');
+        setMessage('Login successful! Redirecting...')
+        setIsLoggedIn(true)
+        navigate('/')
       } else {
-        setMessage('Login failed - unexpected response format');
+        setMessage('Login failed - unexpected response format')
       }
     } catch (error) {
-      console.error(error)
-      const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
-      setMessage(serverMsg)
+      console.error('Login error:', error)
+      
+      if (error.response?.data?.message) {
+        // Server returned a specific error message
+        setMessage(error.response.data.message)
+      } else if (error.response?.data?.errors) {
+        // Server returned field-specific errors
+        setErrors(error.response.data.errors)
+      } else {
+        // Generic error handling
+        setMessage(error.message || 'Login failed. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8 border border-gray-200">
@@ -120,7 +117,13 @@ const UserLogin = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {(errors.general || typeof errors === 'string') && (
+          <div className="mb-4 p-3 rounded-md bg-red-50 text-red-800 border border-red-200">
+            {errors.general || errors}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <div className="relative">
@@ -132,7 +135,7 @@ const UserLogin = () => {
                 name="email"
                 type="email"
                 value={formData.email}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="you@example.com"
               />
@@ -151,7 +154,7 @@ const UserLogin = () => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Your password"
               />
@@ -192,7 +195,7 @@ const UserLogin = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
-            <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">Register</a>
+            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">Register</Link>
           </p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const userSchema =new mongoose.Schema({
+const userSchema = new mongoose.Schema({
     firstName: {
         type: String,
         required: true
@@ -16,17 +16,57 @@ const userSchema =new mongoose.Schema({
     },
     password: {
         type: String,
+        required: true
     },
     profileImage: {
         type: Buffer,
     },
     mobile: {
-        type: Number,
-        length: 10
+        type: String,
+        validate: {
+            validator: function(v) {
+                return !v || /^\d{10}$/.test(v);
+            },
+            message: 'Mobile number must be 10 digits'
+        }
     },
-
+    dateOfBirth: {
+        type: Date
+    },
+    address: {
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: String
+    },
+    preferences: {
+        cuisine: [String], // e.g., ['Italian', 'Chinese', 'Indian']
+        dietaryRestrictions: [String], // e.g., ['Vegetarian', 'Gluten-free']
+        spiceLevel: {
+            type: String,
+            enum: ['mild', 'medium', 'hot', 'extra-hot'],
+            default: 'medium'
+        }
+    },
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+    isMobileVerified: {
+        type: Boolean,
+        default: false
+    },
+    status: {
+        type: String,
+        enum: ['active', 'suspended', 'deleted'],
+        default: 'active'
+    }
 }, {
     timestamps: true
-})
+});
+
+// Index for better query performance
+userSchema.index({ mobile: 1 });
 
 export default mongoose.model("User", userSchema);

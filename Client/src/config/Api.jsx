@@ -10,8 +10,11 @@ export const API_ENDPOINTS = {
   auth: {
     userLogin: `${BASE_URL}/auth/user/login`,
     userRegister: `${BASE_URL}/auth/user/register`,
+    userProfile: `${BASE_URL}/auth/user/profile`,
     userLogout: `${BASE_URL}/auth/user/logout`,
     userVerify: `${BASE_URL}/auth/verify`,
+    userChangePassword: `${BASE_URL}/auth/user/change-password`,
+    userDeleteAccount: `${BASE_URL}/auth/user/account`,
     
     partnerLogin: `${BASE_URL}/auth/partner/login`,
     partnerRegister: `${BASE_URL}/auth/partner/register`,
@@ -20,6 +23,17 @@ export const API_ENDPOINTS = {
     partnerProfile: `${BASE_URL}/auth/partner/profile`,
     partnerBio: `${BASE_URL}/auth/partner/bio`,
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
+    partnerStatistics: `${BASE_URL}/auth/partner/statistics`, // Added
+  },
+
+  // User profile endpoints
+  user: {
+    stats: `${BASE_URL}/user/stats`,
+    activity: `${BASE_URL}/user/activity`,
+    profilePicture: `${BASE_URL}/user/profile-picture`,
+    preferences: `${BASE_URL}/user/preferences`,
+    address: `${BASE_URL}/user/address`,
+    validatePassword: `${BASE_URL}/user/validate-password`,
   },
   
   // Food endpoints
@@ -38,6 +52,8 @@ export const API_ENDPOINTS = {
     save: (id) => `${BASE_URL}/food/${id}/save`,
     review: (id) => `${BASE_URL}/food/${id}/review`,
     reviews: (id) => `${BASE_URL}/food/${id}/reviews`,
+    delete: (id) => `${BASE_URL}/food/${id}`, // Added
+    update: (id) => `${BASE_URL}/food/${id}`, // Added
   },
   
   // Advertisement endpoints

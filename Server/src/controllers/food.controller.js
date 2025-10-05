@@ -475,7 +475,7 @@ const getAllFoods = async (req, res) => {
                 hasNextPage: parseInt(page) < totalPages,
                 hasPrevPage: parseInt(page) > 1
             },
-            foods 
+            data: foods 
         });
     } catch (error) {
         console.error("Error getting all foods:", error);
