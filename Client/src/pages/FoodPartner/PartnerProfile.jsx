@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { useNavigate } from 'react-router-dom'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
@@ -8,6 +9,8 @@ import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, 
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
+  const [errors, setErrors] = useState('')
+  const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState('posts')
   const [postFilter, setPostFilter] = useState('all') // 'all', 'food', 'advertisement'
   const [isEditingBio, setIsEditingBio] = useState(false)
@@ -16,7 +19,6 @@ const PartnerProfile = () => {
   const [postItems, setPostItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [bioLoading, setBioLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [selectedFood, setSelectedFood] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -24,30 +26,21 @@ const PartnerProfile = () => {
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true)
-      
-      // Fetch partner profile
-      const profileResponse = await axios.get('http://localhost:3000/api/auth/partner/profile', {
-        withCredentials: true
-      })
-      
-      // Fetch food posts
-      const foodResponse = await axios.get('http://localhost:3000/api/food/my-posts', {
-        withCredentials: true
-      })
-      
-      // Fetch advertisement posts
-      const adResponse = await axios.get('http://localhost:3000/api/advertisement', {
-        withCredentials: true
-      })
-      
-      console.log('Profile response:', profileResponse.data)
-      console.log('Food posts:', foodResponse.data)
-      console.log('Advertisement posts:', adResponse.data)
-      
+      setErrors('')
+      const [profileResponse, foodResponse, adResponse] = await Promise.all([
+        axios.get(API_ENDPOINTS.auth.partnerProfile, axiosConfig),
+        axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
+        axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
+      ])
+
+      // console.log('Profile response:', profileResponse.data)
+      // console.log('Food posts:', foodResponse.data)
+      // console.log('Advertisement posts:', adResponse.data)
+
       // Extract food posts from the response structure
       const foodPostsData = foodResponse.data?.foods?.all || foodResponse.data?.foods?.food || []
       const adPostsData = Array.isArray(adResponse.data) ? adResponse.data : []
-      
+
       // Combine food and advertisement posts
       const foodPosts = foodPostsData.map(post => ({
         ...post,
@@ -55,33 +48,32 @@ const PartnerProfile = () => {
         image: post.image || post.file,
         video: post.video || post.file
       }))
-      
+
       const adPosts = adPostsData.map(post => ({
         ...post,
         postType: 'advertisement',
         image: post.type === 'image' ? post.file : null,
         video: post.type === 'video' ? post.file : null
       }))
-      
+
       // Combine and sort by creation date (newest first)
-      const allPosts = [...foodPosts, ...adPosts].sort((a, b) => 
+      const allPosts = [...foodPosts, ...adPosts].sort((a, b) =>
         new Date(b.createdAt) - new Date(a.createdAt)
       )
-      
+
       setPartnerData(profileResponse.data.partner)
       setPostItems(allPosts)
       setBioText(profileResponse.data.partner.bio)
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      
+      console.error('Error fetching profile data:', error)
       // Check if it's an authentication error (401 or 403)
       if (error.response && (error.response.status === 401 || error.response.status === 403)) {
         // Redirect to partner login
         navigate('/partner-login')
         return
       }
-      
-      setMessage('Error loading profile data')
+
+      setErrors('Error loading profile data', error)
     } finally {
       setLoading(false)
     }
@@ -95,11 +87,11 @@ const PartnerProfile = () => {
   const handleSaveBio = async () => {
     try {
       setBioLoading(true)
-      await axios.put('http://localhost:3000/api/auth/partner/bio', 
+      await axios.put('http://localhost:3000/api/auth/partner/bio',
         { bio: bioText },
         { withCredentials: true }
       )
-      
+
       setPartnerData(prev => ({ ...prev, bio: bioText }))
       setIsEditingBio(false)
       setMessage('Bio updated successfully!')
@@ -168,14 +160,16 @@ const PartnerProfile = () => {
       <Navbar />
       <div className="max-w-5xl mx-auto bg-white min-h-screen">
         {message && (
-          <div className={`mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm ${
-            message.includes('successfully') 
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}>
+          <div className='mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-green-50 text-green-800 border border-green-200'>
             {message}
           </div>
         )}
+        {errors && (
+          <div className="mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-700 ">
+            {errors}
+          </div>
+        )}
+
         {/* Profile Section */}
         <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="flex flex-row gap-6 mb-6">
@@ -203,7 +197,7 @@ const PartnerProfile = () => {
                   )}
                 </div>
                 <div className="flex justify-center sm:justify-start gap-2">
-                  <button 
+                  <button
                     onClick={() => setIsEditingBio(!isEditingBio)}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
                   >
@@ -266,22 +260,22 @@ const PartnerProfile = () => {
             )}
           </div>
           <div>
-              {/* Contact Info */}
-              <div className="space-y-1 text-xs text-gray-600">
-                <div className="flex sm:justify-start gap-2">
-                  <Mail className="w-3 h-3" />
-                  <span>{partnerData.email}</span>
-                </div>
-                <div className="flex  sm:justify-start gap-2">
-                  <Phone className="w-3 h-3" />
-                  <span>{partnerData.phone}</span>
-                </div>
-                <div className="flex sm:justify-start gap-2">
-                  <MapPin className="w-3 h-3" />
-                  <span className="text-left">{partnerData.address}</span>
-                </div>
+            {/* Contact Info */}
+            <div className="space-y-1 text-xs text-gray-600">
+              <div className="flex sm:justify-start gap-2">
+                <Mail className="w-3 h-3" />
+                <span>{partnerData.email}</span>
+              </div>
+              <div className="flex  sm:justify-start gap-2">
+                <Phone className="w-3 h-3" />
+                <span>{partnerData.phone}</span>
+              </div>
+              <div className="flex sm:justify-start gap-2">
+                <MapPin className="w-3 h-3" />
+                <span className="text-left">{partnerData.address}</span>
               </div>
             </div>
+          </div>
         </div>
         {/* Stats */}
         <div className="flex justify-center sm:justify-start gap-6 mb-4 text-sm">
@@ -346,32 +340,29 @@ const PartnerProfile = () => {
                 <div className="flex justify-center gap-2">
                   <button
                     onClick={() => setPostFilter('all')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      postFilter === 'all'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     All Posts ({postItems.length})
                   </button>
                   <button
                     onClick={() => setPostFilter('food')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      postFilter === 'food'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'food'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     <ShoppingBag className="w-4 h-4 inline mr-1" />
                     Food ({foodPostsCount})
                   </button>
                   <button
                     onClick={() => setPostFilter('advertisement')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      postFilter === 'advertisement'
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'advertisement'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     <Megaphone className="w-4 h-4 inline mr-1" />
                     Ads ({adPostsCount})
@@ -419,11 +410,10 @@ const PartnerProfile = () => {
                         {/* Content Type Indicators */}
                         <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
                           {/* Post Type Badge */}
-                          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
-                            item.postType === 'food' 
-                              ? 'bg-green-500/80 text-white' 
-                              : 'bg-purple-500/80 text-white'
-                          }`}>
+                          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${item.postType === 'food'
+                            ? 'bg-green-500/80 text-white'
+                            : 'bg-purple-500/80 text-white'
+                            }`}>
                             {item.postType === 'food' ? (
                               <ShoppingBag className="w-3 h-3" />
                             ) : (
@@ -431,7 +421,7 @@ const PartnerProfile = () => {
                             )}
                             <span>{item.postType === 'food' ? 'Food' : 'Ad'}</span>
                           </div>
-                          
+
                           {/* Media Type Indicator */}
                           {item.type === 'video' ? (
                             <div className="flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5">
@@ -476,13 +466,13 @@ const PartnerProfile = () => {
                           <h3 className="text-white text-sm font-semibold truncate">
                             {item.name}
                           </h3>
-                          
+
                           {item.description && (
                             <p className="text-white/90 text-xs line-clamp-2 leading-tight">
                               {item.description}
                             </p>
                           )}
-                          
+
                           {/* Post Type Specific Info */}
                           {item.postType === 'food' ? (
                             <div className="space-y-1">
@@ -521,7 +511,7 @@ const PartnerProfile = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Tags */}
                           {item.tags && item.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -535,7 +525,7 @@ const PartnerProfile = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Click to view indicator */}
                           <div className="text-center">
                             <span className="text-white/90 text-xs bg-white/20 px-2 py-1 rounded-full">
@@ -547,16 +537,15 @@ const PartnerProfile = () => {
 
                       {/* Content Type Badge at Bottom */}
                       <div className="absolute bottom-2 left-2 z-10">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          item.postType === 'food'
-                            ? item.type === 'video' 
-                              ? 'bg-green-500/80 text-white' 
-                              : 'bg-green-600/80 text-white'
-                            : item.type === 'video'
-                              ? 'bg-purple-500/80 text-white'
-                              : 'bg-purple-600/80 text-white'
-                        }`}>
-                          {item.postType === 'food' 
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${item.postType === 'food'
+                          ? item.type === 'video'
+                            ? 'bg-green-500/80 text-white'
+                            : 'bg-green-600/80 text-white'
+                          : item.type === 'video'
+                            ? 'bg-purple-500/80 text-white'
+                            : 'bg-purple-600/80 text-white'
+                          }`}>
+                          {item.postType === 'food'
                             ? (item.type === 'video' ? 'Food Reel' : 'Food Post')
                             : (item.type === 'video' ? 'Ad Reel' : 'Ad Post')
                           }
@@ -595,9 +584,9 @@ const PartnerProfile = () => {
           )}
         </div>
       </div>
-      
+
       {/* Food Detail Modal */}
-      <FoodDetailModal 
+      <FoodDetailModal
         food={selectedFood}
         isOpen={isModalOpen}
         onClose={handleCloseModal}

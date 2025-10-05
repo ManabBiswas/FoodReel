@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
 import { 
   UtensilsCrossed, 
   Upload, 
@@ -238,43 +239,42 @@ const CreateFood = () => {
       setMessage('Uploading your post...')
       
       // Use different API endpoints based on post type
-      const apiUrl = formData.postType === 'food' 
-        ? 'http://localhost:3000/api/food'
-        : 'http://localhost:3000/api/advertisement'
+       const apiUrl = formData.postType === 'food' 
+        ? API_ENDPOINTS.food.create
+        : API_ENDPOINTS.advertisement.create
       
-      const response = await axios.post(apiUrl, submitData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      const response = await axios.post(apiUrl, submitData, multipartConfig)
 
-      console.log(response)
-      setMessage(`${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`)
+      // console.log(response)
+      // console.log('Post created successfully:', response.data)
+      if (response.data) {
+          setMessage(`${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`)
+        }
+      
       
       // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        type: 'image',
-        postType: '',
-        price: '',
-        currency: 'INR',
-        preparationTime: '',
-        promotionType: '',
-        prices: {
-          original: '',
-          discounted: ''
-        },
-        validUntil: '',
-        promoCode: '',
-        tags: []
-      })
-      setCurrentStep(1)
-      setFile(null)
-      setFilePreview(null)
-      setTagInput('')
-      setErrors({})
+      // setFormData({
+      //   name: '',
+      //   description: '',
+      //   type: 'image',
+      //   postType: '',
+      //   price: '',
+      //   currency: 'INR',
+      //   preparationTime: '',
+      //   promotionType: '',
+      //   prices: {
+      //     original: '',
+      //     discounted: ''
+      //   },
+      //   validUntil: '',
+      //   promoCode: '',
+      //   tags: []
+      // })
+      // setCurrentStep(1)
+      // setFile(null)
+      // setFilePreview(null)
+      // setTagInput('')
+      // setErrors({})
       
       setTimeout(() => navigate('/partner-profile'), 2000)
       

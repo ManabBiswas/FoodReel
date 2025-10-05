@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { 
@@ -25,10 +26,10 @@ const Home = () => {
   useEffect(() => {
     const fetchFoodReels = async () => {
       try {
-        setLoading(true)
-        const response = await axios.get('http://localhost:3000/api/food/trending', {
-          params: { limit: 5 },
-          withCredentials: true
+         setLoading(true)
+        const response = await axios.get(API_ENDPOINTS.food.getTrending, {
+          ...axiosConfig,
+          params: { limit: 5 }
         })
         
         console.log('Food reels response:', response.data)

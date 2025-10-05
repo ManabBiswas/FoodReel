@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { 
   Plus, 
@@ -17,7 +18,8 @@ import {
   Eye,
   Edit,
   Trash2,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 
 const Dashboard = () => {
@@ -27,36 +29,116 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('all')
   const [error, setError] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(null)
 
-  // Fetch partner's posts and statistics
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        
-        // Fetch posts
-        const postsResponse = await axios.get('http://localhost:3000/api/food/my-posts', {
-          withCredentials: true
-        })
-        
-        // Fetch statistics
-        const statsResponse = await axios.get('http://localhost:3000/api/food/statistics', {
-          withCredentials: true
-        })
-        
-        setPosts(postsResponse.data.foods)
-        setStatistics(statsResponse.data.statistics)
-        
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error)
-        setError('Failed to load dashboard data')
-      } finally {
-        setLoading(false)
+    fetchDashboardData()
+  })
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      
+      // Fetch posts and advertisements
+      const [foodResponse, adResponse] = await Promise.all([
+        axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
+        axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
+      ])
+      
+      const foodPosts = foodResponse.data?.data || []
+      const allAds = adResponse.data?.data || []
+      
+      // Filter advertisements by current partner
+      const myAds = allAds.filter(ad => 
+        ad.foodPartner?._id === foodResponse.data?.partnerId || 
+        ad.createdBy === foodResponse.data?.partnerId
+      )
+      
+      // Combine and sort by creation date
+      const allPosts = [...foodPosts, ...myAds].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      )
+      
+      setPosts({
+        food: foodPosts,
+        advertisement: myAds,
+        all: allPosts
+      })
+      
+      // Calculate statistics
+      const stats = {
+        food: {
+          count: foodPosts.length,
+          totalLikes: foodPosts.reduce((sum, post) => sum + (post.likes?.length || 0), 0),
+          totalReviews: foodPosts.reduce((sum, post) => sum + (post.reviews?.length || 0), 0),
+          totalSaves: foodPosts.reduce((sum, post) => sum + (post.saves?.length || 0), 0)
+        },
+        advertisement: {
+          count: myAds.length,
+          totalLikes: myAds.reduce((sum, ad) => sum + (ad.likes?.length || 0), 0),
+          totalComments: myAds.reduce((sum, ad) => sum + (ad.comments?.length || 0), 0),
+          totalViews: myAds.reduce((sum, ad) => sum + (ad.views || 0), 0)
+        },
+        total: {
+          totalLikes: 0,
+          totalComments: 0,
+          totalSaves: 0
+        }
       }
+      
+      stats.total.totalLikes = stats.food.totalLikes + stats.advertisement.totalLikes
+      stats.total.totalComments = stats.food.totalReviews + stats.advertisement.totalComments
+      stats.total.totalSaves = stats.food.totalSaves
+      
+      setStatistics(stats)
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      if (error.response?.status === 401) {
+        setError('Session expired. Please login again.')
+        setTimeout(() => navigate('/partner-login'), 2000)
+      } else {
+        setError(error.response?.data?.message || 'Failed to load dashboard data')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeletePost = async (postId, postType) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) {
+      return
     }
 
-    fetchData()
-  }, [])
+    try {
+      setDeleteLoading(postId)
+      
+      const endpoint = postType === 'food' 
+        ? API_ENDPOINTS.food.delete(postId)
+        : API_ENDPOINTS.advertisement.delete(postId)
+      
+      await axios.delete(endpoint, axiosConfig)
+      
+      // Refresh dashboard data
+      await fetchDashboardData()
+      
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      setError(error.response?.data?.message || 'Failed to delete post')
+      setTimeout(() => setError(''), 3000)
+    } finally {
+      setDeleteLoading(null)
+    }
+  }
+
+  const handleEditPost = (postId, postType) => {
+    navigate(`/edit-${postType}/${postId}`)
+  }
+
+  const handleViewPost = (postId) => {
+    navigate(`/food/${postId}`)
+  }
 
   if (loading) {
     return (
@@ -86,7 +168,7 @@ const Dashboard = () => {
             </div>
             <div className="mt-4 sm:mt-0">
               <button
-                onClick={() => navigate('/create-food')}
+                onClick={() => navigate('/CreateFood')}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -109,9 +191,15 @@ const Dashboard = () => {
                   <p className="text-2xl font-bold text-gray-900">{statistics.food.count}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-gray-600">
-                <Heart className="w-4 h-4 mr-1 text-red-400" />
-                {statistics.food.totalLikes} total likes
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <div className="flex items-center text-gray-600">
+                  <Heart className="w-4 h-4 mr-1 text-red-400" />
+                  {statistics.food.totalLikes} likes
+                </div>
+                <div className="flex items-center text-gray-600">
+                  <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
+                  {statistics.food.totalReviews} reviews
+                </div>
               </div>
             </div>
 
@@ -125,9 +213,15 @@ const Dashboard = () => {
                   <p className="text-2xl font-bold text-gray-900">{statistics.advertisement.count}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-gray-600">
-                <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
-                {statistics.advertisement.totalComments} total comments
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <div className="flex items-center text-gray-600">
+                  <Heart className="w-4 h-4 mr-1 text-red-400" />
+                  {statistics.advertisement.totalLikes} likes
+                </div>
+                <div className="flex items-center text-gray-600">
+                  <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
+                  {statistics.advertisement.totalComments} comments
+                </div>
               </div>
             </div>
 
@@ -153,7 +247,8 @@ const Dashboard = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6 flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
             {error}
           </div>
         )}
@@ -186,129 +281,118 @@ const Dashboard = () => {
           <div className="p-6">
             {currentPosts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentPosts.map((post) => (
-                  <div key={post._id} className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                    {/* Media */}
-                    <div className="relative aspect-video bg-gray-200">
-                      {post.type === 'video' && post.video ? (
-                        <video
-                          src={post.video}
-                          className="w-full h-full object-cover"
-                          muted
-                        />
-                      ) : post.type === 'image' && post.image ? (
-                        <img
-                          src={post.image}
-                          alt={post.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          No media
-                        </div>
-                      )}
-                      
-                      {/* Post type badge */}
-                      <div className="absolute top-3 left-3">
-                        {post.postType === 'advertisement' ? (
-                          <div className="bg-purple-500 text-white px-2 py-1 rounded text-xs flex items-center">
-                            <Megaphone className="w-3 h-3 mr-1" />
-                            Ad
-                          </div>
+                {currentPosts.map((post) => {
+                  const postType = post.postType || (post.price ? 'food' : 'advertisement')
+                  const isDeleting = deleteLoading === post._id
+                  
+                  return (
+                    <div key={post._id} className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                      {/* Media */}
+                      <div className="relative aspect-video bg-gray-200">
+                        {post.video ? (
+                          <video
+                            src={post.video?.url || post.video}
+                            className="w-full h-full object-cover"
+                            muted
+                          />
+                        ) : post.thumbnail ? (
+                          <img
+                            src={post.thumbnail?.url || post.thumbnail}
+                            alt={post.name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          <div className="bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center">
-                            <ShoppingBag className="w-3 h-3 mr-1" />
-                            Food
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            No media
                           </div>
                         )}
+                        
+                        {/* Post type badge */}
+                        <div className="absolute top-3 left-3">
+                          {postType === 'advertisement' ? (
+                            <div className="bg-purple-500 text-white px-2 py-1 rounded text-xs flex items-center">
+                              <Megaphone className="w-3 h-3 mr-1" />
+                              Ad
+                            </div>
+                          ) : (
+                            <div className="bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center">
+                              <ShoppingBag className="w-3 h-3 mr-1" />
+                              Food
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Content */}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">{post.name}</h3>
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.description}</p>
+                      {/* Content */}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">{post.name}</h3>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.description}</p>
 
-                      {/* Type-specific information */}
-                      {post.postType === 'food' && (
-                        <div className="space-y-1 mb-3">
-                          {post.price && (
+                        {/* Type-specific information */}
+                        {postType === 'food' && post.price && (
+                          <div className="space-y-1 mb-3">
                             <div className="flex items-center text-green-600 text-sm font-medium">
                               <IndianRupee className="w-4 h-4 mr-1" />
-                              {post.price} {post.currency}
+                              {post.price}
                             </div>
-                          )}
-                          {post.preparationTime && (
-                            <div className="flex items-center text-gray-600 text-xs">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {post.preparationTime} min
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            {post.category && (
+                              <div className="text-gray-600 text-xs">
+                                <Tag className="w-3 h-3 inline mr-1" />
+                                {post.category}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                      {post.postType === 'advertisement' && (
-                        <div className="space-y-1 mb-3">
-                          {post.promotionType && (
-                            <div className="text-purple-600 text-xs font-medium capitalize">
-                              {post.promotionType.replace('_', ' ')} offer
-                            </div>
-                          )}
-                          {post.validUntil && (
-                            <div className="flex items-center text-gray-600 text-xs">
-                              <Calendar className="w-3 h-3 mr-1" />
-                              Until {new Date(post.validUntil).toLocaleDateString()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Tags */}
-                      {post.tags && post.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {post.tags.slice(0, 2).map((tag, index) => (
-                            <span key={index} className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs flex items-center">
-                              <Tag className="w-3 h-3 mr-1" />
-                              {tag}
+                        {/* Engagement stats */}
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center">
+                              <Heart className="w-4 h-4 mr-1 text-red-400" />
+                              {post.likes?.length || 0}
                             </span>
-                          ))}
-                          {post.tags.length > 2 && (
-                            <span className="text-gray-500 text-xs">+{post.tags.length - 2} more</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Engagement stats */}
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center">
-                            <Heart className="w-4 h-4 mr-1 text-red-400" />
-                            {post.likeCount || 0}
-                          </span>
-                          <span className="flex items-center">
-                            <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
-                            {post.commentCount || 0}
+                            <span className="flex items-center">
+                              <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
+                              {post.reviews?.length || post.comments?.length || 0}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {new Date(post.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {new Date(post.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors">
-                          <Eye className="w-4 h-4" />
-                          View
-                        </button>
-                        <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors">
-                          <Edit className="w-4 h-4" />
-                          Edit
-                        </button>
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleViewPost(post._id)}
+                            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </button>
+                          <button 
+                            onClick={() => handleEditPost(post._id, postType)}
+                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePost(post._id, postType)}
+                            disabled={isDeleting}
+                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -328,10 +412,10 @@ const Dashboard = () => {
                   Create your first {activeTab === 'food' ? 'food item' : activeTab === 'advertisement' ? 'advertisement' : 'post'} to get started
                 </p>
                 <button
-                  onClick={() => navigate('/create-food')}
+                  onClick={() => navigate('/CreateFood')}
                   className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
                 >
-                  Create {activeTab === 'food' ? 'Food Item' : activeTab === 'advertisement' ? 'Advertisement' : 'Post'}
+                  Create Post
                 </button>
               </div>
             )}
