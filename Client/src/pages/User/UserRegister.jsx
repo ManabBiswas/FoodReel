@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import axios from 'axios'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, Phone, Eye, EyeOff, UserPlus, Loader2 } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone } from 'lucide-react'
 
 const UserRegister = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +12,6 @@ const UserRegister = () => {
     password: '',
     confirmPassword: '',
     mobile: '',
-    // profileImage: null
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -23,14 +23,11 @@ const UserRegister = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    // console.log(e.target)
 
-    
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }))
-    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -79,74 +76,59 @@ const UserRegister = () => {
     return newErrors
   }
 
-const handleSubmit = async (e) => {
-  e.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  const newErrors = validateForm()
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors)
-    return
+    const newErrors = validateForm()
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      // Create FormData for file upload
+      const submitData = new FormData()
+      submitData.append('firstName', formData.firstName)
+      submitData.append('lastName', formData.lastName)
+      submitData.append('email', formData.email)
+      submitData.append('password', formData.password)
+      submitData.append('mobile', formData.mobile)
+
+      const response = await axios.post(
+        API_ENDPOINTS.USER_REGISTER || 'http://localhost:3000/api/auth/user/register',
+        submitData,
+        axiosConfig
+      )
+
+      console.log('Registration successful:', response.data)
+      
+      setMessage('Registration successful! Please check your email for verification.')
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        mobile: '',
+      })
+      
+      setTimeout(() => {
+        navigate('/')
+      }, 2000)
+
+    } catch (error) {
+      console.error('Registration error:', error)
+      setMessage(
+        error.response?.data?.message ||
+        'Registration failed. Please try again.'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
-
-  setLoading(true)
-  setMessage('')
-
-  try {
-    // Create FormData for file upload
-    const submitData = new FormData()
-    submitData.append('firstName', formData.firstName)
-    submitData.append('lastName', formData.lastName)
-    submitData.append('email', formData.email)
-    submitData.append('password', formData.password)
-    submitData.append('mobile', formData.mobile)
-
-    // if (formData.profileImage) {
-    //   submitData.append('profileImage', formData.profileImage)
-    // }
-
-    const response = await axios.post(
-      'http://localhost:3000/api/auth/user/register',
-      submitData,
-      {
-        withCredentials: true
-      }
-    );
-
-    // Success - axios automatically throws for 4xx and 5xx status codes
-    console.log('Registration successful:', response.data)
-    
-    setMessage('Registration successful! Please check your email for verification.')
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      mobile: '',
-      // profileImage: null
-    })
-    setTimeout(() => {
-      navigate('/')
-    },2000)
-    
-
-    // Clear file input
-    // const fileInput = document.querySelector('input[type="file"]')
-    // if (fileInput) fileInput.value = ''
-
-    // Optionally navigate to another page
-    // navigate('/dashboard') // uncomment if you want to redirect
-
-  } catch (error) {
-    console.error('Registration error:', error)
-    setMessage(
-      error.response?.data?.message ||
-      'Registration failed. Please try again.'
-    )
-  } finally {
-    setLoading(false)
-  }
-}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -165,7 +147,7 @@ const handleSubmit = async (e) => {
           </div>
         )}
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="relative">
@@ -310,22 +292,8 @@ const handleSubmit = async (e) => {
             )}
           </div>
 
-         {/*  <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Profile Image
-            </label>
-            <input
-              type="file"
-              name="profileImage"
-              onChange={handleInputChange}
-              accept="image/*"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
- */}
           <button
             type="submit"
-            onClick={handleSubmit}
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
@@ -341,14 +309,14 @@ const handleSubmit = async (e) => {
               </div>
             )}
           </button>
-        </div>
+        </form>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <a href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
       </div>

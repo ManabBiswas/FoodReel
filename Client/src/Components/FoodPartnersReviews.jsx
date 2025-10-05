@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
+import { Link } from 'react-router-dom'
 import { Star, CheckCircle, User, Loader2 } from 'lucide-react'
 
 const FoodPartnersReviews = () => {
@@ -14,9 +16,7 @@ const FoodPartnersReviews = () => {
   const fetchReviews = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('http://localhost:3000/api/auth/partner/reviews', {
-        withCredentials: true
-      })
+      const response = await axios.get(API_ENDPOINTS.FOOD_PARTNER_REVIEWS, axiosConfig)
       
       setReviews(response.data.reviews || [])
       setReviewStats({

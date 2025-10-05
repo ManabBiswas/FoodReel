@@ -133,7 +133,10 @@ export const getAllAdvertisements = async (req, res) => {
       .populate('partnerId', 'name email')
       .sort({ createdAt: -1 })
     
-    res.status(200).json(advertisements)
+    res.status(200).json({
+      message: "Advertisements retrieved successfully",
+      data: advertisements
+    })
   } catch (error) {
     console.error('Get advertisements error:', error)
     res.status(500).json({ 
@@ -152,7 +155,10 @@ export const getAdvertisementById = async (req, res) => {
       return res.status(404).json({ error: 'Advertisement not found' })
     }
     
-    res.status(200).json(advertisement)
+    res.status(200).json({
+      message: "Advertisement retrieved successfully",
+      data: advertisement
+    })
   } catch (error) {
     console.error('Get advertisement error:', error)
     res.status(500).json({ 

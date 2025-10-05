@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 const PartnerLogin = () => {
@@ -19,9 +20,7 @@ const PartnerLogin = () => {
     const checkAuthStatus = async () => {
       try {
         // Check if user is already authenticated
-        const response = await axios.get('http://localhost:3000/api/auth/partner/check', {
-          withCredentials: true
-        })
+        const response = await axios.get(API_ENDPOINTS.auth.partnerVerify, axiosConfig)
         
         // If authenticated, redirect to dashboard
         if (response.data.isAuthenticated) {
