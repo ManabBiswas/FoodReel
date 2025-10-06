@@ -74,6 +74,15 @@ export const API_ENDPOINTS = {
     statistics: `${BASE_URL}/orders/partner/statistics`,
   },
   
+  // Payment endpoints
+  payment: {
+    createOrder: `${BASE_URL}/payment/create-order`,
+    verify: `${BASE_URL}/payment/verify`,
+    failure: `${BASE_URL}/payment/failure`,
+    refund: `${BASE_URL}/payment/refund`,
+    webhook: `${BASE_URL}/payment/webhook`,
+  },
+  
   // Partner follow endpoint
   partner: {
     follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,

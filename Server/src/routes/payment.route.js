@@ -5,7 +5,7 @@ import {
   handlePaymentFailure,
   initiateRefund,
   razorpayWebhook
-} from '../controllers/paymentController.js';
+} from '../controllers/payment.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
 import { rateLimiter } from '../middlewares/rateLimiter.js';
 

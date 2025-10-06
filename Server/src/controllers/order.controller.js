@@ -6,30 +6,36 @@ import paymentService from "../services/payment.service.js";
 const createOrder = async (req, res) => {
     try {
         const {
-            foodItemId,
+            foodId,
+            foodItemId, // Support both field names
             quantity = 1,
             deliveryAddress,
-            phoneNumber,
             specialInstructions,
-            paymentMethod = 'cash_on_delivery'
+            orderNotes,
+            orderSource = 'modal',
+            paymentMethod = 'cod'
         } = req.body;
 
+        const itemId = foodId || foodItemId;
+
         // Validate required fields
-        if (!foodItemId || !deliveryAddress || !phoneNumber) {
+        if (!itemId || !deliveryAddress) {
             return res.status(400).json({ 
-                error: "Food item, delivery address, and phone number are required" 
+                error: "Food item and delivery address are required" 
             });
         }
 
         // Validate delivery address
-        if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.state || !deliveryAddress.zipCode) {
+        if (!deliveryAddress.fullName || !deliveryAddress.phone || 
+            !deliveryAddress.addressLine1 || !deliveryAddress.city || 
+            !deliveryAddress.state || !deliveryAddress.pincode) {
             return res.status(400).json({ 
-                error: "Complete delivery address is required (street, city, state, zipCode)" 
+                error: "Complete delivery address is required (fullName, phone, addressLine1, city, state, pincode)" 
             });
         }
 
         // Find the food item and validate it's orderable
-        const foodItem = await foodModel.findById(foodItemId).populate('foodPartner');
+        const foodItem = await foodModel.findById(itemId).populate('foodPartner');
         
         if (!foodItem) {
             return res.status(404).json({ error: "Food item not found" });
@@ -47,6 +53,9 @@ const createOrder = async (req, res) => {
             });
         }
 
+        // Calculate pricing using payment service
+        const pricing = paymentService.calculatePricing(foodItem.price, quantity);
+
         // Calculate estimated delivery time (food prep time + 30 min delivery)
         const prepTime = foodItem.preparationTime || 20; // default 20 minutes
         const deliveryTime = 30; // 30 minutes for delivery
@@ -55,16 +64,20 @@ const createOrder = async (req, res) => {
         // Create order
         const orderData = {
             user: req.user._id,
-            foodItem: foodItemId,
+            foodItem: itemId,
             foodPartner: foodItem.foodPartner._id,
             quantity: parseInt(quantity),
-            price: foodItem.price,
-            currency: foodItem.currency,
+            currency: 'INR',
             deliveryAddress,
-            phoneNumber,
-            specialInstructions: specialInstructions || '',
+            specialInstructions: specialInstructions || orderNotes || '',
             estimatedDeliveryTime,
-            paymentMethod,
+            orderSource,
+            pricing,
+            status: 'pending',
+            paymentDetails: {
+                method: paymentMethod,
+                status: paymentMethod === 'cod' ? 'pending' : 'pending'
+            },
             orderNotes: [{
                 note: `Order placed for ${foodItem.name}`,
                 addedBy: 'system'
@@ -81,8 +94,10 @@ const createOrder = async (req, res) => {
         ]);
 
         res.status(201).json({
-            message: "Order placed successfully",
-            order: newOrder
+            success: true,
+            message: "Order created successfully",
+            order: newOrder,
+            orderId: newOrder._id
         });
 
     } catch (error) {

@@ -18,6 +18,8 @@ import {
   Sparkles
 } from 'lucide-react'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
+import ReelOrderButton from '../Components/ReelOrderButton'
+import QuickOrderModal from '../Components/QuickOrderModal'
 
 const Reel = () => {
   const [combinedContent, setCombinedContent] = useState([])
@@ -25,6 +27,8 @@ const Reel = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [muted, setMuted] = useState(true)
   const [playing, setPlaying] = useState(true)
+  const [selectedFoodForOrder, setSelectedFoodForOrder] = useState(null)
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
   const containerRef = useRef(null)
   const videoRefs = useRef([])
 
@@ -283,6 +287,16 @@ const Reel = () => {
     }
   }
 
+  const handleOrderClick = (food) => {
+    setSelectedFoodForOrder(food)
+    setIsOrderModalOpen(true)
+  }
+
+  const handleCloseOrderModal = () => {
+    setIsOrderModalOpen(false)
+    setSelectedFoodForOrder(null)
+  }
+
   const toggleMute = () => {
     setMuted(!muted)
     videoRefs.current.forEach(video => {
@@ -503,6 +517,14 @@ const Reel = () => {
             </div>
           )}
 
+          {/* Order Button for Food Posts */}
+          {item.type === 'post' && item.price && (
+            <ReelOrderButton 
+              food={item} 
+              onOrderClick={handleOrderClick}
+            />
+          )}
+
           {/* Bottom Content Info */}
           <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-10">
             <div className="max-w-md">
@@ -613,6 +635,13 @@ const Reel = () => {
           )}
         </div>
       ))}
+
+      {/* Quick Order Modal */}
+      <QuickOrderModal
+        food={selectedFoodForOrder}
+        isOpen={isOrderModalOpen}
+        onClose={handleCloseOrderModal}
+      />
     </div>
   )
 }
