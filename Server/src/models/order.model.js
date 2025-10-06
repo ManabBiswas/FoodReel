@@ -22,36 +22,109 @@ const orderSchema = new mongoose.Schema({
         min: 1,
         default: 1
     },
-    price: {
-        type: Number,
-        required: true,
-        min: 0
-    },
     currency: {
         type: String,
         enum: ['INR'],
         default: 'INR'
-    },
-    totalAmount: {
-        type: Number,
-        required: true,
-        min: 0
     },
     status: {
         type: String,
         enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
         default: 'pending'
     },
-    deliveryAddress: {
-        street: { type: String, required: true },
-        city: { type: String, required: true },
-        state: { type: String, required: true },
-        PinCode: { type: String, required: true },
-        country: { type: String, default: 'India' }
-    },
-    phoneNumber: {
+    orderSource: {
         type: String,
+        enum: ['reel', 'modal', 'menu', 'search'],
+        default: 'modal',
         required: true
+    },
+    // CONSOLIDATED PAYMENT INFORMATION (removed duplicates)
+    paymentDetails: {
+        method: {
+            type: String,
+            enum: ['razorpay', 'cod'],
+            required: true
+        },
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+        transactionId: String,
+        paidAt: Date,
+        status: {
+            type: String,
+            enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
+            default: 'pending'
+        }
+    },
+    deliveryAddress: {
+        fullName: {
+            type: String,
+            required: true
+        },
+        phone: {
+            type: String,
+            required: true
+        },
+        addressLine1: {
+            type: String,
+            required: true
+        },
+        addressLine2: String,
+        landmark: String,
+        city: {
+            type: String,
+            required: true
+        },
+        state: {
+            type: String,
+            required: true
+        },
+        pincode: {
+            type: String,
+            required: true
+        },
+        coordinates: {
+            latitude: Number,
+            longitude: Number
+        }
+    },
+    // CONSOLIDATED PRICING (this is the single source of truth)
+    pricing: {
+        itemPrice: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+        deliveryFee: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        platformFee: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        taxes: {
+            gst: {
+                type: Number,
+                default: 0
+            },
+            total: {
+                type: Number,
+                default: 0
+            }
+        },
+        discount: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        totalAmount: {
+            type: Number,
+            required: true,
+            min: 0
+        }
     },
     specialInstructions: {
         type: String
@@ -60,34 +133,80 @@ const orderSchema = new mongoose.Schema({
         type: Date
     },
     orderNotes: [{
-        note: { type: String, required: true },
-        timestamp: { type: Date, default: Date.now },
-        addedBy: { type: String, enum: ['user', 'partner', 'system'], default: 'system' }
+        note: { 
+            type: String, 
+            required: true 
+        },
+        timestamp: { 
+            type: Date, 
+            default: Date.now 
+        },
+        addedBy: { 
+            type: String, 
+            enum: ['user', 'partner', 'system'], 
+            default: 'system' 
+        }
     }],
-    paymentStatus: {
-        type: String,
-        enum: ['pending', 'completed', 'failed', 'refunded'],
-        default: 'pending'
-    },
-    paymentMethod: {
-        type: String,
-        enum: ['cash_on_delivery', 'online_payment', 'wallet'],
-        default: 'cash_on_delivery'
+    cancellation: {
+        isCancelled: {
+            type: Boolean,
+            default: false
+        },
+        cancelledBy: {
+            type: String,
+            enum: ['user', 'partner', 'admin'],
+        },
+        cancelledAt: Date,
+        reason: String,
+        refundStatus: {
+            type: String,
+            enum: ['not_applicable', 'pending', 'processing', 'completed'],
+            default: 'not_applicable'
+        },
+        refundAmount: Number
     }
-}, { 
-    timestamps: true 
+}, {
+    timestamps: true
 });
 
 // Add indexes for better query performance
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ foodPartner: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ 'paymentDetails.status': 1 });
+orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 });
 
-// Calculate total amount before saving
-orderSchema.pre('save', function(next) {
-    this.totalAmount = this.price * this.quantity;
+// Calculate pricing before saving
+orderSchema.pre('save', function (next) {
+    if (this.pricing && this.isModified('pricing')) {
+        const { itemPrice, deliveryFee, platformFee, taxes, discount } = this.pricing;
+        
+        // Auto-calculate total amount
+        this.pricing.totalAmount = 
+            itemPrice + 
+            deliveryFee + 
+            platformFee + 
+            (taxes?.total || 0) - 
+            (discount || 0);
+    }
     next();
 });
+
+// Virtual fields
+orderSchema.virtual('totalAmount').get(function() {
+    return this.pricing.totalAmount;
+});
+
+orderSchema.virtual('paymentStatus').get(function() {
+    return this.paymentDetails.status;
+});
+
+orderSchema.virtual('paymentMethod').get(function() {
+    return this.paymentDetails.method === 'cod' ? 'cash_on_delivery' : 'online_payment';
+});
+
+orderSchema.set('toJSON', { virtuals: true });
+orderSchema.set('toObject', { virtuals: true });
 
 const orderModel = mongoose.model("Order", orderSchema);
 
