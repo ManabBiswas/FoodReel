@@ -3,13 +3,14 @@ import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
-import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield } from 'lucide-react'
+import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
 
 const UserProfile = () => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('profile')
+  const [activeTab, setActiveTab] = useState('posts')
+  const [userPosts, setUserPosts] = useState([])
   const [likedFoods, setLikedFoods] = useState([])
   const [savedFoods, setSavedFoods] = useState([])
   const navigate = useNavigate()
@@ -24,6 +25,16 @@ const UserProfile = () => {
         // These would come from separate API calls when you implement favorites/saved items
         setLikedFoods(response.data.likedFoods || [])
         setSavedFoods(response.data.savedFoods || [])
+        
+        // Fetch user's posts
+        try {
+          const postsResponse = await axios.get(API_ENDPOINTS.userPost.myPosts, axiosConfig)
+          if (postsResponse.data?.data) {
+            setUserPosts(postsResponse.data.data)
+          }
+        } catch (postsError) {
+          console.error('Error fetching user posts:', postsError)
+        }
       } else {
         navigate('/login')
       }
@@ -169,12 +180,12 @@ const UserProfile = () => {
           {/* Stats */}
           <div className="flex justify-around sm:justify-center sm:gap-28 mb-4 text-sm">
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">0</span>
-              <span className="text-gray-600 text-xs">orders</span>
+              <span className="font-semibold text-gray-900 block">{userPosts.length}</span>
+              <span className="text-gray-600 text-xs">posts</span>
             </div>
             <div className="text-center">
               <span className="font-semibold text-gray-900 block">0</span>
-              <span className="text-gray-600 text-xs">reviews</span>
+              <span className="text-gray-600 text-xs">orders</span>
             </div>
             <div className="text-center">
               <span className="font-semibold text-gray-900 block">{likedFoods.length + savedFoods.length}</span>
@@ -241,17 +252,55 @@ const UserProfile = () => {
         <div className="pb-8">
           {activeTab === 'posts' && (
             <div className="px-4 py-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {/* {foods.map((food) => (
-                  <div key={food._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                    <img 
-                      src={food.thumbnail?.url || food.thumbnail} 
-                      alt={food.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div> 
-                ))}*/}
-              </div>
+              {userPosts.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {userPosts.map((post) => (
+                    <div key={post._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
+                      {post.type === 'video' ? (
+                        <video 
+                          src={post.video} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img 
+                          src={post.image} 
+                          alt={post.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 text-white text-sm space-y-1 text-center">
+                          <div className="flex items-center justify-center gap-4">
+                            <span className="flex items-center gap-1">
+                              <Heart className="w-4 h-4" fill="white" />
+                              {post.likeCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="w-4 h-4" fill="white" />
+                              {post.commentCount || 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16 px-4">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-gray-900 flex items-center justify-center">
+                    <Grid3X3 className="w-6 h-6 text-gray-900" />
+                  </div>
+                  <h3 className="text-xl font-light text-gray-900 mb-2">No Posts Yet</h3>
+                  <p className="text-gray-500 mb-4">Share your food experiences with the community</p>
+                  <button 
+                    onClick={() => navigate('/create-post')}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Your First Post
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {activeTab === 'favorites' && (

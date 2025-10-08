@@ -6,6 +6,7 @@ import orderRoutes from './routes/order.route.js';
 import advertisementRoutes from './routes/advertisement.route.js';
 import userRoutes from './routes/user.route.js';
 import paymentRoutes from './routes/payment.route.js';
+import userPostRoutes from './routes/userPost.route.js';
 import cors from 'cors';
 const app = express() 
 
@@ -24,6 +25,7 @@ app.use('/api/orders',orderRoutes);
 app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
+app.use('/api/food', userPostRoutes);
 
 
 export default app;

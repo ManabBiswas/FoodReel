@@ -67,7 +67,13 @@ const foodSchema = new mongoose.Schema({
     foodPartner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "FoodPartner",
-        required: true
+        required: false
+    },
+    // Optional: user who created a post (regular users)
+    postedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: false
     },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,

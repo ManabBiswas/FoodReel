@@ -32,6 +32,10 @@ export const API_ENDPOINTS = {
     activity: `${BASE_URL}/user/activity`,
     profilePicture: `${BASE_URL}/user/profile-picture`,
     preferences: `${BASE_URL}/user/preferences`,
+    favorites: `${BASE_URL}/user/favorites`,  
+    bio: `${BASE_URL}/user/bio`,
+    reviews: `${BASE_URL}/user/reviews`,
+    saved: `${BASE_URL}/user/saved`,
     address: `${BASE_URL}/user/address`,
     validatePassword: `${BASE_URL}/user/validate-password`,
   },
@@ -39,6 +43,7 @@ export const API_ENDPOINTS = {
   // Food endpoints
   food: {
     create: `${BASE_URL}/food`,
+    createUserPost: `${BASE_URL}/food/user`,
     getAll: `${BASE_URL}/food`,
     getTrending: `${BASE_URL}/food/trending`,
     myPosts: `${BASE_URL}/food/my-posts`,
@@ -54,6 +59,16 @@ export const API_ENDPOINTS = {
     reviews: (id) => `${BASE_URL}/food/${id}/reviews`,
     delete: (id) => `${BASE_URL}/food/${id}`, // Added
     update: (id) => `${BASE_URL}/food/${id}`, // Added
+  },
+
+  // User Post endpoints
+  userPost: {
+    getAll: `${BASE_URL}/food/user`,
+    myPosts: `${BASE_URL}/food/user/my-posts`,
+    byUserId: (userId) => `${BASE_URL}/food/user/${userId}`,
+    like: (id) => `${BASE_URL}/food/user/${id}/like`,
+    comment: (id) => `${BASE_URL}/food/user/${id}/comment`,
+    comments: (id) => `${BASE_URL}/food/user/${id}/comments`,
   },
   
   // Advertisement endpoints

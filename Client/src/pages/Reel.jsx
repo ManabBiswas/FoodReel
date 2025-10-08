@@ -38,31 +38,62 @@ const Reel = () => {
       try {
         setLoading(true)
         
-        // Fetch posts
+        // Fetch food posts (partner posts)
         const postsResponse = await axios.get(API_ENDPOINTS.food.getAll, axiosConfig)
-        console.log('Posts API Response:', postsResponse.data)
+        console.log('Food Posts API Response:', postsResponse.data)
+        
+        // Fetch user posts
+        const userPostsResponse = await axios.get(API_ENDPOINTS.userPost.getAll, axiosConfig)
+        console.log('User Posts API Response:', userPostsResponse.data)
         
         // Fetch advertisements
         const adsResponse = await axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
         console.log('Ads API Response:', adsResponse.data)
         
         let mappedPosts = []
+        let mappedUserPosts = []
         let mappedAds = []
         
+        // Map partner food posts
         if (postsResponse.data.data) {
           mappedPosts = postsResponse.data.data.map(post => ({
             _id: post._id,
             type: 'post',
+            postSource: 'partner',
             title: post.name || 'Untitled Post',
             description: post.description || '',
-            mediaUrl: post.image || '',
+            mediaUrl: post.video || post.image || '',
             mediaType: post.type || 'image',
             partnerId: post.foodPartner || null,
+            price: post.price || null,
+            preparationTime: post.preparationTime || null,
             likes: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
             shares: post.shares || 0,
             savesCount: post.savesCount || 0,
+            createdAt: post.createdAt || new Date().toISOString()
+          }))
+        }
+        
+        // Map user posts
+        if (userPostsResponse.data.data) {
+          mappedUserPosts = userPostsResponse.data.data.map(post => ({
+            _id: post._id,
+            type: 'post',
+            postSource: 'user',
+            title: post.title || 'Untitled Post',
+            description: post.description || '',
+            mediaUrl: post.video || post.image || '',
+            mediaType: post.type || 'image',
+            postedBy: post.postedBy || null,
+            taggedPartner: post.taggedPartner || null,
+            taggedFood: post.taggedFood || null,
+            price: post.taggedFood?.price || null,
+            likes: post.likeCount || 0,
+            comments: post.commentCount || 0,
+            views: post.views || 0,
+            shares: post.shares || 0,
             createdAt: post.createdAt || new Date().toISOString()
           }))
         }
@@ -87,8 +118,13 @@ const Reel = () => {
           }))
         }
         
+        // Merge partner posts and user posts, then combine with ads
+        const allPosts = [...mappedPosts, ...mappedUserPosts].sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        )
+        
         // Combine posts and ads (insert ad every 3-4 posts)
-        const combined = insertAdsIntoPosts(mappedPosts, mappedAds)
+        const combined = insertAdsIntoPosts(allPosts, mappedAds)
         console.log('Combined content with ads:', combined)
         setCombinedContent(combined)
         
@@ -243,15 +279,19 @@ const Reel = () => {
     })
   }, [currentIndex, combinedContent, muted])
 
-  const handleLike = async (postId) => {
+  const handleLike = async (postId, postSource) => {
     try {
-      const response = await axios.post(API_ENDPOINTS.food.like(postId), {}, axiosConfig)
+      const endpoint = postSource === 'user' 
+        ? API_ENDPOINTS.userPost.like(postId)
+        : API_ENDPOINTS.food.like(postId)
+      
+      const response = await axios.post(endpoint, {}, axiosConfig)
       console.log('Like response:', response.data)
       
       // Optimistically update UI
       setCombinedContent(combinedContent.map(item => 
         item._id === postId && item.type === 'post'
-          ? { ...item, likes: (item.likes || 0) + 1 }
+          ? { ...item, likes: response.data.likeCount || item.likes }
           : item
       ))
     } catch (error) {
@@ -430,7 +470,7 @@ const Reel = () => {
             <div className="absolute right-4 bottom-24 flex flex-col gap-6 z-10">
               {/* Like Button */}
               <button 
-                onClick={() => handleLike(item._id)}
+                onClick={() => handleLike(item._id, item.postSource)}
                 className="flex flex-col items-center gap-1 group"
               >
                 <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
@@ -528,8 +568,8 @@ const Reel = () => {
           {/* Bottom Content Info */}
           <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-10">
             <div className="max-w-md">
-              {/* Post Content */}
-              {item.type === 'post' && item.partnerId && (
+              {/* Partner Post Content */}
+              {item.type === 'post' && item.postSource === 'partner' && item.partnerId && (
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 p-0.5">
                     <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
@@ -538,12 +578,37 @@ const Reel = () => {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-white font-semibold text-sm">
-                      {item.partnerId.businessName || item.partnerId.email || 'Food Partner'}
+                      {item.partnerId.companyName || item.partnerId.email || 'Food Partner'}
                     </h4>
                     <p className="text-white/70 text-xs flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       {item.partnerId.location || item.partnerId.address || 'Location not specified'}
                     </p>
+                  </div>
+                  <button className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 transition-all">
+                    Follow
+                  </button>
+                </div>
+              )}
+
+              {/* User Post Content */}
+              {item.type === 'post' && item.postSource === 'user' && item.postedBy && (
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 p-0.5">
+                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+                      <ChefHat className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-white font-semibold text-sm">
+                      {item.postedBy.firstName} {item.postedBy.lastName}
+                    </h4>
+                    {item.taggedPartner && (
+                      <p className="text-white/70 text-xs flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        Tagged: {item.taggedPartner.companyName}
+                      </p>
+                    )}
                   </div>
                   <button className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 transition-all">
                     Follow
