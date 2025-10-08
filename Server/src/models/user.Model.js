@@ -61,7 +61,13 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'suspended', 'deleted'],
         default: 'active'
-    }
+    },
+    posts: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "UserPost"
+        }
+    ]
 }, {
     timestamps: true
 });

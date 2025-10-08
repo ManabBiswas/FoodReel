@@ -13,6 +13,7 @@ import ProfileSettings from '../pages/User/ProfileSettings'
 import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
 import Reel from '../pages/Reel'
+import CreatePost from '../pages/User/CreatePost'
 
 const AppRoutes = () => {
   return (
@@ -21,10 +22,11 @@ const AppRoutes = () => {
         <Route path='/' element={<Home />} />
         <Route path='/register' element={<UserRegister />} />
         <Route path='/login' element={<UserLogin />} />
+        <Route path='/create-post' element={<CreatePost />} />
         <Route path='/partner-register' element={<PartnerRegister />} />
         <Route path='/partner-login' element={<PartnerLogin />} />
-        <Route path='/CreateFood' element={<CreateFood />} />
         <Route path='/partner-dashboard' element={<Dashboard />} />
+        <Route path='/CreateFood' element={<CreateFood />} />
         <Route path='/profile' element={<UserProfile />} />
         <Route path='/profile/settings' element={<ProfileSettings />} />
         <Route path='/partner-profile' element={<PartnerProfile />} />

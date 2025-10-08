@@ -3,14 +3,17 @@ import crypto from 'crypto';
 
 class PaymentService {
     constructor() {
-        this.razorpay = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET
-        });
+        this.razorpay = null; // initialized lazily
+    }
 
-        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-            throw new Error('Razorpay credentials missing in environment variables');
+    _ensureClient() {
+        if (this.razorpay) return this.razorpay;
+        const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+        if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+            throw new Error('Missing Razorpay credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your environment.');
         }
+        this.razorpay = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+        return this.razorpay;
     }
 
     async createOrder(amount, currency = 'INR', receipt, notes = {}) {
@@ -27,7 +30,8 @@ class PaymentService {
                 notes,
                 payment_capture: 1 // auto capture by default because it's a one-time payment so user 
             };
-            const order = await this.razorpay.orders.create(options);
+            const razorpay = this._ensureClient();
+            const order = await razorpay.orders.create(options);
             return {
                 success: true,
                 order_id: order.id,
@@ -74,7 +78,8 @@ class PaymentService {
 
     async getPaymentDetails(paymentId) {
         try {
-            const payment = await this.razorpay.payments.fetch(paymentId);
+            const razorpay = this._ensureClient();
+            const payment = await razorpay.payments.fetch(paymentId);
             return {
                 success: true,
                 payment
@@ -91,7 +96,8 @@ class PaymentService {
                 refundOptions.amount = Math.round(amount * 100);
             }
 
-            const refund = await this.razorpay.payments.refund(paymentId, refundOptions);
+            const razorpay = this._ensureClient();
+            const refund = await razorpay.payments.refund(paymentId, refundOptions);
             return {
                 success: true,
                 refund
