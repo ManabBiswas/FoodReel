@@ -410,78 +410,102 @@ const Reel = () => {
       }}
     >
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .reel-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          width: 100%;
-          height: 100vh;
-          background: #000;
-        }
-        .reel-content {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          max-width: 100vh;
-          max-height: 177.78vw; /* 16:9 ratio */
-          aspect-ratio: 9 / 16;
-        }
-        @media (min-width: 768px) {
-          .reel-content {
-            max-width: min(calc(100vh * 9 / 16), 500px);
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-          }
-        }
-      `}</style>
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reel-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .reel-content {
+    position: relative;
+    width: min(100%, calc(100vh * 9 / 16));
+    max-width: 900px;
+    aspect-ratio: 9 / 16;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .media-wrapper {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+  }
+
+  .media-wrapper img,
+  .media-wrapper video {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; 
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .reel-content {
+      max-width: min(calc(100vh * 9 / 16), 700px);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    }
+  }
+`}</style>
 
       {combinedContent.map((item, index) => (
         <div 
-          key={item._id}
+          key={`${item.type}-${item.postSource || 'ad'}-${item._id}-${index}`}
           data-reel
           className="reel-container snap-start snap-always"
         >
           <div className="reel-content">
-            {/* Background Media */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60">
-            {item.mediaType === 'video' ? (
-              <video
-                ref={el => videoRefs.current[index] = el}
-                src={item.mediaUrl}
-                className="w-full h-full object-cover"
-                loop
-                playsInline
-                muted={muted}
-                autoPlay={index === currentIndex}
-              />
-            ) : (
-              <img 
-                src={item.mediaUrl} 
-                alt={item.title}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
+            {/* Media wrapper to prevent cropping */}
+            <div className="media-wrapper">
+              {item.mediaType === 'video' ? (
+                <video
+                  ref={el => videoRefs.current[index] = el}
+                  src={item.mediaUrl}
+                  className=""
+                  loop
+                  playsInline
+                  muted={muted}
+                  autoPlay={index === currentIndex}
+                />
+              ) : (
+                <img 
+                  src={item.mediaUrl} 
+                  alt={item.title}
+                />
+              )}
+            </div>
 
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
           {/* Top Bar */}
           <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 flex items-center justify-between z-10 safe-area-inset-top">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              {item.type === 'ad' ? (
-                <>
+              {/* {item.type === 'ad' ? ( */}
+                {/* <>
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                   <span className="text-white font-semibold text-sm sm:text-base">Sponsored</span>
-                </>
-              ) : (
+                </> */}
+              {/* ) : ( */}
                 <>
                   <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  <span className="text-white font-semibold text-sm sm:text-base">Food Reels</span>
+                  <span className="text-white font-semibold text-sm sm:text-base">FoodReels</span>
                 </>
-              )}
+              {/*  )} */}
             </div>
             <button className="text-white p-1">
               <MoreVertical className="w-5 h-5 sm:w-6 sm:h-6" />
