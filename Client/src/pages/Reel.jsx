@@ -413,16 +413,39 @@ const Reel = () => {
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
+        .reel-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 100%;
+          height: 100vh;
+          background: #000;
+        }
+        .reel-content {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          max-width: 100vh;
+          max-height: 177.78vw; /* 16:9 ratio */
+          aspect-ratio: 9 / 16;
+        }
+        @media (min-width: 768px) {
+          .reel-content {
+            max-width: min(calc(100vh * 9 / 16), 500px);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+          }
+        }
       `}</style>
 
       {combinedContent.map((item, index) => (
         <div 
           key={item._id}
           data-reel
-          className="relative w-full h-screen snap-start snap-always"
+          className="reel-container snap-start snap-always"
         >
-          {/* Background Media */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60">
+          <div className="reel-content">
+            {/* Background Media */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60">
             {item.mediaType === 'video' ? (
               <video
                 ref={el => videoRefs.current[index] = el}
@@ -446,47 +469,47 @@ const Reel = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
 
           {/* Top Bar */}
-          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10">
-            <div className="flex items-center gap-2">
+          <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 flex items-center justify-between z-10 safe-area-inset-top">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {item.type === 'ad' ? (
                 <>
-                  <Sparkles className="w-5 h-5 text-yellow-400" />
-                  <span className="text-white font-semibold">Sponsored</span>
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                  <span className="text-white font-semibold text-sm sm:text-base">Sponsored</span>
                 </>
               ) : (
                 <>
-                  <TrendingUp className="w-5 h-5 text-white" />
-                  <span className="text-white font-semibold">Food Reels</span>
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <span className="text-white font-semibold text-sm sm:text-base">Food Reels</span>
                 </>
               )}
             </div>
-            <button className="text-white">
-              <MoreVertical className="w-6 h-6" />
+            <button className="text-white p-1">
+              <MoreVertical className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
           {/* Right Side Actions - Only for Posts */}
           {item.type === 'post' && (
-            <div className="absolute right-4 bottom-24 flex flex-col gap-6 z-10">
+            <div className="absolute right-2 sm:right-4 bottom-20 sm:bottom-24 flex flex-col gap-3 sm:gap-4 z-10">
               {/* Like Button */}
               <button 
                 onClick={() => handleLike(item._id, item.postSource)}
-                className="flex flex-col items-center gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
               >
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <Heart className="w-6 h-6 text-white group-hover:fill-red-500 group-hover:text-red-500 transition-all" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
+                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:fill-red-500 group-hover:text-red-500 transition-all" />
                 </div>
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[10px] sm:text-xs font-semibold">
                   {formatCount(item.likes)}
                 </span>
               </button>
 
               {/* Comment Button */}
-              <button className="flex flex-col items-center gap-1 group">
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <MessageCircle className="w-6 h-6 text-white" />
+              <button className="flex flex-col items-center gap-0.5 sm:gap-1 group">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
+                  <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[10px] sm:text-xs font-semibold">
                   {formatCount(item.comments || 0)}
                 </span>
               </button>
@@ -494,12 +517,12 @@ const Reel = () => {
               {/* Share Button */}
               <button 
                 onClick={() => handleShare(item)}
-                className="flex flex-col items-center gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
               >
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <Share2 className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
+                  <Share2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[10px] sm:text-xs font-semibold">
                   {formatCount(item.shares || 0)}
                 </span>
               </button>
@@ -507,19 +530,19 @@ const Reel = () => {
               {/* Save Button */}
               <button 
                 onClick={() => handleSave(item._id)}
-                className="flex flex-col items-center gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
               >
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <Bookmark className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
+                  <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </button>
 
               {/* Views */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                  <Eye className="w-6 h-6 text-white" />
+              <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                  <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[10px] sm:text-xs font-semibold">
                   {formatCount(item.views)}
                 </span>
               </div>
@@ -528,12 +551,12 @@ const Reel = () => {
               {item.mediaType === 'video' && (
                 <button 
                   onClick={toggleMute}
-                  className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all"
                 >
                   {muted ? (
-                    <VolumeX className="w-6 h-6 text-white" />
+                    <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   ) : (
-                    <Volume2 className="w-6 h-6 text-white" />
+                    <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   )}
                 </button>
               )}
@@ -542,15 +565,15 @@ const Reel = () => {
 
           {/* Ad CTA Button - Only for Ads */}
           {item.type === 'ad' && (
-            <div className="absolute right-4 bottom-24 flex flex-col gap-6 z-10">
+            <div className="absolute right-2 sm:right-4 bottom-20 sm:bottom-24 flex flex-col gap-3 sm:gap-4 z-10">
               <button 
                 onClick={() => handleAdClick(item)}
-                className="flex flex-col items-center gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                  <ExternalLink className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+                  <ExternalLink className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[10px] sm:text-xs font-semibold">
                   Visit
                 </span>
               </button>
@@ -566,26 +589,26 @@ const Reel = () => {
           )}
 
           {/* Bottom Content Info */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-10">
-            <div className="max-w-md">
+          <div className="absolute bottom-0 left-0 right-0 p-3 pb-4 sm:p-4 sm:pb-6 z-10 safe-area-inset-bottom">
+            <div className="max-w-full pr-12 sm:pr-16">
               {/* Partner Post Content */}
               {item.type === 'post' && item.postSource === 'partner' && item.partnerId && (
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 p-0.5">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 p-0.5 flex-shrink-0">
                     <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                      <ChefHat className="w-5 h-5 text-white" />
+                      <ChefHat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-white font-semibold text-sm">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-white font-semibold text-xs sm:text-sm truncate">
                       {item.partnerId.companyName || item.partnerId.email || 'Food Partner'}
                     </h4>
-                    <p className="text-white/70 text-xs flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {item.partnerId.location || item.partnerId.address || 'Location not specified'}
+                    <p className="text-white/70 text-[10px] sm:text-xs flex items-center gap-1 truncate">
+                      <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                      <span className="truncate">{item.partnerId.location || item.partnerId.address || 'Location not specified'}</span>
                     </p>
                   </div>
-                  <button className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 transition-all">
+                  <button className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white text-black rounded-full text-xs sm:text-sm font-semibold hover:bg-white/90 transition-all flex-shrink-0">
                     Follow
                   </button>
                 </div>
@@ -593,24 +616,24 @@ const Reel = () => {
 
               {/* User Post Content */}
               {item.type === 'post' && item.postSource === 'user' && item.postedBy && (
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 p-0.5">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 p-0.5 flex-shrink-0">
                     <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                      <ChefHat className="w-5 h-5 text-white" />
+                      <ChefHat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-white font-semibold text-sm">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-white font-semibold text-xs sm:text-sm truncate">
                       {item.postedBy.firstName} {item.postedBy.lastName}
                     </h4>
                     {item.taggedPartner && (
-                      <p className="text-white/70 text-xs flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        Tagged: {item.taggedPartner.companyName}
+                      <p className="text-white/70 text-[10px] sm:text-xs flex items-center gap-1 truncate">
+                        <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                        <span className="truncate">Tagged: {item.taggedPartner.companyName}</span>
                       </p>
                     )}
                   </div>
-                  <button className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 transition-all">
+                  <button className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white text-black rounded-full text-xs sm:text-sm font-semibold hover:bg-white/90 transition-all flex-shrink-0">
                     Follow
                   </button>
                 </div>
@@ -619,17 +642,17 @@ const Reel = () => {
               {/* Ad Content */}
               {item.type === 'ad' && (
                 <>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 p-0.5">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 p-0.5 flex-shrink-0">
                       <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-yellow-400" />
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-white font-semibold text-sm">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white font-semibold text-xs sm:text-sm truncate">
                         {item.businessName}
                       </h4>
-                      <p className="text-yellow-400 text-xs font-semibold">
+                      <p className="text-yellow-400 text-[10px] sm:text-xs font-semibold">
                         Sponsored Ad
                       </p>
                     </div>
@@ -637,21 +660,21 @@ const Reel = () => {
                   
                   {/* Promo Code Badge */}
                   {item.promoCode && (
-                    <div className="mb-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-2 rounded-full font-bold text-sm">
+                    <div className="mb-1.5 sm:mb-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm">
                       CODE: {item.promoCode}
                     </div>
                   )}
                   
                   {/* Price Display */}
                   {item.prices && (
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-white/60 line-through text-lg">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2 flex-wrap">
+                      <span className="text-white/60 line-through text-sm sm:text-lg">
                         ₹{item.prices.original}
                       </span>
-                      <span className="text-yellow-400 font-bold text-2xl">
+                      <span className="text-yellow-400 font-bold text-xl sm:text-2xl">
                         ₹{item.prices.discounted}
                       </span>
-                      <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
+                      <span className="bg-red-500 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-[10px] sm:text-xs font-bold">
                         {Math.round(((item.prices.original - item.prices.discounted) / item.prices.original) * 100)}% OFF
                       </span>
                     </div>
@@ -660,10 +683,10 @@ const Reel = () => {
               )}
 
               {/* Title & Description */}
-              <h3 className="text-white font-bold text-lg mb-2">
+              <h3 className="text-white font-bold text-base sm:text-lg mb-1 sm:mb-2 line-clamp-2">
                 {item.title}
               </h3>
-              <p className="text-white/90 text-sm leading-relaxed line-clamp-3">
+              <p className="text-white/90 text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3">
                 {item.description}
               </p>
 
@@ -671,15 +694,15 @@ const Reel = () => {
               {item.type === 'ad' && (
                 <button
                   onClick={() => handleAdClick(item)}
-                  className="mt-4 px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+                  className="mt-2 sm:mt-4 px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full text-xs sm:text-sm font-bold hover:scale-105 transition-transform shadow-lg flex items-center gap-1.5 sm:gap-2"
                 >
-                  {item.ctaText}
-                  <ExternalLink className="w-4 h-4" />
+                  <span className="truncate">{item.ctaText}</span>
+                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 </button>
               )}
 
               {/* Timestamp */}
-              <p className="text-white/60 text-xs mt-2">
+              <p className="text-white/60 text-[10px] sm:text-xs mt-1 sm:mt-2">
                 {formatDate(item.createdAt)}
               </p>
             </div>
@@ -698,6 +721,7 @@ const Reel = () => {
               )}
             </button>
           )}
+          </div>
         </div>
       ))}
 
