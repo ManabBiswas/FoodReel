@@ -14,12 +14,16 @@ import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
 import Reel from '../pages/Reel'
 import CreatePost from '../pages/User/CreatePost'
+import About from '../pages/About'
+import Contact from '../pages/Contact'
 
 const AppRoutes = () => {
   return (
     <Router>
       <Routes>
         <Route path='/' element={<Home />} />
+        <Route path='/about' element={<About />} />
+        <Route path='/contact-us' element={<Contact />} />
         <Route path='/register' element={<UserRegister />} />
         <Route path='/login' element={<UserLogin />} />
         <Route path='/create-post' element={<CreatePost />} />
