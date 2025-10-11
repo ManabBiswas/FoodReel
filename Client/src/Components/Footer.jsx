@@ -68,10 +68,10 @@ const Footer = () => {
             </h4>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
+                <Link to="/about" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   About Us
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
@@ -80,10 +80,10 @@ const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
+                <Link to="/contact-us" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Contact
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
