@@ -74,10 +74,10 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
+                <Link to="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Careers
-                </a>
+                </Link>
               </li>
               <li>
                 <Link to="/contact-us" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
@@ -86,10 +86,10 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
+                <Link to="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
                   Support
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -107,34 +107,34 @@ const Footer = () => {
             <div className="pt-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Follow Us</p>
               <div className="flex items-center space-x-4">
-                <a
-                  href="#"
+                <Link
+                  to="#"
                   aria-label="Twitter"
                   className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-lg flex items-center justify-center hover:from-blue-500 hover:to-blue-600 transition-all duration-200 transform hover:scale-110 shadow-lg"
                 >
                   <Twitter className="h-5 w-5" />
-                </a>
-                <a
-                  href="#"
+                </Link>
+                <Link
+                  to="#"
                   aria-label="Facebook"
                   className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg flex items-center justify-center hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-110 shadow-lg"
                 >
                   <Facebook className="h-5 w-5" />
-                </a>
-                <a
-                  href="#"
+                </Link>
+                <Link
+                  to="#"
                   aria-label="Instagram"
                   className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg flex items-center justify-center hover:from-pink-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-110 shadow-lg"
                 >
                   <Instagram className="h-5 w-5" />
-                </a>
-                <a
-                  href="#"
+                </Link>
+                <Link
+                  to="#"
                   aria-label="YouTube"
                   className="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-110 shadow-lg"
                 >
                   <Youtube className="h-5 w-5" />
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -149,15 +149,15 @@ const Footer = () => {
               </p>
             </div>
             <div className="flex flex-wrap justify-center lg:justify-end items-center space-x-6 text-sm">
-              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
+              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Privacy Policy
-              </a>
-              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
+              </Link>
+              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Terms of Service
-              </a>
-              <a href="#" className="text-gray-500 hover:text-red-500 transition-colors">
+              </Link>
+              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
                 Cookie Policy
-              </a>
+              </Link>
             </div>
           </div>
         </div>
