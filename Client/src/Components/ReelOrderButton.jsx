@@ -2,6 +2,14 @@ import React from 'react'
 import { ShoppingCart, Clock } from 'lucide-react'
 
 const ReelOrderButton = ({ food, onOrderClick }) => {
+  // console.log('ReelOrderButton received:', {
+  //   hasFood: !!food,
+  //   type: food?.type,
+  //   postSource: food?.postSource,
+  //   price: food?.price,
+  //   shouldShow: food && food.type === 'post' && food.price
+  // })
+
   if (!food || food.type !== 'post' || !food.price) return null
 
   return (

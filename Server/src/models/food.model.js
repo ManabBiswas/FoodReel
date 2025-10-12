@@ -111,6 +111,10 @@ const foodSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    isAvailable: {
+        type: Boolean,
+        default: true  // For food items: controls if currently available for ordering
     }
 }, { 
     timestamps: true 

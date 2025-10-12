@@ -65,8 +65,10 @@ const Reel = () => {
             mediaUrl: post.video || post.image || '',
             mediaType: post.type || 'image',
             partnerId: post.foodPartner || null,
-            price: post.price || null,
+            // Order button shows only if: price exists and item is available
+            price: (post.price && post.isAvailable !== false) ? post.price : null,
             preparationTime: post.preparationTime || null,
+            isAvailable: post.isAvailable !== false,
             likes: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
@@ -89,7 +91,10 @@ const Reel = () => {
             postedBy: post.postedBy || null,
             taggedPartner: post.taggedPartner || null,
             taggedFood: post.taggedFood || null,
-            price: post.taggedFood?.price || null,
+            // Order button shows only if: taggedFood exists, has price, and is available
+            price: (post.taggedFood?.price && post.taggedFood?.isAvailable !== false) ? post.taggedFood.price : null,
+            preparationTime: post.taggedFood?.preparationTime || null,
+            isAvailable: post.taggedFood?.isAvailable !== false,
             likes: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
@@ -172,71 +177,6 @@ const Reel = () => {
     return combined
   }
 
-  // const setMockData = () => {
-  //   const mockPosts = [
-  //     {
-  //       _id: '1',
-  //       type: 'post',
-  //       title: 'Amazing Pizza Experience!',
-  //       description: 'Just tried this incredible margherita pizza. The crust was perfectly crispy! 🍕',
-  //       mediaUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=700&fit=crop',
-  //       mediaType: 'image',
-  //       partnerId: {
-  //         businessName: "Mario's Kitchen",
-  //         location: 'Downtown Food District'
-  //       },
-  //       likes: 124,
-  //       views: 1250,
-  //       createdAt: new Date().toISOString()
-  //     },
-  //     {
-  //       _id: '2',
-  //       type: 'post',
-  //       title: 'Street Food Adventure',
-  //       description: 'Exploring the local street food scene. This taco stand has the most authentic flavors! 🌮',
-  //       mediaUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&h=700&fit=crop',
-  //       mediaType: 'image',
-  //       partnerId: {
-  //         businessName: "Jose's Taco Stand",
-  //         location: 'Street Food Market'
-  //       },
-  //       likes: 203,
-  //       views: 2100,
-  //       createdAt: new Date().toISOString()
-  //     },
-  //     {
-  //       _id: 'ad-1',
-  //       type: 'ad',
-  //       title: 'Special Offer!',
-  //       description: 'Get 50% off on your first order. Limited time only!',
-  //       mediaUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=700&fit=crop',
-  //       mediaType: 'image',
-  //       ctaText: 'Order Now',
-  //       ctaLink: '#',
-  //       businessName: 'FoodHub Premium',
-  //       createdAt: new Date().toISOString()
-  //     },
-  //     {
-  //       _id: '3',
-  //       type: 'post',
-  //       title: 'Dessert Paradise',
-  //       description: 'This tiramisu was absolutely divine! Every spoonful was pure heaven 🍰',
-  //       mediaUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=700&fit=crop',
-  //       mediaType: 'image',
-  //       partnerId: {
-  //         businessName: 'Sweet Dreams Cafe',
-  //         location: 'City Center'
-  //       },
-  //       likes: 156,
-  //       views: 1420,
-  //       createdAt: new Date().toISOString()
-  //     }
-  //   ]
-    
-  // //   // setCombinedContent(mockPosts)
-  // }
-
-  // Use IntersectionObserver to detect which reel is in view
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -586,6 +526,13 @@ const Reel = () => {
               )}
             </div>
           )}
+          {/* Order Button for Food Posts */}
+          {item.type === 'post' && (
+            <ReelOrderButton 
+              food={item} 
+              onOrderClick={handleOrderClick}
+            />
+          )}
 
           {/* Ad CTA Button - Only for Ads */}
           {item.type === 'ad' && (
@@ -604,13 +551,6 @@ const Reel = () => {
             </div>
           )}
 
-          {/* Order Button for Food Posts */}
-          {item.type === 'post' && item.price && (
-            <ReelOrderButton 
-              food={item} 
-              onOrderClick={handleOrderClick}
-            />
-          )}
 
           {/* Bottom Content Info */}
           <div className="absolute bottom-0 left-0 right-0 p-3 pb-4 sm:p-4 sm:pb-6 z-10 safe-area-inset-bottom">
