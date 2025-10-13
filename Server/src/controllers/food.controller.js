@@ -17,6 +17,7 @@ const createFood = async (req, res) => {
             price,
             currency = 'INR',
             preparationTime,
+            isAvailable,
             // Advertisement-specific fields
             promotionType,
             prices,
@@ -139,6 +140,8 @@ const createFood = async (req, res) => {
             if (preparationTime) {
                 foodData.preparationTime = parseInt(preparationTime);
             }
+            // Set availability status (default to true if not provided)
+            foodData.isAvailable = isAvailable !== undefined ? (isAvailable === 'true' || isAvailable === true) : true;
         } else if (postType === 'advertisement') {
             if (promotionType) {
                 foodData.promotionType = promotionType;

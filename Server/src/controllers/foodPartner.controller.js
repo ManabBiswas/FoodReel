@@ -93,7 +93,7 @@ async function check(req, res) {
         const foodPartner = req.foodPartner;
         res.status(200).json({
             isAuthenticated: true,
-            user: {
+            foodPartner: {
                 _id: foodPartner._id,
                 companyName: foodPartner.companyName,
                 email: foodPartner.email,
@@ -103,7 +103,8 @@ async function check(req, res) {
     } catch (error) {
         res.status(401).json({
             isAuthenticated: false,
-            message: "Not authenticated"
+            message: "Not authenticated",
+            error: error.message
         });
     }
 }

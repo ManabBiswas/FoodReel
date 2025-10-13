@@ -94,7 +94,7 @@ const getAllUserPosts = async (req, res) => {
       .find(filter)
       .populate('postedBy', 'firstName lastName email')
       .populate('taggedPartner', 'companyName email')
-      .populate('taggedFood', 'name price')
+      .populate('taggedFood', 'name price preparationTime isAvailable description')
       .sort(sortObj)
       .skip(skip)
       .limit(validLimit)
@@ -132,7 +132,7 @@ const getUserPostsByUserId = async (req, res) => {
     const posts = await UserPost
       .find({ postedBy: userId, isActive: true })
       .populate('taggedPartner', 'companyName email')
-      .populate('taggedFood', 'name price')
+      .populate('taggedFood', 'name price preparationTime isAvailable description')
       .sort({ createdAt: -1 })
       .lean();
     

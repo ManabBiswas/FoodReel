@@ -218,6 +218,8 @@ const CreateFood = () => {
         if (formData.preparationTime) {
           submitData.append('preparationTime', formData.preparationTime)
         }
+        // Always send isAvailable status
+        submitData.append('isAvailable', formData.isAvailable)
       } else if (formData.postType === 'advertisement') {
         if (formData.promotionType) {
           submitData.append('promotionType', formData.promotionType)
@@ -251,30 +253,6 @@ const CreateFood = () => {
           setMessage(`${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`)
         }
       
-      
-      // Reset form
-      // setFormData({
-      //   name: '',
-      //   description: '',
-      //   type: 'image',
-      //   postType: '',
-      //   price: '',
-      //   currency: 'INR',
-      //   preparationTime: '',
-      //   promotionType: '',
-      //   prices: {
-      //     original: '',
-      //     discounted: ''
-      //   },
-      //   validUntil: '',
-      //   promoCode: '',
-      //   tags: []
-      // })
-      // setCurrentStep(1)
-      // setFile(null)
-      // setFilePreview(null)
-      // setTagInput('')
-      // setErrors({})
       
       setTimeout(() => navigate('/partner-profile'), 2000)
       
@@ -625,6 +603,35 @@ const CreateFood = () => {
                       </div> */}
                     </div>
                   </div>
+                  </div>
+
+                  {/* Availability Toggle */}
+                  <div className="pt-4 border-t">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-5 h-5 rounded flex items-center justify-center ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}>
+                          {formData.isAvailable && (
+                            <svg className="w-4 h-4 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                              <path d="M5 13l4 4L19 7"></path>
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">Currently Available for Order</span>
+                          <p className="text-xs text-gray-500">Toggle this when item is out of stock</p>
+                        </div>
+                      </div>
+                      <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out">
+                        <input
+                          type="checkbox"
+                          checked={formData.isAvailable}
+                          onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
+                          className="opacity-0 w-0 h-0 peer"
+                        />
+                        <span className={`absolute cursor-pointer inset-0 rounded-full transition duration-200 ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${formData.isAvailable ? 'translate-x-6' : ''}`}></span>
+                      </div>
+                    </label>
                   </div>
                 </div>
               ) : (

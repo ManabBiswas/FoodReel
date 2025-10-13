@@ -12,39 +12,40 @@ const Navbar = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      // Check user auth (always check for user authentication)
+    const checkAuth = async () => {
       try {
-        const userResponse = await axios.get(API_ENDPOINTS.auth.userVerify, axiosConfig)
-        if (userResponse?.data?.user) {
-          setUser(userResponse.data.user)
+        // Check user auth (always check for user authentication)
+        try {
+          const userResponse = await axios.get(API_ENDPOINTS.auth.userVerify, axiosConfig)
+          if (userResponse?.data?.user) {
+            setUser(userResponse.data.user)
+            console.log(userResponse.data.user)
+          }
+        } catch {
+          // User not authenticated - this is fine for most pages
+          setUser(null)
         }
-      } catch {
-        // User not authenticated - this is fine for most pages
+
+        // Check partner auth (only if needed, and handle 401 gracefully)
+        try {
+          const partnerResponse = await axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig)
+          if (partnerResponse?.data?.foodPartner) {
+            setPartner(partnerResponse.data.foodPartner)
+            console.log(partnerResponse.data.foodPartner)
+          }
+        } catch {
+          // Partner not authenticated - this is fine for user pages
+          setPartner(null)
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        // Reset both states on general error
         setUser(null)
-      }
-
-      // Check partner auth (only if needed, and handle 401 gracefully)
-      try {
-        const partnerResponse = await axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig)
-        if (partnerResponse?.data?.foodPartner) {
-          setPartner(partnerResponse.data.foodPartner)
-        }
-      } catch {
-        // Partner not authenticated - this is fine for user pages
         setPartner(null)
       }
-    } catch (error) {
-      console.error('Auth check error:', error)
-      // Reset both states on general error
-      setUser(null)
-      setPartner(null)
     }
-  }
+    checkAuth()
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -72,12 +73,12 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-3 cursor-pointer">
-              <img 
-                src={Logo} 
-                alt="FoodReel Logo" 
+              <img
+                src={Logo}
+                alt="FoodReel Logo"
                 className="h-12 w-32 rounded-lg object-contain"
               />
-              
+
             </Link>
           </div>
 
@@ -87,8 +88,8 @@ const Navbar = () => {
             <Link to="/partner-register" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
             <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
             {user || partner ? (
-              <button 
-                onClick={handleLogout} 
+              <button
+                onClick={handleLogout}
                 className="text-gray-700 hover:text-red-500 transition cursor-pointer"
               >
                 Logout
@@ -122,11 +123,11 @@ const Navbar = () => {
             <Link to="/partner-register" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
             <Link to="/profile" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
             {user || partner ? (
-              <button 
+              <button
                 onClick={() => {
                   setMobileOpen(false)
                   handleLogout()
-                }} 
+                }}
                 className="block text-gray-700 hover:text-red-500 transition cursor-pointer"
               >
                 Logout
