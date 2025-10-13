@@ -31,10 +31,6 @@ const Dashboard = () => {
   const [error, setError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(null)
 
-  useEffect(() => {
-    fetchDashboardData()
-  })
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
@@ -105,6 +101,11 @@ const Dashboard = () => {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleDeletePost = async (postId, postType) => {
     if (!window.confirm('Are you sure you want to delete this post?')) {
@@ -291,13 +292,13 @@ const Dashboard = () => {
                       <div className="relative aspect-video bg-gray-200">
                         {post.video ? (
                           <video
-                            src={post.video?.url || post.video}
+                            src={ post.video}
                             className="w-full h-full object-cover"
                             muted
                           />
-                        ) : post.thumbnail ? (
+                        ) : post.image ? (
                           <img
-                            src={post.thumbnail?.url || post.thumbnail}
+                            src={post.image}
                             alt={post.name}
                             className="w-full h-full object-cover"
                           />
