@@ -15,7 +15,8 @@ import {
   Eye,
   TrendingUp,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  ShoppingBag
 } from 'lucide-react'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
 import ReelOrderButton from '../Components/ReelOrderButton'
@@ -31,7 +32,11 @@ const Reel = () => {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
   const containerRef = useRef(null)
   const videoRefs = useRef([])
+    const [openShopFor, setOpenShopFor] = useState(null)
 
+    const handleShopToggle = (postId) => {
+      setOpenShopFor(prev => (prev === postId ? null : postId))
+  }
   // Fetch posts from API
   useEffect(() => {
     const fetchData = async () => {
@@ -500,16 +505,19 @@ const Reel = () => {
                   <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </button>
+              {/* shop btn */}
+              {item.type === 'post' && item.postSource !== 'user' && (
+                <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                  <ShoppingBag onClick={() => handleShopToggle(item._id)} className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+              </div>
+              )}
 
               {/* Views */}
-              <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                  <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <span className="text-white text-[10px] sm:text-xs font-semibold">
-                  {formatCount(item.views)}
-                </span>
-              </div>
+              {/* <span className="text-white text-[10px] sm:text-xs font-semibold">
+                {formatCount(item.views)}
+              </span> */}
 
               {/* Mute/Unmute for videos */}
               {item.mediaType === 'video' && (
@@ -527,7 +535,7 @@ const Reel = () => {
             </div>
           )}
           {/* Order Button for Food Posts */}
-          {item.type === 'post' && (
+          {item.type === 'post' && openShopFor === item._id && (
             <ReelOrderButton 
               food={item} 
               onOrderClick={handleOrderClick}

@@ -16,6 +16,7 @@ import {
   Tag,
   Calendar
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const Home = () => {
   const [featuredFoods, setFeaturedFoods] = useState([])
@@ -88,12 +89,13 @@ const Home = () => {
               Watch mouth-watering food reels and order directly from talented chefs and restaurants
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer">
+              <Link to="/reels" ><button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer">
                 Watch Food Reels
-              </button>
+              </button></Link>
+              <Link to="/partner-register" >
               <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer">
                 Join as Partner
-              </button>
+              </button></Link>
             </div>
           </div>
         </div>
