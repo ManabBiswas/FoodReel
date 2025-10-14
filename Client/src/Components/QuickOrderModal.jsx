@@ -147,7 +147,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           {/* Food Summary */}
           <div className="flex gap-3 mb-6 p-3 bg-gray-50 rounded-xl">
             <img 
-              src={food.m} 
+              src={food.foodImageUrl || food.mediaUrl} 
               alt={food.title}
               className="w-20 h-20 object-cover rounded-lg"
             />

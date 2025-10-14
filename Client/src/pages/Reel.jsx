@@ -70,6 +70,9 @@ const Reel = () => {
             mediaUrl: post.video || post.image || '',
             mediaType: post.type || 'image',
             partnerId: post.foodPartner || null,
+            // For partner posts, prefer image over video for order display
+            foodImageUrl: post.image || post.video || '',
+            foodId: post._id, // The food item itself
             // Order button shows only if: price exists and item is available
             price: (post.price && post.isAvailable !== false) ? post.price : null,
             preparationTime: post.preparationTime || null,
@@ -96,10 +99,16 @@ const Reel = () => {
             postedBy: post.postedBy || null,
             taggedPartner: post.taggedPartner || null,
             taggedFood: post.taggedFood || null,
+            // For user posts, prefer image over video for order display
+            foodImageUrl: post.taggedFood?.image || post.taggedFood?.video || '',
+            foodId: post.taggedFood?._id || null, // The actual food item ID for ordering
             // Order button shows only if: taggedFood exists, has price, and is available
             price: (post.taggedFood?.price && post.taggedFood?.isAvailable !== false) ? post.taggedFood.price : null,
             preparationTime: post.taggedFood?.preparationTime || null,
             isAvailable: post.taggedFood?.isAvailable !== false,
+            // Store original food data for ordering
+            originalFoodName: post.taggedFood?.name || null,
+            originalFoodDescription: post.taggedFood?.description || null,
             likes: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
@@ -273,7 +282,16 @@ const Reel = () => {
   }
 
   const handleOrderClick = (food) => {
-    setSelectedFoodForOrder(food)
+    // For user posts, transform to show original food item data
+    const orderData = food.postSource === 'user' && food.taggedFood ? {
+      ...food,
+      _id: food.foodId, // Use actual food item ID
+      title: food.originalFoodName || food.taggedFood.name || food.title,
+      description: food.originalFoodDescription || food.taggedFood.description || food.description,
+      foodImageUrl: food.foodImageUrl // Already set to tagged food's image
+    } : food
+    
+    setSelectedFoodForOrder(orderData)
     setIsOrderModalOpen(true)
   }
 
@@ -505,8 +523,8 @@ const Reel = () => {
                   <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </button>
-              {/* shop btn */}
-              {item.type === 'post' && item.postSource !== 'user' && (
+              {/* shop btn - Show only if post has price (partner posts or user posts tagged with food) */}
+              {item.type === 'post' && item.price && (
                 <div className="flex flex-col items-center gap-0.5 sm:gap-1">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
                   <ShoppingBag onClick={() => handleShopToggle(item._id)} className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
