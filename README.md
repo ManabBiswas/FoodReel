@@ -80,11 +80,15 @@ FoodReel/
 │       ├── routes/               # Route definitions
 │       │   └── AppRoutes.jsx     # React Router route configuration for all pages
 │       │
-│       ├── pages/                 # Full page components
-│       │   ├── Home.jsx           # Landing page 
-│       │   ├── Reel.jsx           # Reels page 
-│       │   ├── 404.jsx            # Not found page
-│       │   ├── WorkingProgress.jsx # Placeholder for features under development
+│       ├── pages/                     # Full page components
+│       │   ├── Home.jsx               # Landing page 
+│       │   ├── Reel.jsx               # Reels page 
+│       │   ├── 404.jsx                # Not found page
+│       │   ├── About.jsx              # About page
+│       │   ├── Contact.jsx            # Contact page
+│       │   ├── Checkout.jsx           # Checkout page
+│       │   ├── OrderConfirmation.jsx  # Order confirmation page
+│       │   ├── WorkingProgress.jsx    # Placeholder for features under development
 │       │   │
 │       │   ├── FoodPartner/       # Partner/restaurant pages
 │       │   │   ├── CreateFood.jsx      # Form to upload image/video food posts
