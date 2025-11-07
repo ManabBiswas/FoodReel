@@ -62,6 +62,23 @@ const foodPartnerSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    // Ratings and reviews
+    averageRating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
+    totalReviews: {
+        type: Number,
+        default: 0
+    },
+    ratingBreakdown: {
+        food: { type: Number, default: 0 },
+        service: { type: Number, default: 0 },
+        ambiance: { type: Number, default: 0 },
+        value: { type: Number, default: 0 }
+    },
     verified: {
         type: Boolean,
         default: false

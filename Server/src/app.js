@@ -7,6 +7,8 @@ import advertisementRoutes from './routes/advertisement.route.js';
 import userRoutes from './routes/user.route.js';
 import paymentRoutes from './routes/payment.route.js';
 import userPostRoutes from './routes/userPost.route.js';
+import followRoutes from './routes/follow.route.js';
+import reviewRoutes from './routes/review.route.js';
 import cors from 'cors';
 const app = express() 
 
@@ -21,6 +23,9 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
 app.use('/api/food',foodRoutes);
+app.use('/api/posts', userPostRoutes);
+app.use('/api/follow', followRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders',orderRoutes);
 app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);

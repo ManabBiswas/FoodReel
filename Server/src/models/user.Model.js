@@ -67,7 +67,39 @@ const userSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: "UserPost"
         }
-    ]
+    ],
+    followers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: 'followerModel'
+    }],
+    following: [{
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: 'followingModel'
+    }],
+    followersCount: {
+        type: Number,
+        default: 0
+    },
+    followingCount: {
+        type: Number,
+        default: 0
+    },
+    savedPosts: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserPost"
+    }],
+    savedFoods: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "food"
+    }],
+    reviewsGiven: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review"
+    }],
+    reviewsCount: {
+        type: Number,
+        default: 0
+    }
 }, {
     timestamps: true
 });
