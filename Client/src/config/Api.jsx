@@ -98,6 +98,29 @@ export const API_ENDPOINTS = {
     webhook: `${BASE_URL}/payment/webhook`,
   },
   
+  // Follow endpoints
+  follow: {
+    follow: `${BASE_URL}/follow/follow`,
+    unfollow: `${BASE_URL}/follow/unfollow`,
+    followers: (userId, userType) => `${BASE_URL}/follow/followers/${userId}/${userType}`,
+    following: (userId, userType) => `${BASE_URL}/follow/following/${userId}/${userType}`,
+    check: (targetId, targetType) => `${BASE_URL}/follow/check/${targetId}/${targetType}`,
+    suggestions: `${BASE_URL}/follow/suggestions`,
+  },
+  
+  // Review endpoints
+  reviews: {
+    create: `${BASE_URL}/reviews/create`,
+    byPartner: (partnerId) => `${BASE_URL}/reviews/partner/${partnerId}`,
+    byFood: (foodId) => `${BASE_URL}/reviews/food/${foodId}`,
+    byUser: (userId) => userId ? `${BASE_URL}/reviews/user/${userId}` : `${BASE_URL}/reviews/user`,
+    update: (reviewId) => `${BASE_URL}/reviews/${reviewId}`,
+    delete: (reviewId) => `${BASE_URL}/reviews/${reviewId}`,
+    helpful: (reviewId) => `${BASE_URL}/reviews/${reviewId}/helpful`,
+    reply: (reviewId) => `${BASE_URL}/reviews/${reviewId}/reply`,
+    respond: (reviewId) => `${BASE_URL}/reviews/${reviewId}/respond`,
+  },
+  
   // Partner follow endpoint
   partner: {
     follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,

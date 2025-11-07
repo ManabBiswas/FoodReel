@@ -1,49 +1,94 @@
-# FoodReel
+# 🍔 FoodReel - Social Food Ordering Platform
 
-FoodReel is a full‑stack social + commerce platform for restaurants and food partners to share short videos and images of dishes (similar to Instagram/Reels). This repository contains a React + Vite frontend and an Express + Node backend with MongoDB for persistence and ImageKit for media storage.
+**FoodReel** is a modern full-stack social + commerce platform for restaurants and food partners to share short videos and images of dishes (similar to Instagram/Reels). This repository contains a React + Vite frontend and an Express + Node backend with MongoDB for persistence and ImageKit for media storage.
 
-## India edition — short summary
+[![Node.js](https://img.shields.io/badge/Node.js-23.6.1-green)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-5.1.0-blue)](https://expressjs.com/)
+[![React](https://img.shields.io/badge/React-18.x-blue)](https://reactjs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.18.1-green)](https://www.mongodb.com/)
 
-This project is intended to operate in India: targeting local restaurants, cloud kitchens, and food partners who want to reach food-loving customers (`real foody`) using short video/image posts, promoted placements (ads), and an in‑app commerce flow for ordering. Payments and payouts should support India-specific rails (UPI, wallets, and Indian payment gateways), and taxation (GST) must be considered for orders and platform fees.
+## India Edition — Short Summary
 
-- Strong product-market fit: high mobile usage and appetite for food discovery across metro and tier-2/3 cities.
-- Low incremental cost to onboard restaurants — many are actively looking for low-cost digital marketing channels.
-- Payment rails: UPI adoption makes low-friction payments possible and reduces checkout friction.
-- Local delivery networks already exist (and can be partnered with) reducing initial logistics investment.
-- Monetization mix: ads + small platform fee on orders balance recurring and transactional revenue streams.
+This project is intended to operate in India: targeting local restaurants, cloud kitchens, and food partners who want to reach food-loving customers (`real foody`) using short video/image posts, promoted placements (ads), and an in‑app commerce flow for ordering. Payments and payouts support India-specific rails (UPI, wallets, and Razorpay), and taxation (GST) considerations for orders and platform fees.
 
+**Key Advantages:**
+- 📱 Strong product-market fit: high mobile usage and appetite for food discovery across metro and tier-2/3 cities
+- 💰 Low incremental cost to onboard restaurants — many actively seek low-cost digital marketing channels
+- 💳 Payment rails: UPI adoption makes low-friction payments possible and reduces checkout friction
+- 🚚 Local delivery networks already exist (and can be partnered with) reducing initial logistics investment
+- 📊 Monetization mix: ads + small platform fee on orders balance recurring and transactional revenue streams
 
-This README provides a high‑level overview, project structure, setup & run instructions, and a short API reference to help you get started quickly.
+This README provides a high‑level overview, project structure, setup & run instructions, and a comprehensive API reference.
 
-## Table of contents
-- Project overview
-- Repo structure
-- Local setup
-  - Prerequisites
-  - Environment variables
-  - Install & run (backend / frontend)
-- Development notes
-- API overview (important endpoints)
-- Storage & file uploads
-- Troubleshooting
-- Next steps / TODO
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Repository Structure](#repository-structure)
+- [Local Setup](#local-setup)
+- [Development Notes](#development-notes)
+- [API Documentation](#-api-documentation)
+- [Storage & File Uploads](#storage--file-uploads)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap](#-roadmap)
 
 ---
 
-## Project overview
+## Project Overview
 
-- Frontend: React (Vite) app located in `Client/`.
-- Backend: Express server located in `Server/` using Mongoose for MongoDB models.
-- Storage: ImageKit (via `Server/src/services/storage.service.js`) for uploaded images/videos.
-- Authentication: JWT-based cookie authentication (HTTP-only cookies). Middleware protects partner routes.
+- **Frontend:** React (Vite) app located in `Client/`
+- **Backend:** Express server located in `Server/` using Mongoose for MongoDB models
+- **Storage:** ImageKit (via `Server/src/services/storage.service.js`) for uploaded images/videos
+- **Authentication:** JWT-based cookie authentication (HTTP-only cookies). Middleware protects partner routes
+- **Payments:** Razorpay integration for secure online payments
+- **Features:** Social feed, follow system, reviews & ratings, food ordering, advertisements
 
-This app supports:
-- Food partner registration/login
-- Creating food posts (image/video) with tags and metadata
-- Partner profile page with posts and reviews
-- File uploads via multipart/form-data (Multer in memory -> ImageKit)
+---
 
-## Repo structure
+## ✨ Features
+
+### For Users
+- 👤 User authentication with secure JWT
+- 🎥 Browse food content in engaging reel format
+- ❤️ Like, comment, save, and share posts
+- 👥 Follow food partners and other users
+- ⭐ Leave detailed reviews with ratings
+- 🛒 Seamless food ordering experience
+- 💳 Secure payments via Razorpay
+- 📱 Share your own food experiences
+- 🔍 Search & filter by cuisine, location, ratings
+
+### For Food Partners
+- 🏪 Partner dashboard to manage business
+- 📸 Create food posts and advertisements
+- 📊 Track engagement, orders, and revenue
+- 💬 Respond to customer reviews
+- 👥 Build and analyze follower base
+- 📦 Accept and track orders
+- 🎯 Promote special offers
+
+---
+
+## 🛠 Tech Stack
+
+### Backend
+- **Runtime:** Node.js v23.6.1
+- **Framework:** Express v5.1.0
+- **Database:** MongoDB with Mongoose v8.18.1
+- **Authentication:** JWT with HTTP-only cookies
+- **File Upload:** Multer + ImageKit
+- **Payment:** Razorpay
+- **Security:** bcrypt, CORS, cookie-parser
+
+### Frontend
+- **Framework:** React 18.x with Vite
+- **Routing:** React Router
+- **HTTP Client:** Axios
+- **UI:** Modern responsive design
+
+---
+
+## Repository Structure
 
 Complete folder and file tree with explanations:
 
@@ -257,32 +302,80 @@ Notes:
 - If images/videos don't appear, check backend console logs (controller prints formatted items) and browser console network tab for returned URLs.
 - Ensure ImageKit env vars are correctly provided. The storage service returns direct `response.url`.
 
-## API overview (important endpoints)
+## 📚 API Documentation
 
-Base URL: `http://localhost:3000`
+**Comprehensive API documentation is available in [`Server/API.md`](Server/API.md)**
 
-- POST `/api/auth/partner/register` – register a partner (body: companyName, email, password, ...)
-- POST `/api/auth/partner/login` – partner login (sets HTTP-only cookie)
-- GET `/api/auth/partner/check` – verify partner session
-- GET `/api/auth/partner/profile` – get partner profile + food items (protected)
-- PUT `/api/auth/partner/bio` – update bio (protected)
+### Quick API Reference
 
-- POST `/api/food` – create food post (multipart/form-data, protected)
-  - Fields: `file` (file), `name`, `description`, `type` ('image'|'video'), `tags` (JSON string or CSV), `duration` (optional)
+**Base URL:** `http://localhost:3000/api`
 
-- GET `/api/food` – list all foods (protected)
+#### Authentication Endpoints
+- `POST /api/auth/user/register` – Register new user
+- `POST /api/auth/user/login` – User login (sets JWT cookie)
+- `POST /api/auth/user/logout` – User logout
+- `POST /api/auth/partner/register` – Register food partner
+- `POST /api/auth/partner/login` – Partner login (sets JWT cookie)
+- `GET /api/auth/verify` – Verify user session
+- `GET /api/auth/partner/check` – Verify partner session
 
-- GET `/api/food/trending` – list trending foods
+#### Food & Posts
+- `POST /api/food` – Create food post (multipart/form-data, partner only)
+- `GET /api/food` – Get all food posts (with pagination)
+- `GET /api/food/trending` – Get trending posts
+- `GET /api/food/my-posts` – Get partner's own posts (partner only)
+- `POST /api/food/:id/like` – Toggle like on post (user only)
+- `POST /api/food/:id/save` – Toggle save/bookmark (user only)
 
-- GET `/api/food/trending?limit=${limit}` -- list top `limit` trending foods
-<!-- 
-const { data } = await axios.get('/api/food/trending', {
-    params: { limit: 5 }
-});
- -->
+#### User Posts
+- `POST /api/posts/user` – Create user post (multipart/form-data, user only)
+- `GET /api/posts/user` – Get all user posts
+- `GET /api/posts/user/my-posts` – Get logged-in user's posts
+- `POST /api/posts/user/:id/like` – Toggle like on user post
+- `POST /api/posts/user/:id/comment` – Add comment to user post
 
+#### Follow System
+- `POST /api/follow/follow` – Follow a user or food partner
+- `POST /api/follow/unfollow` – Unfollow
+- `GET /api/follow/followers/:userId/:userType` – Get followers list
+- `GET /api/follow/following/:userId/:userType` – Get following list
+- `GET /api/follow/check/:targetId/:targetType` – Check if following
+- `GET /api/follow/suggestions` – Get suggested follows
 
-See controllers in `Server/src/controllers/` for more endpoints and behavior.
+#### Review System
+- `POST /api/reviews/create` – Create review (user only)
+- `GET /api/reviews/partner/:partnerId` – Get partner reviews
+- `GET /api/reviews/food/:foodId` – Get food item reviews
+- `GET /api/reviews/user/:userId` – Get user's reviews
+- `PUT /api/reviews/:reviewId` – Update review
+- `DELETE /api/reviews/:reviewId` – Delete review
+- `POST /api/reviews/:reviewId/helpful` – Mark review as helpful
+- `POST /api/reviews/:reviewId/reply` – Add reply to review
+- `POST /api/reviews/:reviewId/respond` – Food partner response (partner only)
+
+#### Orders
+- `POST /api/orders` – Create new order (user only)
+- `GET /api/orders` – Get user's orders
+- `GET /api/orders/partner` – Get partner's orders (partner only)
+- `PUT /api/orders/partner/:orderId/status` – Update order status (partner only)
+- `GET /api/orders/partner/statistics` – Get order statistics (partner only)
+
+#### Payments
+- `POST /api/payment/create-order` – Create Razorpay order (user only)
+- `POST /api/payment/verify` – Verify payment (user only)
+- `POST /api/payment/failure` – Handle payment failure
+- `POST /api/payment/refund` – Initiate refund (user only)
+
+#### Advertisements
+- `POST /api/advertisement` – Create advertisement (partner only)
+- `GET /api/advertisement` – Get all advertisements
+- `GET /api/advertisement/:id` – Get advertisement by ID
+- `PUT /api/advertisement/:id` – Update advertisement (partner only)
+- `DELETE /api/advertisement/:id` – Delete advertisement (partner only)
+
+**For detailed request/response formats, authentication requirements, and examples, see the complete [API Documentation](Server/API.md).**
+
+---
 
 ## Storage & file uploads
 
