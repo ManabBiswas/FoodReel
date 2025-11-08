@@ -1,3 +1,12 @@
-PRODUCTION_READINESS_REPORT.md
-CHECKOUT_FROM_REEL_FEATURE.md
-TASK_SCHEDULE.md
+
+.env
+node_modules/
+.DS_Store
+# Ignore all Markdown files
+*.md
+
+# But do NOT ignore these specific ones
+!README.md
+!FOOD_VS_ADVERTISEMENT_SYSTEM.md
+!FOOD_VS_ADVERTISEMENT_SYSTEM.md
+!BUSINESS_MODEL.md
