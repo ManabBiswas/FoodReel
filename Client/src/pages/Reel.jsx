@@ -16,7 +16,13 @@ import {
   TrendingUp,
   ExternalLink,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  Star,
+  UserPlus,
+  UserCheck,
+  X,
+  Send,
+  BookmarkCheck
 } from 'lucide-react'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
 import ReelOrderButton from '../Components/ReelOrderButton'
@@ -30,9 +36,23 @@ const Reel = () => {
   const [playing, setPlaying] = useState(true)
   const [selectedFoodForOrder, setSelectedFoodForOrder] = useState(null)
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
+  const [openShopFor, setOpenShopFor] = useState(null)
+  
+  // New states for follow and review
+  const [followingStatus, setFollowingStatus] = useState({})
+  const [savedPosts, setSavedPosts] = useState({})
+  const [likedPosts, setLikedPosts] = useState({})
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [currentReviewItem, setCurrentReviewItem] = useState(null)
+  const [reviewData, setReviewData] = useState({
+    rating: 0,
+    comment: '',
+    ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
+  })
+  const [submittingReview, setSubmittingReview] = useState(false)
+  
   const containerRef = useRef(null)
   const videoRefs = useRef([])
-    const [openShopFor, setOpenShopFor] = useState(null)
 
     const handleShopToggle = (postId) => {
       setOpenShopFor(prev => (prev === postId ? null : postId))
@@ -242,26 +262,190 @@ const Reel = () => {
       const response = await axios.post(endpoint, {}, axiosConfig)
       console.log('Like response:', response.data)
       
-      // Optimistically update UI
+      // Optimistically update UI with animation
+      setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      
       setCombinedContent(combinedContent.map(item => 
         item._id === postId && item.type === 'post'
-          ? { ...item, likes: response.data.likeCount || item.likes }
+          ? { 
+              ...item, 
+              likes: response.data.liked 
+                ? (item.likes || 0) + 1 
+                : Math.max(0, (item.likes || 0) - 1)
+            }
           : item
       ))
     } catch (error) {
       console.error('Error liking post:', error)
-      alert('Failed to like post. Please try again.')
+      alert(error.response?.data?.message || 'Failed to like post. Please login first.')
     }
   }
 
   const handleSave = async (postId) => {
     try {
       await axios.post(API_ENDPOINTS.food.save(postId), {}, axiosConfig)
-      alert('Post saved!')
+      
+      // Update saved status with animation
+      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      
+      // Show feedback
+      const isSaved = !savedPosts[postId]
+      const message = isSaved ? 'Post saved!' : 'Post unsaved'
+      
+      // Create toast notification
+      showToast(message)
     } catch (error) {
       console.error('Error saving post:', error)
+      alert(error.response?.data?.message || 'Failed to save post. Please login first.')
     }
   }
+
+  const handleFollow = async (targetId, targetType) => {
+    try {
+      const isFollowing = followingStatus[targetId]
+      
+      if (isFollowing) {
+        await axios.post(
+          API_ENDPOINTS.follow.unfollow,
+          { targetId, targetType },
+          axiosConfig
+        )
+      } else {
+        await axios.post(
+          API_ENDPOINTS.follow.follow,
+          { targetId, targetType },
+          axiosConfig
+        )
+      }
+      
+      // Update following status with animation
+      setFollowingStatus(prev => ({ ...prev, [targetId]: !prev[targetId] }))
+      
+      // Show feedback
+      showToast(isFollowing ? 'Unfollowed' : 'Following!')
+    } catch (error) {
+      console.error('Error toggling follow:', error)
+      alert(error.response?.data?.message || 'Failed to update follow status. Please login first.')
+    }
+  }
+
+  const openReviewModal = (item) => {
+    setCurrentReviewItem(item)
+    setShowReviewModal(true)
+    setReviewData({
+      rating: 0,
+      comment: '',
+      ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
+    })
+  }
+
+  const closeReviewModal = () => {
+    setShowReviewModal(false)
+    setCurrentReviewItem(null)
+    setReviewData({
+      rating: 0,
+      comment: '',
+      ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
+    })
+  }
+
+  const handleSubmitReview = async () => {
+    if (reviewData.rating === 0) {
+      alert('Please select a rating')
+      return
+    }
+    
+    if (!reviewData.comment.trim()) {
+      alert('Please write a comment')
+      return
+    }
+
+    setSubmittingReview(true)
+    
+    try {
+      const reviewPayload = {
+        foodPartnerId: currentReviewItem.postSource === 'partner' 
+          ? currentReviewItem.partnerId._id 
+          : currentReviewItem.taggedPartner?._id,
+        foodItemId: currentReviewItem.foodId,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        ratings: reviewData.ratings
+      }
+
+      await axios.post(
+        API_ENDPOINTS.reviews.create,
+        reviewPayload,
+        axiosConfig
+      )
+
+      showToast('Review submitted successfully!')
+      closeReviewModal()
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      alert(error.response?.data?.message || 'Failed to submit review. Please login first.')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  const showToast = (message) => {
+    const toast = document.createElement('div')
+    toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-full backdrop-blur-sm z-50 animate-toast'
+    toast.textContent = message
+    document.body.appendChild(toast)
+    
+    setTimeout(() => {
+      toast.style.opacity = '0'
+      toast.style.transform = 'translate(-50%, -20px)'
+      setTimeout(() => toast.remove(), 300)
+    }, 2000)
+  }
+
+  // Check following status on load
+  useEffect(() => {
+    const checkFollowingStatus = async () => {
+      if (combinedContent.length === 0) return
+      
+      try {
+        const statusChecks = {}
+        
+        for (const item of combinedContent) {
+          if (item.type === 'post') {
+            let targetId = null
+            let targetType = null
+            
+            if (item.postSource === 'partner' && item.partnerId?._id) {
+              targetId = item.partnerId._id
+              targetType = 'FoodPartner'
+            } else if (item.postSource === 'user' && item.postedBy?._id) {
+              targetId = item.postedBy._id
+              targetType = 'User'
+            }
+            
+            if (targetId && targetType) {
+              try {
+                const response = await axios.get(
+                  API_ENDPOINTS.follow.check(targetId, targetType),
+                  axiosConfig
+                )
+                statusChecks[targetId] = response.data.isFollowing
+              } catch {
+                // User not logged in or error
+                statusChecks[targetId] = false
+              }
+            }
+          }
+        }
+        
+        setFollowingStatus(statusChecks)
+      } catch (error) {
+        console.error('Error checking following status:', error)
+      }
+    }
+    
+    checkFollowingStatus()
+  }, [combinedContent])
 
   const handleShare = (item) => {
     if (navigator.share) {
@@ -417,6 +601,57 @@ const Reel = () => {
     display: block;
   }
 
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes toast {
+    0% {
+      transform: translate(-50%, -20px);
+      opacity: 0;
+    }
+    10% {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+    90% {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -20px);
+      opacity: 0;
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-toast {
+    animation: toast 2.5s ease-out forwards;
+  }
+
   @media (min-width: 768px) {
     .reel-content {
       max-width: min(calc(100vh * 9 / 16), 700px);
@@ -481,10 +716,10 @@ const Reel = () => {
               {/* Like Button */}
               <button 
                 onClick={() => handleLike(item._id, item.postSource)}
-                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
               >
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:fill-red-500 group-hover:text-red-500 transition-all" />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all ${likedPosts[item._id] ? 'bg-red-500/30' : ''}`}>
+                  <Heart className={`w-5 h-5 sm:w-6 sm:h-6 transition-all ${likedPosts[item._id] ? 'fill-red-500 text-red-500 animate-scale-in' : 'text-white group-hover:fill-red-500 group-hover:text-red-500'}`} />
                 </div>
                 <span className="text-white text-[10px] sm:text-xs font-semibold">
                   {formatCount(item.likes)}
@@ -492,7 +727,7 @@ const Reel = () => {
               </button>
 
               {/* Comment Button */}
-              <button className="flex flex-col items-center gap-0.5 sm:gap-1 group">
+              <button className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
                   <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
@@ -504,7 +739,7 @@ const Reel = () => {
               {/* Share Button */}
               <button 
                 onClick={() => handleShare(item)}
-                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
                   <Share2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -517,10 +752,24 @@ const Reel = () => {
               {/* Save Button */}
               <button 
                 onClick={() => handleSave(item._id)}
-                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+              >
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all cursor-pointer ${savedPosts[item._id] ? 'bg-orange-500/30' : ''}`}>
+                  {savedPosts[item._id] ? (
+                    <BookmarkCheck className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400 fill-orange-400 animate-scale-in" />
+                  ) : (
+                    <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  )}
+                </div>
+              </button>
+
+              {/* Review Button */}
+              <button 
+                onClick={() => openReviewModal(item)}
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                  <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:fill-yellow-400 group-hover:text-yellow-400 transition-all" />
                 </div>
               </button>
               {/* shop btn - Show only if post has price (partner posts or user posts tagged with food) */}
@@ -565,7 +814,7 @@ const Reel = () => {
             <div className="absolute right-2 sm:right-4 bottom-20 sm:bottom-24 flex flex-col gap-3 sm:gap-4 z-10">
               <button 
                 onClick={() => handleAdClick(item)}
-                className="flex flex-col items-center gap-0.5 sm:gap-1 group"
+                className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
                   <ExternalLink className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -598,8 +847,25 @@ const Reel = () => {
                       <span className="truncate">{item.partnerId.location || item.partnerId.address || 'Location not specified'}</span>
                     </p>
                   </div>
-                  <button className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white text-black rounded-full text-xs sm:text-sm font-semibold hover:bg-white/90 transition-all flex-shrink-0">
-                    Follow
+                  <button 
+                    onClick={() => handleFollow(item.partnerId._id, 'FoodPartner')}
+                    className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
+                      followingStatus[item.partnerId._id] 
+                        ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
+                        : 'bg-white text-black hover:bg-white/90'
+                    }`}
+                  >
+                    {followingStatus[item.partnerId._id] ? (
+                      <>
+                        <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        Follow
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -623,8 +889,25 @@ const Reel = () => {
                       </p>
                     )}
                   </div>
-                  <button className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white text-black rounded-full text-xs sm:text-sm font-semibold hover:bg-white/90 transition-all flex-shrink-0">
-                    Follow
+                  <button 
+                    onClick={() => handleFollow(item.postedBy._id, 'User')}
+                    className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
+                      followingStatus[item.postedBy._id] 
+                        ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
+                        : 'bg-white text-black hover:bg-white/90'
+                    }`}
+                  >
+                    {followingStatus[item.postedBy._id] ? (
+                      <>
+                        <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        Follow
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -721,6 +1004,115 @@ const Reel = () => {
         isOpen={isOrderModalOpen}
         onClose={handleCloseOrderModal}
       />
+
+      {/* Review Modal */}
+      {showReviewModal && currentReviewItem && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scale-in border border-white/10">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-white text-xl font-bold flex items-center gap-2">
+                <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                Write a Review
+              </h3>
+              <button 
+                onClick={closeReviewModal}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Item Info */}
+            <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
+              <h4 className="text-white font-semibold mb-1">{currentReviewItem.title}</h4>
+              <p className="text-white/70 text-sm">{currentReviewItem.description}</p>
+            </div>
+
+            {/* Overall Rating */}
+            <div className="mb-6">
+              <label className="text-white font-semibold mb-3 block">Overall Rating</label>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                    className="transform hover:scale-110 transition-all"
+                  >
+                    <Star 
+                      className={`w-10 h-10 ${
+                        star <= reviewData.rating 
+                          ? 'text-yellow-400 fill-yellow-400' 
+                          : 'text-white/30'
+                      } transition-all`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Detailed Ratings */}
+            <div className="mb-6 space-y-4">
+              <h4 className="text-white font-semibold">Detailed Ratings</h4>
+              {['food', 'service', 'ambiance', 'value'].map((category) => (
+                <div key={category}>
+                  <label className="text-white/80 text-sm mb-2 block capitalize">{category}</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setReviewData(prev => ({
+                          ...prev,
+                          ratings: { ...prev.ratings, [category]: star }
+                        }))}
+                        className="transform hover:scale-110 transition-all"
+                      >
+                        <Star 
+                          className={`w-6 h-6 ${
+                            star <= reviewData.ratings[category] 
+                              ? 'text-yellow-400 fill-yellow-400' 
+                              : 'text-white/30'
+                          } transition-all`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Comment */}
+            <div className="mb-6">
+              <label className="text-white font-semibold mb-2 block">Your Review</label>
+              <textarea
+                value={reviewData.comment}
+                onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                placeholder="Share your experience..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 transition-colors resize-none h-32"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              onClick={handleSubmitReview}
+              disabled={submittingReview}
+              className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {submittingReview ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Submit Review
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
