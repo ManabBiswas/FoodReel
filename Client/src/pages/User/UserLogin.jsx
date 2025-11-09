@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
 
@@ -14,7 +15,6 @@ const UserLogin = () => {
   const navigate = useNavigate();
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   // const [checkingAuth, setCheckingAuth] = useState(true);
 
@@ -53,7 +53,6 @@ const UserLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
     setErrors({}) // Clear previous errors
 
     // Basic validation
@@ -79,24 +78,25 @@ const UserLogin = () => {
       )
       
       if (response.data && response.data.message === "User logged in successfully") {
-        setMessage('Login successful! Redirecting...')
+        toast.success('Login successful! Redirecting...')
         setIsLoggedIn(true)
         navigate('/')
       } else {
-        setMessage('Login failed - unexpected response format')
+        toast.error('Login failed - unexpected response format')
       }
     } catch (error) {
       console.error('Login error:', error)
       
       if (error.response?.data?.message) {
         // Server returned a specific error message
-        setMessage(error.response.data.message)
+        toast.error(error.response.data.message)
       } else if (error.response?.data?.errors) {
         // Server returned field-specific errors
         setErrors(error.response.data.errors)
+        toast.error('Please check the form for errors')
       } else {
         // Generic error handling
-        setMessage(error.message || 'Login failed. Please try again.')
+        toast.error(error.message || 'Login failed. Please try again.')
       }
     } finally {
       setLoading(false)
@@ -110,12 +110,6 @@ const UserLogin = () => {
           <h2 className="text-2xl font-semibold text-gray-900">Sign in to your account</h2>
           <p className="text-sm text-gray-600">Welcome back — please enter your details</p>
         </div>
-
-        {message && (
-          <div className={`mb-4 p-3 rounded-md ${message.includes('successful') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-            {message}
-          </div>
-        )}
 
         {(errors.general || typeof errors === 'string') && (
           <div className="mb-4 p-3 rounded-md bg-red-50 text-red-800 border border-red-200">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone } from 'lucide-react'
 
@@ -105,7 +106,7 @@ const UserRegister = () => {
 
       console.log('Registration successful:', response.data)
       
-      setMessage('Registration successful! Please check your email for verification.')
+      toast.success('Registration successful! Redirecting to login...')
       setFormData({
         firstName: '',
         lastName: '',
@@ -121,7 +122,7 @@ const UserRegister = () => {
 
     } catch (error) {
       console.error('Registration error:', error)
-      setMessage(
+      toast.error(
         error.response?.data?.message ||
         'Registration failed. Please try again.'
       )
