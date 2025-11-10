@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { useNavigate } from 'react-router-dom'
@@ -10,7 +11,6 @@ import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, 
 const PartnerProfile = () => {
   const navigate = useNavigate()
   const [errors, setErrors] = useState('')
-  const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState('posts')
   const [postFilter, setPostFilter] = useState('all') // 'all', 'food', 'advertisement'
   const [isEditingBio, setIsEditingBio] = useState(false)
@@ -94,12 +94,10 @@ const PartnerProfile = () => {
 
       setPartnerData(prev => ({ ...prev, bio: bioText }))
       setIsEditingBio(false)
-      setMessage('Bio updated successfully!')
-      setTimeout(() => setMessage(''), 3000)
+      toast.success('Bio updated successfully!')
     } catch (error) {
       console.error('Error updating bio:', error)
-      setMessage('Error updating bio')
-      setTimeout(() => setMessage(''), 3000)
+      toast.error('Error updating bio')
     } finally {
       setBioLoading(false)
     }
@@ -159,11 +157,6 @@ const PartnerProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-5xl mx-auto bg-white min-h-screen">
-        {message && (
-          <div className='mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-green-50 text-green-800 border border-green-200'>
-            {message}
-          </div>
-        )}
         {errors && (
           <div className="mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-700 ">
             {errors}

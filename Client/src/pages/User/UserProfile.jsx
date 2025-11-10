@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
@@ -19,13 +20,14 @@ const UserProfile = () => {
     try {
       setLoading(true)
       const response = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
-      
+
       if (response.data) {
         setUser(response.data)
         // These would come from separate API calls when you implement favorites/saved items
         setLikedFoods(response.data.likedFoods || [])
         setSavedFoods(response.data.savedFoods || [])
-        
+        setError('')
+
         // Fetch user's posts
         try {
           const postsResponse = await axios.get(API_ENDPOINTS.userPost.myPosts, axiosConfig)
@@ -34,6 +36,7 @@ const UserProfile = () => {
           }
         } catch (postsError) {
           console.error('Error fetching user posts:', postsError)
+          // Optional: Show toast for post fetch errors only if critical
         }
       } else {
         navigate('/login')
@@ -43,7 +46,7 @@ const UserProfile = () => {
       if (error.response?.status === 401) {
         navigate('/login')
       } else {
-        setError('Failed to load profile')
+        toast.error('Failed to load profile')
       }
     } finally {
       setLoading(false)
@@ -57,11 +60,13 @@ const UserProfile = () => {
   const handleLogout = async () => {
     try {
       await axios.post(API_ENDPOINTS.auth.userLogout, {}, axiosConfig)
+      toast.success('Logged out successfully')
       navigate('/login')
     } catch (error) {
       console.error('Logout error:', error)
-      // Navigate anyway
-      navigate('/login')
+      toast.error('Logout failed, please try again')
+      // Navigate anyway after showing error
+      setTimeout(() => navigate('/login'), 1000)
     }
   }
 
@@ -84,7 +89,7 @@ const UserProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto bg-white min-h-screen">
         <Navbar />
-        
+
         {/* Error Message */}
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -127,14 +132,14 @@ const UserProfile = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row justify-center sm:justify-start gap-2">
-                  <Link 
+                  <Link
                     to="/profile/settings"
                     className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Edit3 className="w-4 h-4" />
                     Edit Profile
                   </Link>
-                  <Link 
+                  <Link
                     to="/profile/settings"
                     className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer"
                   >
@@ -195,7 +200,7 @@ const UserProfile = () => {
 
           {/* Create Post Button */}
           <div className="flex justify-center sm:justify-start mb-4">
-            <button 
+            <button
               onClick={() => navigate('/create-post')}
               className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -211,22 +216,20 @@ const UserProfile = () => {
             <div className="flex w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('posts')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${
-                  activeTab === 'posts'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'posts'
                     ? 'text-gray-900 border-t-2 border-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 <Grid3X3 className="w-4 h-4" />
                 <span className="hidden sm:inline">Posts</span>
               </button>
               <button
                 onClick={() => setActiveTab('favorites')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${
-                  activeTab === 'favorites'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'favorites'
                     ? 'text-gray-900 border-t-2 border-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 <Heart className="w-4 h-4" />
                 <span className="hidden sm:inline">Favorites ({likedFoods.length})</span>
@@ -234,11 +237,10 @@ const UserProfile = () => {
               </button>
               <button
                 onClick={() => setActiveTab('saved')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${
-                  activeTab === 'saved'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'saved'
                     ? 'text-gray-900 border-t-2 border-gray-900'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 <Bookmark className="w-4 h-4" />
                 <span className="hidden sm:inline">Saved ({savedFoods.length})</span>
@@ -257,13 +259,13 @@ const UserProfile = () => {
                   {userPosts.map((post) => (
                     <div key={post._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
                       {post.type === 'video' ? (
-                        <video 
-                          src={post.video} 
+                        <video
+                          src={post.video}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <img 
-                          src={post.image} 
+                        <img
+                          src={post.image}
                           alt={post.title}
                           className="w-full h-full object-cover"
                         />
@@ -292,7 +294,7 @@ const UserProfile = () => {
                   </div>
                   <h3 className="text-xl font-light text-gray-900 mb-2">No Posts Yet</h3>
                   <p className="text-gray-500 mb-4">Share your food experiences with the community</p>
-                  <button 
+                  <button
                     onClick={() => navigate('/create-post')}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-2"
                   >
@@ -309,8 +311,8 @@ const UserProfile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {likedFoods.map((food) => (
                     <div key={food._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
-                        src={food.thumbnail?.url || food.thumbnail} 
+                      <img
+                        src={food.thumbnail?.url || food.thumbnail}
                         alt={food.name}
                         className="w-full h-full object-cover"
                       />
@@ -335,8 +337,8 @@ const UserProfile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {savedFoods.map((food) => (
                     <div key={food._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
-                        src={food.thumbnail?.url || food.thumbnail} 
+                      <img
+                        src={food.thumbnail?.url || food.thumbnail}
                         alt={food.name}
                         className="w-full h-full object-cover"
                       />
