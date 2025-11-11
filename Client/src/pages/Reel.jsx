@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { 
   Heart, 
   MessageCircle, 
@@ -50,6 +51,9 @@ const Reel = () => {
     ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
   })
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [existingReviews, setExistingReviews] = useState([])
+  const [loadingReviews, setLoadingReviews] = useState(false)
+  const [showReviewsList, setShowReviewsList] = useState(true)
   
   const containerRef = useRef(null)
   const videoRefs = useRef([])
@@ -169,7 +173,7 @@ const Reel = () => {
         
       } catch (error) {
         console.error('Error fetching data:', error)
-        alert('Failed to fetch data. Please try again.')
+        toast.error('Failed to fetch data. Please try again.')
       } finally {
         setLoading(false)
       }
@@ -277,7 +281,7 @@ const Reel = () => {
       ))
     } catch (error) {
       console.error('Error liking post:', error)
-      alert(error.response?.data?.message || 'Failed to like post. Please login first.')
+      toast.error(error.response?.data?.message || 'Failed to like post. Please login first.')
     }
   }
 
@@ -293,10 +297,10 @@ const Reel = () => {
       const message = isSaved ? 'Post saved!' : 'Post unsaved'
       
       // Create toast notification
-      showToast(message)
+      toast.success(message)
     } catch (error) {
       console.error('Error saving post:', error)
-      alert(error.response?.data?.message || 'Failed to save post. Please login first.')
+      toast.error(error.response?.data?.message || 'Failed to save post. Please login first.')
     }
   }
 
@@ -322,26 +326,57 @@ const Reel = () => {
       setFollowingStatus(prev => ({ ...prev, [targetId]: !prev[targetId] }))
       
       // Show feedback
-      showToast(isFollowing ? 'Unfollowed' : 'Following!')
+      toast.success(isFollowing ? 'Unfollowed' : 'Following!')
     } catch (error) {
       console.error('Error toggling follow:', error)
-      alert(error.response?.data?.message || 'Failed to update follow status. Please login first.')
+      toast.error(error.response?.data?.message || 'Failed to update follow status. Please login first.')
     }
   }
 
-  const openReviewModal = (item) => {
+  const openReviewModal = async (item) => {
     setCurrentReviewItem(item)
     setShowReviewModal(true)
+    setShowReviewsList(true)
     setReviewData({
       rating: 0,
       comment: '',
       ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
     })
+    
+    // Fetch existing reviews
+    await fetchReviews(item)
+  }
+  
+  const fetchReviews = async (item) => {
+    setLoadingReviews(true)
+    try {
+      let endpoint = null
+      
+      // Determine which endpoint to use based on post type
+      if (item.postSource === 'partner' && item.partnerId?._id) {
+        endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
+      } else if (item.foodId) {
+        endpoint = API_ENDPOINTS.reviews.byFood(item.foodId)
+      }
+      
+      if (endpoint) {
+        const response = await axios.get(endpoint, axiosConfig)
+        setExistingReviews(response.data.data || response.data.reviews || [])
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error)
+      // Don't show error toast, just set empty array
+      setExistingReviews([])
+    } finally {
+      setLoadingReviews(false)
+    }
   }
 
   const closeReviewModal = () => {
     setShowReviewModal(false)
     setCurrentReviewItem(null)
+    setExistingReviews([])
+    setShowReviewsList(true)
     setReviewData({
       rating: 0,
       comment: '',
@@ -351,12 +386,12 @@ const Reel = () => {
 
   const handleSubmitReview = async () => {
     if (reviewData.rating === 0) {
-      alert('Please select a rating')
+      toast.warning('Please select a rating')
       return
     }
     
     if (!reviewData.comment.trim()) {
-      alert('Please write a comment')
+      toast.warning('Please write a comment')
       return
     }
 
@@ -379,27 +414,26 @@ const Reel = () => {
         axiosConfig
       )
 
-      showToast('Review submitted successfully!')
-      closeReviewModal()
+      toast.success('Review submitted successfully!')
+      
+      // Refresh reviews list
+      await fetchReviews(currentReviewItem)
+      
+      // Switch to reviews list view
+      setShowReviewsList(true)
+      
+      // Reset form
+      setReviewData({
+        rating: 0,
+        comment: '',
+        ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
+      })
     } catch (error) {
       console.error('Error submitting review:', error)
-      alert(error.response?.data?.message || 'Failed to submit review. Please login first.')
+      toast.error(error.response?.data?.message || 'Failed to submit review. Please login first.')
     } finally {
       setSubmittingReview(false)
     }
-  }
-
-  const showToast = (message) => {
-    const toast = document.createElement('div')
-    toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-full backdrop-blur-sm z-50 animate-toast'
-    toast.textContent = message
-    document.body.appendChild(toast)
-    
-    setTimeout(() => {
-      toast.style.opacity = '0'
-      toast.style.transform = 'translate(-50%, -20px)'
-      setTimeout(() => toast.remove(), 300)
-    }, 2000)
   }
 
   // Check following status on load
@@ -455,7 +489,7 @@ const Reel = () => {
         url: window.location.href
       }).catch(err => console.log('Error sharing:', err))
     } else {
-      alert('Share functionality not supported on this device')
+      toast.info('Share functionality not supported on this device')
     }
   }
 
@@ -1008,12 +1042,12 @@ const Reel = () => {
       {/* Review Modal */}
       {showReviewModal && currentReviewItem && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scale-in border border-white/10">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in border border-white/10 flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
               <h3 className="text-white text-xl font-bold flex items-center gap-2">
                 <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-                Write a Review
+                Reviews
               </h3>
               <button 
                 onClick={closeReviewModal}
@@ -1023,93 +1057,203 @@ const Reel = () => {
               </button>
             </div>
 
-            {/* Item Info */}
-            <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
-              <h4 className="text-white font-semibold mb-1">{currentReviewItem.title}</h4>
-              <p className="text-white/70 text-sm">{currentReviewItem.description}</p>
+            {/* Tab Navigation */}
+            <div className="flex border-b border-white/10">
+              <button
+                onClick={() => setShowReviewsList(true)}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                  showReviewsList
+                    ? 'text-orange-500 border-b-2 border-orange-500'
+                    : 'text-white/60 hover:text-white/80'
+                }`}
+              >
+                All Reviews ({existingReviews.length})
+              </button>
+              <button
+                onClick={() => setShowReviewsList(false)}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                  !showReviewsList
+                    ? 'text-orange-500 border-b-2 border-orange-500'
+                    : 'text-white/60 hover:text-white/80'
+                }`}
+              >
+                Write Review
+              </button>
             </div>
 
-            {/* Overall Rating */}
-            <div className="mb-6">
-              <label className="text-white font-semibold mb-3 block">Overall Rating</label>
-              <div className="flex gap-2 justify-center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
-                    className="transform hover:scale-110 transition-all"
-                  >
-                    <Star 
-                      className={`w-10 h-10 ${
-                        star <= reviewData.rating 
-                          ? 'text-yellow-400 fill-yellow-400' 
-                          : 'text-white/30'
-                      } transition-all`}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Detailed Ratings */}
-            <div className="mb-6 space-y-4">
-              <h4 className="text-white font-semibold">Detailed Ratings</h4>
-              {['food', 'service', 'ambiance', 'value'].map((category) => (
-                <div key={category}>
-                  <label className="text-white/80 text-sm mb-2 block capitalize">{category}</label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {showReviewsList ? (
+                /* Reviews List */
+                <div className="space-y-4">
+                  {loadingReviews ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : existingReviews.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Star className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                      <h4 className="text-white/60 font-semibold mb-2">No reviews yet</h4>
+                      <p className="text-white/40 text-sm mb-4">Be the first to review!</p>
                       <button
-                        key={star}
-                        onClick={() => setReviewData(prev => ({
-                          ...prev,
-                          ratings: { ...prev.ratings, [category]: star }
-                        }))}
-                        className="transform hover:scale-110 transition-all"
+                        onClick={() => setShowReviewsList(false)}
+                        className="px-6 py-2 bg-gradient-to-r from-orange-500 to-pink-600 text-white rounded-full text-sm font-semibold hover:scale-105 transition-transform"
                       >
-                        <Star 
-                          className={`w-6 h-6 ${
-                            star <= reviewData.ratings[category] 
-                              ? 'text-yellow-400 fill-yellow-400' 
-                              : 'text-white/30'
-                          } transition-all`}
-                        />
+                        Write a Review
                       </button>
+                    </div>
+                  ) : (
+                    existingReviews.map((review) => (
+                      <div
+                        key={review._id}
+                        className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors"
+                      >
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm">
+                              {review.user?.firstName?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="text-white font-semibold text-sm">
+                              {review.user?.firstName} {review.user?.lastName}
+                            </h5>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-4 h-4 ${
+                                      star <= review.rating
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-white/20'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-white/40 text-xs">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-white/80 text-sm leading-relaxed">
+                          {review.comment}
+                        </p>
+                        {review.ratings && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {Object.entries(review.ratings).map(([key, value]) => (
+                              value > 0 && (
+                                <div
+                                  key={key}
+                                  className="bg-white/5 px-3 py-1 rounded-full text-xs text-white/60"
+                                >
+                                  <span className="capitalize">{key}:</span>
+                                  <span className="ml-1 text-yellow-400">
+                                    {value}★
+                                  </span>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                /* Write Review Form */
+                <div>
+                  {/* Item Info */}
+                  <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
+                    <h4 className="text-white font-semibold mb-1">{currentReviewItem.title}</h4>
+                    <p className="text-white/70 text-sm line-clamp-2">{currentReviewItem.description}</p>
+                  </div>
+
+                  {/* Overall Rating */}
+                  <div className="mb-6">
+                    <label className="text-white font-semibold mb-3 block">Overall Rating</label>
+                    <div className="flex gap-2 justify-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                          className="transform hover:scale-110 transition-all"
+                        >
+                          <Star 
+                            className={`w-10 h-10 ${
+                              star <= reviewData.rating 
+                                ? 'text-yellow-400 fill-yellow-400' 
+                                : 'text-white/30'
+                            } transition-all`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Detailed Ratings */}
+                  <div className="mb-6 space-y-4">
+                    <h4 className="text-white font-semibold">Detailed Ratings</h4>
+                    {['food', 'service', 'ambiance', 'value'].map((category) => (
+                      <div key={category}>
+                        <label className="text-white/80 text-sm mb-2 block capitalize">{category}</label>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={() => setReviewData(prev => ({
+                                ...prev,
+                                ratings: { ...prev.ratings, [category]: star }
+                              }))}
+                              className="transform hover:scale-110 transition-all"
+                            >
+                              <Star 
+                                className={`w-6 h-6 ${
+                                  star <= reviewData.ratings[category] 
+                                    ? 'text-yellow-400 fill-yellow-400' 
+                                    : 'text-white/30'
+                                } transition-all`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
+
+                  {/* Comment */}
+                  <div className="mb-6">
+                    <label className="text-white font-semibold mb-2 block">Your Review</label>
+                    <textarea
+                      value={reviewData.comment}
+                      onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                      placeholder="Share your experience..."
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 transition-colors resize-none h-32"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={submittingReview}
+                    className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submittingReview ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        Submit Review
+                      </>
+                    )}
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Comment */}
-            <div className="mb-6">
-              <label className="text-white font-semibold mb-2 block">Your Review</label>
-              <textarea
-                value={reviewData.comment}
-                onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
-                placeholder="Share your experience..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 transition-colors resize-none h-32"
-              />
-            </div>
-
-            {/* Submit Button */}
-            <button
-              onClick={handleSubmitReview}
-              disabled={submittingReview}
-              className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {submittingReview ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Submit Review
-                </>
               )}
-            </button>
+            </div>
           </div>
         </div>
       )}
