@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
 
@@ -33,6 +34,7 @@ const FoodDetailModal = ({ food, onClose }) => {
       }
     } catch (err) {
       console.error('Error fetching reviews:', err)
+      // Optional: toast.error('Failed to load reviews')
     }
   }, [getFoodId])
 
@@ -70,8 +72,10 @@ const FoodDetailModal = ({ food, onClose }) => {
         axiosConfig
       )
       setIsLiked(!isLiked)
+      toast.success(isLiked ? 'Removed from favorites' : 'Added to favorites')
     } catch (error) {
       console.error('Error liking food:', error)
+      toast.error('Failed to update favorites')
     }
   }
 
@@ -81,7 +85,10 @@ const FoodDetailModal = ({ food, onClose }) => {
       return
     }
 
-    if (!comment.trim()) return
+    if (!comment.trim()) {
+      toast.warning('Please write a review before submitting')
+      return
+    }
 
     try {
       setLoading(true)
@@ -93,9 +100,11 @@ const FoodDetailModal = ({ food, onClose }) => {
         axiosConfig
       )
       setComment('')
+      toast.success('Review submitted successfully!')
       await fetchReviews(id)
     } catch (err) {
       console.error('Error submitting review:', err)
+      toast.error(err.response?.data?.message || 'Failed to submit review')
     } finally {
       setLoading(false)
     }
@@ -143,8 +152,10 @@ const FoodDetailModal = ({ food, onClose }) => {
       if (!id) return
       await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
       setIsSaved(true)
+      toast.success('Food saved to your collection')
     } catch (err) {
       console.error('Error saving food:', err)
+      toast.error('Failed to save food')
     }
   }
 
