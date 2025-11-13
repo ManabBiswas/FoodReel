@@ -1021,9 +1021,13 @@ const Reel = () => {
               onClick={togglePlayPause}
               className="absolute inset-0 flex items-center justify-center z-0"
             >
-              {!playing && (
+              {!playing ? (
                 <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                   <Play className="w-10 h-10 text-white ml-1" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <Pause className="w-10 h-10 text-white" />
                 </div>
               )}
             </button>
