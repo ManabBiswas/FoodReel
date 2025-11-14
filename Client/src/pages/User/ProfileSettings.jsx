@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig, multipartConfig } from '../../config/Api'
 import { 
   User, Mail, Phone, Save, ArrowLeft, Camera, Upload, 
@@ -12,7 +13,6 @@ const ProfileSettings = () => {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [activeTab, setActiveTab] = useState('basic')
   const navigate = useNavigate()
 
@@ -75,7 +75,7 @@ const ProfileSettings = () => {
       if (error.response?.status === 401) {
         navigate('/login')
       } else {
-        setError('Failed to load profile')
+        toast.error('Failed to load profile')
       }
     } finally {
       setLoading(false)
@@ -90,7 +90,6 @@ const ProfileSettings = () => {
     e.preventDefault()
     setUpdating(true)
     setError('')
-    setSuccess('')
 
     try {
       const response = await axios.put(
@@ -101,12 +100,11 @@ const ProfileSettings = () => {
 
       if (response.data.user) {
         setUser(response.data.user)
-        setSuccess('Profile updated successfully!')
-        setTimeout(() => setSuccess(''), 3000)
+        toast.success('Profile updated successfully!')
       }
     } catch (error) {
       console.error('Error updating profile:', error)
-      setError(error.response?.data?.error || 'Failed to update profile')
+      toast.error(error.response?.data?.error || 'Failed to update profile')
     } finally {
       setUpdating(false)
     }
@@ -116,16 +114,15 @@ const ProfileSettings = () => {
     e.preventDefault()
     setUpdating(true)
     setError('')
-    setSuccess('')
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('New passwords do not match')
+      toast.error('New passwords do not match')
       setUpdating(false)
       return
     }
 
     if (passwordData.newPassword.length < 6) {
-      setError('New password must be at least 6 characters long')
+      toast.error('New password must be at least 6 characters long')
       setUpdating(false)
       return
     }
@@ -140,12 +137,11 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      setSuccess('Password changed successfully!')
+      toast.success('Password changed successfully!')
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      setTimeout(() => setSuccess(''), 3000)
     } catch (error) {
       console.error('Error changing password:', error)
-      setError(error.response?.data?.error || 'Failed to change password')
+      toast.error(error.response?.data?.error || 'Failed to change password')
     } finally {
       setUpdating(false)
     }
@@ -155,7 +151,6 @@ const ProfileSettings = () => {
     e.preventDefault()
     setUpdating(true)
     setError('')
-    setSuccess('')
 
     try {
       await axios.put(
@@ -164,11 +159,10 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      setSuccess('Preferences updated successfully!')
-      setTimeout(() => setSuccess(''), 3000)
+      toast.success('Preferences updated successfully!')
     } catch (error) {
       console.error('Error updating preferences:', error)
-      setError(error.response?.data?.error || 'Failed to update preferences')
+      toast.error(error.response?.data?.error || 'Failed to update preferences')
     } finally {
       setUpdating(false)
     }
@@ -178,7 +172,6 @@ const ProfileSettings = () => {
     e.preventDefault()
     setUpdating(true)
     setError('')
-    setSuccess('')
 
     try {
       await axios.put(
@@ -187,11 +180,10 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      setSuccess('Address updated successfully!')
-      setTimeout(() => setSuccess(''), 3000)
+      toast.success('Address updated successfully!')
     } catch (error) {
       console.error('Error updating address:', error)
-      setError(error.response?.data?.error || 'Failed to update address')
+      toast.error(error.response?.data?.error || 'Failed to update address')
     } finally {
       setUpdating(false)
     }
@@ -214,12 +206,11 @@ const ProfileSettings = () => {
 
       if (response.data.profileImage) {
         setUser({ ...user, profileImage: response.data.profileImage })
-        setSuccess('Profile picture updated successfully!')
-        setTimeout(() => setSuccess(''), 3000)
+        toast.success('Profile picture updated successfully!')
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      setError(error.response?.data?.error || 'Failed to upload profile picture')
+      toast.error(error.response?.data?.error || 'Failed to upload profile picture')
     } finally {
       setUpdating(false)
     }
@@ -258,11 +249,6 @@ const ProfileSettings = () => {
         {error && (
           <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-md text-sm">
             {error}
-          </div>
-        )}
-        {success && (
-          <div className="mx-4 mt-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-md text-sm">
-            {success}
           </div>
         )}
 
