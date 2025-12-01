@@ -54,9 +54,11 @@ This README provides a high‑level overview, project structure, setup & run ins
 - 👥 Follow food partners and other users
 - ⭐ Leave detailed reviews with ratings
 - 🛒 Seamless food ordering experience
+- 📍 Manage multiple delivery addresses
 - 💳 Secure payments via Razorpay
 - 📱 Share your own food experiences
 - 🔍 Search & filter by cuisine, location, ratings
+- ⚙️ Comprehensive profile settings (basic info, password, preferences, addresses)
 
 ### For Food Partners
 - 🏪 Partner dashboard to manage business
@@ -314,6 +316,9 @@ Notes:
 - `POST /api/auth/user/register` – Register new user
 - `POST /api/auth/user/login` – User login (sets JWT cookie)
 - `POST /api/auth/user/logout` – User logout
+- `GET /api/auth/user/profile` – Get user profile
+- `PUT /api/auth/user/profile` – Update user profile
+- `PUT /api/auth/user/change-password` – Change password
 - `POST /api/auth/partner/register` – Register food partner
 - `POST /api/auth/partner/login` – Partner login (sets JWT cookie)
 - `GET /api/auth/verify` – Verify user session
@@ -365,6 +370,15 @@ Notes:
 - `POST /api/payment/verify` – Verify payment (user only)
 - `POST /api/payment/failure` – Handle payment failure
 - `POST /api/payment/refund` – Initiate refund (user only)
+
+#### User Profile & Preferences
+- `POST /api/user/profile-picture` – Upload profile picture (user only)
+- `PUT /api/user/preferences` – Update food preferences (user only)
+- `GET /api/user/address` – Get all delivery addresses (user only)
+- `POST /api/user/address` – Add new delivery address (user only)
+- `PUT /api/user/address/:id` – Update delivery address (user only)
+- `DELETE /api/user/address/:id` – Delete delivery address (user only)
+- `PATCH /api/user/address/:id/default` – Set default delivery address (user only)
 
 #### Advertisements
 - `POST /api/advertisement` – Create advertisement (partner only)

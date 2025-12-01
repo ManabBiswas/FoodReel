@@ -1,12 +1,205 @@
-# React + Vite
+# FoodReel Client - React + Vite Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Overview
 
-Currently, two official plugins are available:
+Modern React frontend for FoodReel - a social food ordering platform with Instagram/TikTok-style reels for food discovery.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Key Features
 
-## Expanding the ESLint configuration
+### User Features
+- 🎥 **Food Reels** - Scroll through engaging food videos and images
+- 👤 **User Profiles** - Comprehensive profile management with:
+  - Basic information (name, email, mobile)
+  - Password management
+  - Food preferences (cuisines, dietary restrictions, spice level)
+  - Multiple delivery addresses with default selection
+  - Profile picture upload
+- 🛒 **Food Ordering** - Quick order with Razorpay payment integration
+- ❤️ **Social Features** - Like, save, share, comment, and follow
+- ⭐ **Reviews & Ratings** - Write and view detailed reviews with ratings
+- 📍 **Address Management** - Add, edit, delete, and set default delivery addresses
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Partner Features
+- 🏪 **Partner Dashboard** - Manage food posts and advertisements
+- 📸 **Content Creation** - Upload food videos/images with descriptions
+- 📊 **Analytics** - Track engagement and orders
+- 💬 **Review Management** - Respond to customer reviews
+
+## 🛠 Tech Stack
+
+- **React 18.x** - UI framework
+- **Vite** - Fast build tool with HMR
+- **React Router** - Client-side routing
+- **Axios** - HTTP client with cookie support
+- **React Toastify** - Toast notifications
+- **Lucide React** - Modern icon library
+- **Tailwind CSS** - Utility-first styling
+
+## 📁 Project Structure
+
+```
+Client/
+├── src/
+│   ├── pages/
+│   │   ├── User/
+│   │   │   ├── UserLogin.jsx
+│   │   │   ├── UserRegister.jsx
+│   │   │   ├── UserProfile.jsx
+│   │   │   ├── ProfileSettings.jsx    # Profile management with delivery addresses
+│   │   │   └── CreatePost.jsx
+│   │   ├── FoodPartner/
+│   │   │   ├── PartnerLogin.jsx
+│   │   │   ├── PartnerRegister.jsx
+│   │   │   ├── PartnerProfile.jsx
+│   │   │   ├── CreateFood.jsx
+│   │   │   └── Dashboard.jsx
+│   │   ├── Reel.jsx                  # Main reels feed
+│   │   ├── Checkout.jsx              # Order checkout
+│   │   └── Home.jsx
+│   ├── Components/
+│   │   ├── Navbar.jsx
+│   │   ├── Footer.jsx
+│   │   ├── FoodDetailModal.jsx       # Food detail with reviews
+│   │   ├── QuickOrderModal.jsx       # Quick order popup
+│   │   └── ReelOrderButton.jsx
+│   ├── config/
+│   │   └── Api.jsx                   # Centralized API endpoints
+│   ├── routes/
+│   │   └── AppRoutes.jsx             # Route configuration
+│   └── main.jsx
+└── package.json
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Environment Variables
+
+Create a `.env` file in the Client directory:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000
+VITE_API_VERSION=
+```
+
+## 📡 API Integration
+
+The frontend connects to the backend API via the centralized `Api.jsx` configuration file:
+
+### Key API Endpoints Used
+
+**Authentication**
+- User login/register/logout
+- Partner login/register
+- Session verification
+
+**User Profile**
+- Get/update profile
+- Change password
+- Upload profile picture
+- Manage preferences
+- **Delivery address CRUD operations**
+
+**Food & Posts**
+- Browse reels
+- Like/save posts
+- Create user posts
+- View food details
+
+**Orders & Payments**
+- Create orders
+- Razorpay integration
+- Order tracking
+
+**Social Features**
+- Follow/unfollow
+- Reviews & ratings
+- Comments
+
+## 🎨 UI Components
+
+### Profile Settings Tabs
+1. **Basic Info** - Name, email, mobile, profile picture
+2. **Password** - Change password with validation
+3. **Preferences** - Cuisines, dietary restrictions, spice level
+4. **Delivery Addresses** - Add, edit, delete, set default addresses
+5. **Address** - Legacy address field
+
+### Address Management Features
+- ➕ Add new delivery addresses
+- ✏️ Edit existing addresses
+- 🗑️ Delete addresses
+- ⭐ Set default address
+- 🏠 Label addresses (Home/Work/Other)
+- 📍 Full address details (street, city, state, ZIP, country)
+
+## 🔧 Development
+
+### Vite Plugins
+
+- **@vitejs/plugin-react** - Uses Babel for Fast Refresh
+- **@vitejs/plugin-react-swc** - Uses SWC for Fast Refresh (alternative)
+
+### ESLint Configuration
+
+For production applications, consider:
+- TypeScript integration
+- Type-aware lint rules
+- Check the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts)
+
+## 📱 Responsive Design
+
+- Mobile-first approach
+- Tailwind CSS breakpoints
+- Touch-optimized interactions
+- Adaptive layouts for tablets and desktops
+
+## 🔐 Authentication
+
+- JWT-based authentication with HTTP-only cookies
+- Automatic session verification
+- Protected routes for authenticated users
+- Separate auth flows for users and partners
+
+## 📦 Build & Deployment
+
+```bash
+# Production build
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+Build output is in the `dist/` directory, ready for deployment to:
+- Vercel
+- Netlify
+- AWS S3 + CloudFront
+- Any static hosting service
+
+## 🤝 Contributing
+
+See the main project [README](../README.md) for contribution guidelines.
+
+## 📄 License
+
+See the main project LICENSE file.
