@@ -5,6 +5,58 @@ import Logo from '../assets/logo.png'
 import { Twitter, Facebook, Instagram, Youtube } from 'lucide-react'
 
 const Footer = () => {
+  // Navigation Links Data
+  const exploreLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/reels', label: 'Reels' },
+    { to: '/CreateFood', label: 'Create Food Reel' },
+    { to: '/partner-register', label: 'Become Partner' },
+  ]
+
+  const companyLinks = [
+    { to: '/about', label: 'About Us' },
+    { to: '#', label: 'Careers' },
+    { to: '/contact-us', label: 'Contact' },
+    { to: '#', label: 'Support' },
+  ]
+
+  const socialLinks = [
+    { 
+      to: '#', 
+      label: 'Twitter', 
+      icon: Twitter, 
+      gradient: 'from-blue-400 to-blue-500',
+      hoverGradient: 'hover:from-blue-500 hover:to-blue-600'
+    },
+    { 
+      to: '#', 
+      label: 'Facebook', 
+      icon: Facebook, 
+      gradient: 'from-blue-600 to-blue-700',
+      hoverGradient: 'hover:from-blue-700 hover:to-blue-800'
+    },
+    { 
+      to: '#', 
+      label: 'Instagram', 
+      icon: Instagram, 
+      gradient: 'from-pink-500 to-purple-600',
+      hoverGradient: 'hover:from-pink-600 hover:to-purple-700'
+    },
+    { 
+      to: '#', 
+      label: 'YouTube', 
+      icon: Youtube, 
+      gradient: 'from-red-500 to-red-600',
+      hoverGradient: 'hover:from-red-600 hover:to-red-700'
+    },
+  ]
+
+  const legalLinks = [
+    { to: '#', label: 'Privacy Policy' },
+    { to: '#', label: 'Terms of Service' },
+    { to: '#', label: 'Cookie Policy' },
+  ]
+
   return (
     <footer className="bg-gradient-to-br from-gray-100 to-gray-200 border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -40,24 +92,17 @@ const Footer = () => {
               Explore
             </h4>
             <ul className="space-y-3">
-              <li>
-                <Link to="/" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link to="/CreateFood" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
-                  Create Food Reel
-                </Link>
-              </li>
-              <li>
-                <Link to="/partner-register" className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
-                  Become Partner
-                </Link>
-              </li>
+              {exploreLinks.map((link, index) => (
+                <li key={index}>
+                  <Link 
+                    to={link.to} 
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-200 flex items-center group"
+                  >
+                    <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 group-hover:bg-red-400 transition-colors"></span>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -67,30 +112,17 @@ const Footer = () => {
               Company
             </h4>
             <ul className="space-y-3">
-              <li>
-                <Link to="/about" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link to="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact-us" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link to="#" className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
-                  Support
-                </Link>
-              </li>
+              {companyLinks.map((link, index) => (
+                <li key={index}>
+                  <Link 
+                    to={link.to} 
+                    className="text-gray-600 hover:text-yellow-500 transition-colors duration-200 flex items-center group"
+                  >
+                    <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-3 group-hover:bg-yellow-400 transition-colors"></span>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -107,34 +139,19 @@ const Footer = () => {
             <div className="pt-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Follow Us</p>
               <div className="flex items-center space-x-4">
-                <Link
-                  to="#"
-                  aria-label="Twitter"
-                  className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-lg flex items-center justify-center hover:from-blue-500 hover:to-blue-600 transition-all duration-200 transform hover:scale-110 shadow-lg"
-                >
-                  <Twitter className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="#"
-                  aria-label="Facebook"
-                  className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg flex items-center justify-center hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-110 shadow-lg"
-                >
-                  <Facebook className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="#"
-                  aria-label="Instagram"
-                  className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg flex items-center justify-center hover:from-pink-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-110 shadow-lg"
-                >
-                  <Instagram className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="#"
-                  aria-label="YouTube"
-                  className="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-110 shadow-lg"
-                >
-                  <Youtube className="h-5 w-5" />
-                </Link>
+                {socialLinks.map((social, index) => {
+                  const IconComponent = social.icon
+                  return (
+                    <Link
+                      key={index}
+                      to={social.to}
+                      aria-label={social.label}
+                      className={`w-10 h-10 bg-gradient-to-r ${social.gradient} text-white rounded-lg flex items-center justify-center ${social.hoverGradient} transition-all duration-200 transform hover:scale-110 shadow-lg`}
+                    >
+                      <IconComponent className="h-5 w-5" />
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -149,15 +166,15 @@ const Footer = () => {
               </p>
             </div>
             <div className="flex flex-wrap justify-center lg:justify-end items-center space-x-6 text-sm">
-              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
-                Privacy Policy
-              </Link>
-              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
-                Terms of Service
-              </Link>
-              <Link to="#" className="text-gray-500 hover:text-red-500 transition-colors">
-                Cookie Policy
-              </Link>
+              {legalLinks.map((link, index) => (
+                <Link 
+                  key={index}
+                  to={link.to} 
+                  className="text-gray-500 hover:text-red-500 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
