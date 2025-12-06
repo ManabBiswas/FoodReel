@@ -82,20 +82,76 @@ const Navbar = () => {
             </Link>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden sm:flex sm:items-center sm:space-x-6">
-            <Link to="/" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Home</Link>
-            <Link to="/CreateFood" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
-            <Link to="/partner-register" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
-            <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
+            {/* Common links for all */}
+            <Link to="/" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </Link>
+            <Link to="/reels" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+              <Film className="w-4 h-4" />
+              <span>Reels</span>
+            </Link>
+
+            {/* Partner-specific links */}
+            {partner && (
+              <>
+                <Link to="/partner-dashboard" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link to="/CreateFood" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <ChefHat className="w-4 h-4" />
+                  <span>Create Food</span>
+                </Link>
+                <Link to="/partner-profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <UserCircle className="w-4 h-4" />
+                  <span>Profile</span>
+                </Link>
+              </>
+            )}
+
+            {/* User-specific links */}
+            {user && !partner && (
+              <>
+                <Link to="/create-post" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <Film className="w-4 h-4" />
+                  <span>Create Post</span>
+                </Link>
+                <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <UserCircle className="w-4 h-4" />
+                  <span>Profile</span>
+                </Link>
+              </>
+            )}
+
+            {/* Auth buttons */}
             {user || partner ? (
               <button
                 onClick={handleLogout}
-                className="text-gray-700 hover:text-red-500 transition cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition cursor-pointer"
               >
-                Logout
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
               </button>
             ) : (
-              <Link to="/login" className="text-gray-700 hover:text-red-500 transition cursor-pointer">Login</Link>
+              <>
+                <Link 
+                  to="/partner-register" 
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
+                >
+                  <ChefHat className="w-4 h-4" />
+                  <span>Join as Partner</span>
+                </Link>
+                <Link 
+                  to="/login" 
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition cursor-pointer"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Login as User</span>
+                </Link>
+              </>
             )}
           </div>
 
@@ -115,26 +171,114 @@ const Navbar = () => {
         </div>
       </nav>
 
+      {/* Mobile Navigation */}
       {mobileOpen && (
         <div className="sm:hidden bg-white border-t border-gray-100">
           <div className="px-4 pt-4 pb-4 space-y-3">
-            <Link to="/" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Home</Link>
-            <Link to="/CreateFood" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Create Food</Link>
-            <Link to="/partner-register" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Partner</Link>
-            <Link to="/profile" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Profile</Link>
-            {user || partner ? (
-              <button
-                onClick={() => {
-                  setMobileOpen(false)
-                  handleLogout()
-                }}
-                className="block text-gray-700 hover:text-red-500 transition cursor-pointer"
-              >
-                Logout
-              </button>
-            ) : (
-              <Link to="/login" onClick={() => setMobileOpen(false)} className="block text-gray-700 hover:text-red-500 transition cursor-pointer">Login</Link>
+            {/* Common links for all */}
+            <Link 
+              to="/" 
+              onClick={() => setMobileOpen(false)} 
+              className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+            >
+              <Home className="w-5 h-5" />
+              <span>Home</span>
+            </Link>
+            <Link 
+              to="/reels" 
+              onClick={() => setMobileOpen(false)} 
+              className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+            >
+              <Film className="w-5 h-5" />
+              <span>Reels</span>
+            </Link>
+
+            {/* Partner-specific links */}
+            {partner && (
+              <>
+                <Link 
+                  to="/partner-dashboard" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link 
+                  to="/CreateFood" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <ChefHat className="w-5 h-5" />
+                  <span>Create Food</span>
+                </Link>
+                <Link 
+                  to="/partner-profile" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <UserCircle className="w-5 h-5" />
+                  <span>Profile</span>
+                </Link>
+              </>
             )}
+
+            {/* User-specific links */}
+            {user && !partner && (
+              <>
+                <Link 
+                  to="/create-post" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <Film className="w-5 h-5" />
+                  <span>Create Post</span>
+                </Link>
+                <Link 
+                  to="/profile" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <UserCircle className="w-5 h-5" />
+                  <span>Profile</span>
+                </Link>
+              </>
+            )}
+
+            {/* Auth buttons */}
+            <div className="pt-4 border-t border-gray-200 space-y-3">
+              {user || partner ? (
+                <button
+                  onClick={() => {
+                    setMobileOpen(false)
+                    handleLogout()
+                  }}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition cursor-pointer"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <>
+                  <Link 
+                    to="/partner-register" 
+                    onClick={() => setMobileOpen(false)} 
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
+                  >
+                    <ChefHat className="w-5 h-5" />
+                    <span>Join as Partner</span>
+                  </Link>
+                  <Link 
+                    to="/login" 
+                    onClick={() => setMobileOpen(false)} 
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition cursor-pointer"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Login as User</span>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
