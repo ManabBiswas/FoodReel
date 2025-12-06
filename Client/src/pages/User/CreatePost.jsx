@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, multipartConfig, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import ErrorBoundary from '../../Components/ErrorBoundary'
@@ -16,7 +17,6 @@ const CreatePost = () => {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
 
   // Tagging state
   const [wantToTag, setWantToTag] = useState('no')
@@ -94,7 +94,7 @@ const CreatePost = () => {
         }
       } catch (err) {
         console.error('Error fetching food items:', err)
-        setMessage('Failed to load food items from this restaurant')
+        toast.error('Failed to load food items from this restaurant')
       } finally {
         setLoadingFoodItems(false)
       }
@@ -117,14 +117,13 @@ const CreatePost = () => {
     if (!f) return
     const isImage = f.type.startsWith('image/')
     const isVideo = f.type.startsWith('video/')
-    if (type === 'image' && !isImage) return setMessage('Please select an image file')
-    if (type === 'video' && !isVideo) return setMessage('Please select a video file')
-    if (f.size > 5 * 1024 * 1024) return setMessage('File must be less than 5MB')
+    if (type === 'image' && !isImage) return toast.warning('Please select an image file')
+    if (type === 'video' && !isVideo) return toast.warning('Please select a video file')
+    if (f.size > 5 * 1024 * 1024) return toast.warning('File must be less than 5MB')
     setFile(f)
     const reader = new FileReader()
     reader.onload = () => setPreview(reader.result)
     reader.readAsDataURL(f)
-    setMessage('')
   }
 
   const handleSelectPartner = (partner) => {
@@ -137,20 +136,19 @@ const CreatePost = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
-    if (!name.trim()) { setMessage('Title required'); setLoading(false); return }
-    if (!description.trim()) { setMessage('Description required'); setLoading(false); return }
-    if (!file) { setMessage('Please select a file'); setLoading(false); return }
+    if (!name.trim()) { toast.warning('Title required'); setLoading(false); return }
+    if (!description.trim()) { toast.warning('Description required'); setLoading(false); return }
+    if (!file) { toast.warning('Please select a file'); setLoading(false); return }
 
     // Validate tagging
     if (wantToTag === 'yes') {
       if (!selectedPartner) {
-        setMessage('Please select a restaurant')
+        toast.warning('Please select a restaurant')
         setLoading(false)
         return
       }
       if (!selectedFood) {
-        setMessage('Please select a food item from the restaurant')
+        toast.warning('Please select a food item from the restaurant')
         setLoading(false)
         return
       }
@@ -172,12 +170,12 @@ const CreatePost = () => {
 
       const res = await axios.post(API_ENDPOINTS.food.createUserPost, fd, multipartConfig)
       if (res?.data) {
-        setMessage('Post created successfully! Redirecting...')
+        toast.success('Post created successfully! Redirecting...')
         setTimeout(() => navigate('/reels'), 1500)
       }
     } catch (err) {
       console.error(err)
-      setMessage(err?.response?.data?.error || err.message || 'Failed to create post')
+      toast.error(err?.response?.data?.error || err.message || 'Failed to create post')
     } finally { setLoading(false) }
   }
 
@@ -185,15 +183,6 @@ const CreatePost = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-2xl mx-auto py-8 px-4">
-        {message && (
-          <div className={`mb-4 p-3 border rounded ${
-            message.includes('success') 
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-          }`}>
-            {message}
-          </div>
-        )}
         <h1 className="text-3xl text-center font-bold text-amber-500 mb-4">Create a Post</h1>
         <ErrorBoundary>
           <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded shadow">

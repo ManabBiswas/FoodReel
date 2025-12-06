@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
 import { 
   UtensilsCrossed, 
@@ -47,7 +48,6 @@ const CreateFood = () => {
   const [filePreview, setFilePreview] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [errors, setErrors] = useState({})
   const [currentStep, setCurrentStep] = useState(1) // 1: Post Type, 2: Details Form
 
@@ -85,18 +85,18 @@ const CreateFood = () => {
     const isVideo = selectedFile.type.startsWith('video/')
     
     if (formData.type === 'image' && !isImage) {
-      setMessage('Please select an image file')
+      toast.warning('Please select an image file')
       return
     }
     
     if (formData.type === 'video' && !isVideo) {
-      setMessage('Please select a video file')
+      toast.warning('Please select a video file')
       return
     }
 
     // File size validation (5MB limit)
     if (selectedFile.size > 5 * 1024 * 1024) {
-      setMessage('File size must be less than 5MB')
+      toast.warning('File size must be less than 5MB')
       return
     }
 
@@ -108,7 +108,6 @@ const CreateFood = () => {
       setFilePreview(reader.result)
     }
     reader.readAsDataURL(selectedFile)
-    setMessage('')
   }
 
   const addTag = () => {
@@ -182,20 +181,19 @@ const CreateFood = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
 
     // Validate form
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      setMessage('Please fill up form correctly')
+      toast.warning('Please fill up form correctly')
       setLoading(false)
       return
     }
 
     // Check file upload
     if (!file) {
-      setMessage('Please select a file to upload')
+      toast.warning('Please select a file to upload')
       setLoading(false)
       return
     }
@@ -238,7 +236,7 @@ const CreateFood = () => {
       // Always use 'file' as the field name to match backend expectation
       submitData.append('file', file)
 
-      setMessage('Uploading your post...')
+      const loadingToast = toast.loading('Uploading your post...')
       
       // Use different API endpoints based on post type
        const apiUrl = formData.postType === 'food' 
@@ -250,7 +248,12 @@ const CreateFood = () => {
       // console.log(response)
       // console.log('Post created successfully:', response.data)
       if (response.data) {
-          setMessage(`${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`)
+          toast.update(loadingToast, {
+            render: `${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`,
+            type: 'success',
+            isLoading: false,
+            autoClose: 2000
+          })
         }
       
       
@@ -259,7 +262,7 @@ const CreateFood = () => {
     } catch (error) {
       console.error('Create post error:', error)
       const serverMsg = error?.response?.data?.error || error?.message || 'Failed to create post'
-      setMessage(serverMsg)
+      toast.error(serverMsg)
     } finally {
       setLoading(false)
     }
@@ -288,17 +291,6 @@ const CreateFood = () => {
             <p className="text-gray-600">Share your delicious creations with the world</p>
           </div>
         </div>
-
-        {/* Message */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-md ${
-            (typeof message === 'string' && (message.includes('successfully') || message.includes('Uploading')))
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}>
-            {String(message)}
-          </div>
-        )}
 
         {/* Form */}
         <ErrorBoundary>
