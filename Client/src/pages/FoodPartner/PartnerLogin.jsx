@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
@@ -10,7 +11,6 @@ const PartnerLogin = () => {
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [message, setMessage] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -24,7 +24,7 @@ const PartnerLogin = () => {
         
         // If authenticated, redirect to dashboard
         if (response.data.isAuthenticated) {
-          setMessage('Already logged in! Redirecting to dashboard...')
+          toast.info('Already logged in! Redirecting to dashboard...')
           setTimeout(() => navigate('/partner-dashboard'), 1000)
         }
       } catch (error) {
@@ -39,7 +39,6 @@ const PartnerLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
 
     // Validate form first
     const validationErrors = validateForm()
@@ -50,7 +49,6 @@ const PartnerLogin = () => {
     }
 
     try {
-      setMessage('Logging in...')
       const response = await axios.post('http://localhost:3000/api/auth/partner/login', formData, {
         withCredentials: true,
         headers: {
@@ -59,7 +57,7 @@ const PartnerLogin = () => {
       })
       
       console.log(response)
-      setMessage('Login successful! Redirecting...')
+      toast.success('Login successful! Redirecting...')
       
       setFormData({
         email: '',
@@ -71,7 +69,7 @@ const PartnerLogin = () => {
     } catch (error) {
       console.error("Login error: ", error)
       const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
-      setMessage(serverMsg)
+      toast.error(serverMsg)
     } finally {
       setLoading(false)
     }
@@ -125,15 +123,6 @@ const PartnerLogin = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Partner Login</h1>
           <p className="text-gray-600">Access your food partner dashboard</p>
         </div>
-
-        {message && (
-          <div className={`mb-6 p-4 rounded-md ${message.includes('successful') || message.includes('Logging')
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
-            {message}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>

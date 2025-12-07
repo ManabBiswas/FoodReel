@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { 
@@ -92,10 +93,10 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       if (error.response?.status === 401) {
-        setError('Session expired. Please login again.')
+        toast.error('Session expired. Please login again.')
         setTimeout(() => navigate('/partner-login'), 2000)
       } else {
-        setError(error.response?.data?.message || 'Failed to load dashboard data')
+        toast.error(error.response?.data?.message || 'Failed to load dashboard data')
       }
     } finally {
       setLoading(false)
@@ -108,7 +109,9 @@ const Dashboard = () => {
   }, [])
 
   const handleDeletePost = async (postId, postType) => {
-    if (!window.confirm('Are you sure you want to delete this post?')) {
+    // Use a custom confirmation dialog or just proceed with toast
+    const confirmDelete = window.confirm('Are you sure you want to delete this post?')
+    if (!confirmDelete) {
       return
     }
 
@@ -121,13 +124,14 @@ const Dashboard = () => {
       
       await axios.delete(endpoint, axiosConfig)
       
+      toast.success(`${postType === 'food' ? 'Food' : 'Advertisement'} post deleted successfully`)
+      
       // Refresh dashboard data
       await fetchDashboardData()
       
     } catch (error) {
       console.error('Error deleting post:', error)
-      setError(error.response?.data?.message || 'Failed to delete post')
-      setTimeout(() => setError(''), 3000)
+      toast.error(error.response?.data?.message || 'Failed to delete post')
     } finally {
       setDeleteLoading(null)
     }
