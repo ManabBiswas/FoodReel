@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { useNavigate, Link } from 'react-router-dom'
 import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, UserPlus, Loader2, Navigation } from 'lucide-react'
@@ -19,7 +20,6 @@ const PartnerRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const navigate = useNavigate()
-  const [message, setMessage] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
@@ -68,7 +68,6 @@ const PartnerRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
 
     // Validate form first
     const validationErrors = validateForm()
@@ -80,7 +79,7 @@ const PartnerRegister = () => {
 
     try {
       // Get location before submitting
-      setMessage('Getting your location...')
+      toast.info('Getting your location...')
       const location = await getLocation()
       
       const submitData = {
@@ -93,16 +92,15 @@ const PartnerRegister = () => {
         longitude: location.longitude
       }
 
-      setMessage('Registering your account...')
       const response = await axios.post(API_ENDPOINTS.FOOD_PARTNER_REGISTER, submitData, axiosConfig)
       
       if (response.data.isAuthenticated) {
-          setMessage('Already logged in! Redirecting to dashboard...')
+          toast.info('Already logged in! Redirecting to dashboard...')
           setTimeout(() => navigate('/partner-dashboard'), 1000)
         }
         
       // console.log(response)
-      setMessage('Registration successful! Redirecting...')
+      toast.success('Registration successful! Redirecting...')
       
       setFormData({
         companyName: '',
@@ -120,10 +118,10 @@ const PartnerRegister = () => {
     } catch (error) {
       console.error("Registration error: ", error)
       if (error.message && error.message.includes('location')) {
-        setMessage(`Location Error: ${error.message}. Please enable location access and try again.`)
+        toast.error(`Location Error: ${error.message}. Please enable location access and try again.`)
       } else {
         const serverMsg = error?.response?.data?.message || error?.message || 'Registration failed'
-        setMessage(serverMsg)
+        toast.error(serverMsg)
       }
     } finally {
       setLoading(false)
@@ -196,16 +194,6 @@ const PartnerRegister = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Partner Registration</h1>
           <p className="text-gray-600">Join our food delivery network</p>
         </div>
-
-        {message && (
-          <div className={`mb-6 p-4 rounded-md ${message.includes('successful') || message.includes('Getting') || message.includes('Registering')
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
-            {message}
-            {locationLoading && <div className="mt-2"><div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent inline-block mr-2"></div>Detecting location...</div>}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -364,7 +352,7 @@ const PartnerRegister = () => {
             {loading ? (
               <div className="flex items-center justify-center">
                 <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                {message.includes('Getting') ? 'Getting Location...' : 'Registering...'}
+                {locationLoading ? 'Getting Location...' : 'Registering...'}
               </div>
             ) : (
               <div className="flex items-center justify-center">
