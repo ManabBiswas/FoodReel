@@ -365,12 +365,15 @@ const Home = () => {
             Join thousands of food lovers discovering amazing dishes every day
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to='/reels' >
             <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer">
               Start Watching
             </button>
-            <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer">
+            </Link>
+            <Link to='/partner-register' ><button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer">
               Become a Partner
             </button>
+            </Link>
           </div>
         </div>
       </section>

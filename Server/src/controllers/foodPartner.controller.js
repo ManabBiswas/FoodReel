@@ -34,7 +34,13 @@ async function register(req,res) {
                 // profileImage will be added later via profile update
             })
             const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET);
-            res.cookie('token',token)
+            res.cookie('token', token, {
+                httpOnly: true,
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/'
+            })
             res.status(201).json({
                 message: "FoodPartner created successfully",
                 _id: foodPartner._id,
@@ -52,38 +58,55 @@ async function register(req,res) {
 async function login(req,res){
     try{
         const {email,password} = req.body;
+        
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({
+                error: "Email and password are required"
+            });
+        }
+
         const foodPartner = await foodPartnerModel.findOne({email});
         if(!foodPartner){
             return res.status(400).json({
-                error: "Invalid email and Password"
+                error: "Invalid email or password"
             });
         }
-        else{
-            const isPasswordMatched = await bcrypt.compare(password,foodPartner.password,(err,result)=>{
-                if(result){
-                    const token = jwt.sign({ id: foodPartner._id,email: foodPartner.email }, process.env.JWT_SECRET);
-                    res.cookie('token',token)
-                    res.status(200).json({
-                        message: "FoodPartner logged in successfully",
-                        _id: foodPartner._id,
-                        companyName: foodPartner.companyName,
-                        email: foodPartner.email,
-                    });
-                }else{
-                    return res.status(400).json({
-                        error: "Invalid email and Password"
-                    });
+        
+        // Correct bcrypt.compare usage (returns Promise, no callback needed)
+        const isPasswordMatched = await bcrypt.compare(password, foodPartner.password);
+        
+        if(isPasswordMatched){
+            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET);
+            res.cookie('token', token, {
+                httpOnly: true,
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/'
+            })
+            res.status(200).json({
+                message: "FoodPartner logged in successfully",
+                foodPartner: {
+                    _id: foodPartner._id,
+                    companyName: foodPartner.companyName,
+                    email: foodPartner.email,
+                    mobile: foodPartner.mobile
                 }
-                console.log(err);
-            }
-        )}
+            });
+        } else {
+            return res.status(400).json({
+                error: "Invalid email or password"
+            });
+        }
     }catch(error){
-        res.status(400).json({ error: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ error: "Internal server error" });
     }  
 }
 
 async function logout(req, res) {
-    res.clearCookie('token');
+    res.clearCookie('token', { path: '/' });
     res.status(200).json({message: "food partner logout successfully"})
 }
 

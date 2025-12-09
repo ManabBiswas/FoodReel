@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
 
@@ -78,25 +77,23 @@ const UserLogin = () => {
       )
       
       if (response.data && response.data.message === "User logged in successfully") {
-        toast.success('Login successful! Redirecting...')
         setIsLoggedIn(true)
-        navigate('/')
+        navigate('/', { replace: true })
       } else {
-        toast.error('Login failed - unexpected response format')
+        setErrors({ general: 'Login failed - unexpected response format' })
       }
     } catch (error) {
       console.error('Login error:', error)
       
       if (error.response?.data?.message) {
         // Server returned a specific error message
-        toast.error(error.response.data.message)
+        setErrors({ general: error.response.data.message })
       } else if (error.response?.data?.errors) {
         // Server returned field-specific errors
         setErrors(error.response.data.errors)
-        toast.error('Please check the form for errors')
       } else {
         // Generic error handling
-        toast.error(error.message || 'Login failed. Please try again.')
+        setErrors({ general: error.message || 'Login failed. Please try again.' })
       }
     } finally {
       setLoading(false)

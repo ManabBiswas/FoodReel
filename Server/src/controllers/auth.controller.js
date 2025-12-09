@@ -38,9 +38,11 @@ async function register(req, res) {
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
         res.cookie("token", token, {
             httpOnly: true,
+            // Use Lax so localhost:5173 (frontend) can send cookies to localhost:3000 (API) during dev
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            maxAge: 24 * 60 * 60 * 1000,
+            path: '/'
         });
 
         res.status(201).json({
@@ -86,9 +88,10 @@ async function login(req, res) {
             const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET);
             res.cookie('token', token, {
                 httpOnly: true,
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
                 secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/'
             });
 
             res.status(200).json({
@@ -250,7 +253,7 @@ async function deleteAccount(req, res) {
 }
 
 async function logout(req, res) {
-    res.clearCookie('token');
+    res.clearCookie('token', { path: '/' });
     res.status(200).json({ message: "User logged out successfully" });
 
 }
@@ -259,6 +262,7 @@ async function verify(req, res) {
     // This endpoint uses the isLoggedin middleware to verify the token
     try {
         res.status(200).json({
+            isAuthenticated: true,
             message: "User is authenticated",
             user: {
                 _id: req.user._id,
@@ -275,7 +279,6 @@ async function verify(req, res) {
             error: error.message
         });
     }
-
 }
 
 export default {
