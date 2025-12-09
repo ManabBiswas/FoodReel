@@ -161,7 +161,7 @@ const UserRegister = () => {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   placeholder="First Name"
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.firstName ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'
                     }`}
                 />
               </div>
@@ -181,7 +181,7 @@ const UserRegister = () => {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   placeholder="Last Name"
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.lastName ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'
                     }`}
                 />
               </div>
@@ -202,7 +202,7 @@ const UserRegister = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Email Address"
-                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.email ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
             </div>
@@ -222,7 +222,7 @@ const UserRegister = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Password"
-                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.password ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
               <button
@@ -253,7 +253,7 @@ const UserRegister = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 placeholder="Confirm Password"
-                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
               <button
@@ -284,7 +284,7 @@ const UserRegister = () => {
                 value={formData.mobile}
                 onChange={handleInputChange}
                 placeholder="Mobile Number"
-                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${errors.mobile ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.mobile ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
             </div>
