@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useAuth } from '../../Contexts/AuthContext'
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react'
 
 const UserLogin = () => {
@@ -10,37 +9,18 @@ const UserLogin = () => {
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
+  
+  const navigate = useNavigate()
+  const { isAuthenticated, isUser, loginUser } = useAuth()
 
-  const navigate = useNavigate();
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // const [checkingAuth, setCheckingAuth] = useState(true);
-
-  // Check authentication status by making API call to verify cookie
+  // Redirect if already logged in
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const response = await axios.get(API_ENDPOINTS.auth.userVerify, axiosConfig)
-        if (response.data && response.data.user) {
-          // navigate('/')
-          setIsLoggedIn(true)
-        }
-      } catch (error) {
-        console.error('User not authenticated:', error.response?.status);
-        setIsLoggedIn(false);
-      } finally {
-        // setCheckingAuth(false);
-      }
-    }
-    checkAuthStatus()
-  }, [navigate])
-
-  useEffect(() => {
-    if (isLoggedIn) {
+    if (isAuthenticated && isUser) {
       navigate('/')
     }
-  }, [isLoggedIn, navigate])
+  }, [isAuthenticated, isUser, navigate])
 
   const handleChange = (e) => {
     setFormData({
@@ -52,7 +32,7 @@ const UserLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setErrors({}) // Clear previous errors
+    setErrors({})
 
     // Basic validation
     const newErrors = {}
@@ -69,35 +49,16 @@ const UserLogin = () => {
       return
     }
 
-    try {
-      const response = await axios.post(
-        API_ENDPOINTS.auth.userLogin,
-        formData,
-        axiosConfig
-      )
-      
-      if (response.data && response.data.message === "User logged in successfully") {
-        setIsLoggedIn(true)
-        navigate('/', { replace: true })
-      } else {
-        setErrors({ general: 'Login failed - unexpected response format' })
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      
-      if (error.response?.data?.message) {
-        // Server returned a specific error message
-        setErrors({ general: error.response.data.message })
-      } else if (error.response?.data?.errors) {
-        // Server returned field-specific errors
-        setErrors(error.response.data.errors)
-      } else {
-        // Generic error handling
-        setErrors({ general: error.message || 'Login failed. Please try again.' })
-      }
-    } finally {
-      setLoading(false)
+    // Use AuthContext login
+    const result = await loginUser(formData)
+    
+    if (result.success) {
+      navigate('/', { replace: true })
+    } else {
+      setErrors({ general: result.error })
     }
+    
+    setLoading(false)
   }
 
   return (

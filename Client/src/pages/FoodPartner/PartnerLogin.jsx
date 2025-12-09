@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useAuth } from '../../Contexts/AuthContext'
 import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 const PartnerLogin = () => {
@@ -12,27 +11,16 @@ const PartnerLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
+  
   const navigate = useNavigate()
+  const { isAuthenticated, isPartner, loginPartner } = useAuth()
 
-  // Check if user is already logged in
+  // Redirect if already logged in
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        // Check if user is already authenticated
-        const response = await axios.get(API_ENDPOINTS.auth.partnerVerify, axiosConfig)
-        
-        // If authenticated, redirect to dashboard
-        if (response.data.isAuthenticated) {
-          navigate('/partner-dashboard')
-        }
-      } catch (error) {
-        // User is not authenticated, stay on login page
-        console.log('User not authenticated:', error.response?.data?.message)
-      }
+    if (isAuthenticated && isPartner) {
+      navigate('/partner-dashboard')
     }
-
-    checkAuthStatus()
-  }, [navigate])
+  }, [isAuthenticated, isPartner, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -46,30 +34,20 @@ const PartnerLogin = () => {
       return
     }
 
-    try {
-      const response = await axios.post('http://localhost:3000/api/auth/partner/login', formData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      console.log('Login response:', response)
-      
+    // Use AuthContext login
+    const result = await loginPartner(formData)
+    
+    if (result.success) {
       setFormData({
         email: '',
         password: ''
       })
-      
       navigate('/partner-dashboard', { replace: true })
-      
-    } catch (error) {
-      console.error("Login error: ", error)
-      const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
-      setErrors({ general: serverMsg })
-    } finally {
-      setLoading(false)
+    } else {
+      setErrors({ general: result.error })
     }
+    
+    setLoading(false)
   }
 
   const validateForm = () => {
