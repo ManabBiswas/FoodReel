@@ -1,11 +1,11 @@
 import React from 'react'
-import { ChefHat, MapPin, UserPlus, UserCheck } from 'lucide-react'
+import { ChefHat, MapPin, UserPlus, UserCheck, Clock } from 'lucide-react'
 
-const ReelBottomInfo = ({ item, followingStatus, onFollow }) => {
+const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
   if (item.type !== 'post') return null
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 p-3 pb-24 sm:pb-8 z-10">
+    <div className="absolute bottom-6 left-0 right-0 p-3 pb-24 sm:pb-8 z-10">
       <div className="max-w-full pr-16 sm:pr-20">
         {/* Partner Post Content */}
         {item.postSource === 'partner' && item.partnerId && (
@@ -108,6 +108,13 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow }) => {
           {item.description && (
             <p className="text-white/80 text-xs sm:text-sm line-clamp-2">
               {item.description}
+            </p>
+          )}
+          {/* Post Date */}
+          {item.createdAt && formatDate && (
+            <p className="text-white/60 text-[10px] sm:text-xs flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatDate(item.createdAt)}
             </p>
           )}
         </div>

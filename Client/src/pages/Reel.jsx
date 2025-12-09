@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
-import { useAuth } from '../Contexts/AuthContext'
+// import { useAuth } from '../Contexts/AuthContext'
 import ReelArea from '../Components/ReelArea'
 import ReelReviewModal from '../Components/ReelReviewModal'
 import QuickOrderModal from '../Components/QuickOrderModal'
 import MenuBarBottom from '../Components/MenuBarBottom'
+import "./../App.css"
 
 const Reel = () => {
   const [combinedContent, setCombinedContent] = useState([])
@@ -36,7 +37,7 @@ const Reel = () => {
   const containerRef = useRef(null)
   const videoRefs = useRef([])
   
-  const { isAuthenticated } = useAuth()
+  // const { isAuthenticated } = useAuth()
 
     const handleShopToggle = (postId) => {
       setOpenShopFor(prev => (prev === postId ? null : postId))
@@ -571,86 +572,7 @@ const Reel = () => {
           msOverflowStyle: 'none',
         }}
       >
-        <style>{`
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
 
-          .reel-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100vh;
-            background: #000;
-            overflow: hidden;
-          }
-
-          .reel-content {
-            position: relative;
-            width: min(100%, calc(100vh * 9 / 16));
-            max-width: 900px;
-            aspect-ratio: 9 / 16;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .media-wrapper {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-          }
-
-          .media-wrapper img,
-          .media-wrapper video {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain; 
-            display: block;
-          }
-
-          @keyframes scaleIn {
-            from {
-              transform: scale(0.8);
-              opacity: 0;
-            }
-            to {
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-
-          @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-              }
-          }
-
-          .animate-scale-in {
-            animation: scaleIn 0.3s ease-out;
-          }
-
-          .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-          }
-
-          @media (min-width: 768px) {
-            .reel-content {
-              max-width: min(calc(100vh * 9 / 16), 700px);
-              box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-            }
-          }
-        `}</style>
 
         {combinedContent.map((item, index) => (
           <ReelArea
@@ -671,8 +593,11 @@ const Reel = () => {
             onFollow={handleFollow}
             onShopToggle={handleShopToggle}
             onToggleMute={toggleMute}
+            onTogglePlayPause={togglePlayPause}
             onOrderClick={handleOrderClick}
+            onAdClick={handleAdClick}
             formatCount={formatCount}
+            formatDate={formatDate}
           />
         ))}
       </div>
