@@ -1,70 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import axios from 'axios'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { API_ENDPOINTS, axiosConfig } from '../config/Api'
+import { useAuth } from '../Contexts/AuthContext'
 import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle } from 'lucide-react'
 import Logo from '../assets/logo.png'
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [user, setUser] = useState(null)
-  const [partner, setPartner] = useState(null)
+  const { user, partner, logout } = useAuth()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Check user auth (always check for user authentication)
-        try {
-          const userResponse = await axios.get(API_ENDPOINTS.auth.userVerify, axiosConfig)
-          if (userResponse?.data?.user) {
-            setUser(userResponse.data.user)
-            console.log(userResponse.data.user)
-          }
-        } catch {
-          // User not authenticated - this is fine for most pages
-          setUser(null)
-        }
-
-        // Check partner auth (only if needed, and handle 401 gracefully)
-        try {
-          const partnerResponse = await axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig)
-          if (partnerResponse?.data?.foodPartner) {
-            setPartner(partnerResponse.data.foodPartner)
-            console.log(partnerResponse.data.foodPartner)
-          }
-        } catch {
-          // Partner not authenticated - this is fine for user pages
-          setPartner(null)
-        }
-      } catch (error) {
-        console.error('Auth check error:', error)
-        // Reset both states on general error
-        setUser(null)
-        setPartner(null)
-      }
-    }
-    checkAuth()
-  }, [])
-
   const handleLogout = async () => {
-    try {
-      if (user) {
-        await axios.post(API_ENDPOINTS.auth.userLogout, {}, axiosConfig)
-        setUser(null)
-        navigate('/')
-      } else if (partner) {
-        await axios.post(API_ENDPOINTS.auth.partnerLogout, {}, axiosConfig)
-        setPartner(null)
-        navigate('/')
-      }
-    } catch (error) {
-      console.error('Logout error:', error)
-      // Clear local state anyway if logout fails
-      setUser(null)
-      setPartner(null)
-      navigate('/')
-    }
+    await logout()
+    navigate('/')
   }
 
   return (
