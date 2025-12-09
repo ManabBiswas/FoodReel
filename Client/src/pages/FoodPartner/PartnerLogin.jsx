@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { toast } from 'react-toastify'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 
@@ -24,8 +23,7 @@ const PartnerLogin = () => {
         
         // If authenticated, redirect to dashboard
         if (response.data.isAuthenticated) {
-          toast.info('Already logged in! Redirecting to dashboard...')
-          setTimeout(() => navigate('/partner-dashboard'), 1000)
+          navigate('/partner-dashboard')
         }
       } catch (error) {
         // User is not authenticated, stay on login page
@@ -56,20 +54,19 @@ const PartnerLogin = () => {
         }
       })
       
-      console.log(response)
-      toast.success('Login successful! Redirecting...')
+      console.log('Login response:', response)
       
       setFormData({
         email: '',
         password: ''
       })
       
-      setTimeout(() => navigate('/partner-dashboard'), 1500)
+      navigate('/partner-dashboard', { replace: true })
       
     } catch (error) {
       console.error("Login error: ", error)
       const serverMsg = error?.response?.data?.message || error?.message || 'Login failed'
-      toast.error(serverMsg)
+      setErrors({ general: serverMsg })
     } finally {
       setLoading(false)
     }
