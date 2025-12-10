@@ -16,6 +16,8 @@ import Reel from '../pages/Reel'
 import CreatePost from '../pages/User/CreatePost'
 import About from '../pages/About'
 import Contact from '../pages/Contact'
+import AdminPage from '../pages/Admin/AdminPage'
+import AdminDashboard from '../pages/Admin/AdminDashboard'
 
 const AppRoutes = () => {
   return (
@@ -37,6 +39,8 @@ const AppRoutes = () => {
         <Route path='*' element={<ErrorPage />} />
         <Route path='/reels' element={<Reel />} />
         <Route path='/work' element={<WorkingProgress />} />
+        <Route path='/admin-login-you-are-admin' element={<AdminPage />} />
+        <Route path='/admin/dashboard' element={<AdminDashboard />} />
       </Routes>
     </Router>
   )
