@@ -99,7 +99,21 @@ const userSchema = new mongoose.Schema({
     reviewsCount: {
         type: Number,
         default: 0
-    }
+    },
+    followerModel: {
+        type: String,
+        enum: ['User', 'FoodPartner'],
+        default: 'User'
+    },
+    followingModel: {
+        type: String,
+        enum: ['User', 'FoodPartner'],
+        default: 'User'
+    },
+    orderHistory: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order"
+    }]
 }, {
     timestamps: true
 });
