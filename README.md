@@ -69,6 +69,14 @@ This README provides a high‑level overview, project structure, setup & run ins
 - 📦 Accept and track orders
 - 🎯 Promote special offers
 
+### For Admins
+- 👨‍💼 Secure admin authentication system
+- 📊 Platform analytics and oversight
+- 👥 User and partner management
+- 📋 Content moderation capabilities
+- 💰 Revenue and payment tracking
+- 🔍 Advanced platform analytics
+
 ---
 
 ## 🛠 Tech Stack
@@ -160,57 +168,36 @@ FoodReel/
 │       │   └── UserPosts.jsx           # User-generated content grid
 │       │
 │       ├── Contexts/              # React Context providers (global state)
-│       │   └── (auth, cart, ads contexts - to be added)
+│       │   └── AuthContext.jsx         # Auth state management (user, partner, admin)
 │       │
 │       ├── hooks/                 # Custom React hooks
-│       │   └── (useAuth, useFetch, useCart - to be added)
+│       │   └── useAuth.jsx              # Simplified auth hooks (6 focused hooks)
 │       │
-│       └── assets/                # Images, icons, logos
-│           ├── logo.png           # FoodReel logo
-│           └── react.svg          # React logo
-│
-├── Server/                        # Express backend API
-│   ├── package.json               # Backend dependencies 
-│   ├── package-lock.json          # Locked dependency versions
-│   ├── server.js                  # Entry point - starts Express server
-│   ├── .env                       # Environment variables (not committed)
-│   ├── .env.example               # Example env file for developers
-│   ├── .gitignore                 # Git ignore for node_modules, .env
-│   ├── NeedToSearch.txt           # Development notes / TODOs
-│   │
-│   └── src/                       # Backend source code
-│       ├── app.js                 # Express app setup, middleware, CORS, route mounting
-│       │
-│       ├── db/                    # Database connection
-│       │   └── db.js              # Mongoose connection helper
-│       │
-│       ├── models/                # Mongoose schemas (MongoDB collections)
-│       │   ├── user.Model.js           # User/customer schema 
-│       │   ├── advertisement.Model.js  # Ad schema 
-│       │   ├── order.Model.js          # Order schema 
-│       │   ├── review.Model.js         # Review schema 
-│       │   ├── user.Model.js           # user schema 
-│       │   ├── food.model.js           # Food post schema 
-│       │   └── review.model.js         # Review schema 
-│       │
-│       ├── controllers/           # Route handlers (business logic)
-│       │   ├── auth.controller.js       # Authentication (login, register, check session)
-│       │   ├── food.controller.js       # Food CRUD (create post, list, get by ID)
-│       │   └── foodPartner.controller.js # Partner profile, bio update, reviews, stats
-│       │
-│       ├── routes/                # Express routers
-│       │   ├── adnertisement.route.js    # Advertisement endpoints (/api/ads/*)
-│       │   ├── auth.route.js             # Auth endpoints (/api/auth/*)
-│       │   ├── user.route.js             # User endpoints (/api/auth/*)
-│       │   ├── order.route.js            # Order endpoints (/api/auth/*)
-│       │   └── food.route.js             # Food endpoints (/api/food/*)
-│       │
-│       ├── middlewares/           # Auth and validation middleware
-│       │   ├── isLoggedin.js           # Verify user JWT cookie
-│       │   └── isFoodPartnerLoggedin.js # Verify partner JWT cookie
-│       │
-│       └── services/              # External service integrations
-│           └── storage.service.js  # ImageKit wrapper for file upload (returns CDN URLs)
+│       ├── pages/                     # Full page components
+│       │   ├── Home.jsx               # Landing page 
+│       │   ├── Reel.jsx               # Reels page 
+│       │   ├── 404.jsx                # Not found page
+│       │   ├── About.jsx              # About page
+│       │   ├── Contact.jsx            # Contact page
+│       │   ├── Checkout.jsx           # Checkout page
+│       │   ├── OrderConfirmation.jsx  # Order confirmation page
+│       │   ├── WorkingProgress.jsx    # Placeholder for features under development
+│       │   │
+│       │   ├── Admin/             # Admin pages (new)
+│       │   │   ├── AdminPage.jsx       # Admin login page
+│       │   │   └── AdminDashboard.jsx  # Admin dashboard
+│       │   │
+│       │   ├── FoodPartner/       # Partner/restaurant pages
+│       │   │   ├── CreateFood.jsx      # Form to upload image/video food posts
+│       │   │   ├── PartnerProfile.jsx  # Partner profile with posts, reviews, bio editing
+│       │   │   ├── Dashboard.jsx       # Partner analytics and campaign management
+│       │   │   ├── PartnerLogin.jsx    # Partner login with JWT cookie auth
+│       │   │   └── PartnerRegister.jsx # Partner registration form
+│       │   │
+│       │   └── User/              # User pages
+│       │       ├── UserLogin.jsx       # User login
+│       │       ├── UserRegister.jsx    # User registration
+│       │       └── UserProfile.jsx     # User profile and order history
 │
 └── Videos/                        # Sample video files for testing
     └── Spegeti.mp4                # Sample food video
@@ -323,6 +310,10 @@ Notes:
 - `POST /api/auth/partner/login` – Partner login (sets JWT cookie)
 - `GET /api/auth/verify` – Verify user session
 - `GET /api/auth/partner/check` – Verify partner session
+- `POST /api/auth/admin/login` – Admin login (sets JWT cookie) **NEW**
+- `GET /api/auth/admin/verify` – Verify admin session **NEW**
+- `GET /api/auth/admin/profile` – Get admin profile **NEW**
+- `POST /api/auth/admin/logout` – Admin logout **NEW**
 
 #### Food & Posts
 - `POST /api/food` – Create food post (multipart/form-data, partner only)
