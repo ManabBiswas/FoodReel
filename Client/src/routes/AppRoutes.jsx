@@ -10,6 +10,7 @@ import CreateFood from '../pages/FoodPartner/CreateFood'
 import Dashboard from '../pages/FoodPartner/Dashboard'
 import UserProfile from '../pages/User/UserProfile'
 import ProfileSettings from '../pages/User/ProfileSettings'
+import OrderHistory from '../pages/OrderHistory'
 import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
 import Reel from '../pages/Reel'
@@ -44,6 +45,7 @@ const AppRoutes = () => {
             <Route path='/reels' element={<Reel />} />
             <Route path='/profile' element={<UserProfile />} />
             <Route path='/profile/settings' element={<ProfileSettings />} />
+            <Route path='/order/history' element={<OrderHistory />} />
           </>
         )}
         {/* if authType === 'partner' */}
