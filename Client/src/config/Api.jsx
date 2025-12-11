@@ -8,6 +8,7 @@ const BASE_URL = API_VERSION ? `${API_BASE_URL}/api/${API_VERSION}` : `${API_BAS
 export const API_ENDPOINTS = {
   // Auth endpoints
   auth: {
+    // User
     userLogin: `${BASE_URL}/auth/user/login`,
     userRegister: `${BASE_URL}/auth/user/register`,
     userProfile: `${BASE_URL}/auth/user/profile`,
@@ -15,7 +16,7 @@ export const API_ENDPOINTS = {
     userVerify: `${BASE_URL}/auth/verify`,
     userChangePassword: `${BASE_URL}/auth/user/change-password`,
     userDeleteAccount: `${BASE_URL}/auth/user/account`,
-    
+    // Partner
     partnerLogin: `${BASE_URL}/auth/partner/login`,
     partnerRegister: `${BASE_URL}/auth/partner/register`,
     partnerLogout: `${BASE_URL}/auth/partner/logout`,
@@ -23,7 +24,12 @@ export const API_ENDPOINTS = {
     partnerProfile: `${BASE_URL}/auth/partner/profile`,
     partnerBio: `${BASE_URL}/auth/partner/bio`,
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
-    partnerStatistics: `${BASE_URL}/auth/partner/statistics`, // Added
+    partnerStatistics: `${BASE_URL}/auth/partner/statistics`,
+    // Admin
+    adminLogin: `${BASE_URL}/auth/admin/login`,
+    adminLogout: `${BASE_URL}/auth/admin/logout`,
+    adminVerify: `${BASE_URL}/auth/admin/verify`,
+    adminProfile: `${BASE_URL}/auth/admin/profile`,
   },
 
   // User profile endpoints

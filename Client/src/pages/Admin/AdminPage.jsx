@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, Shield, Home, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useAuth } from '../../Contexts/AuthContext'
 
 const AdminPage = () => {
   const navigate = useNavigate()
+  const { isAuthenticated, isAdmin, loginAdmin } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -11,6 +13,13 @@ const AdminPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
+
+  // Redirect if already authenticated as admin
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      navigate('/admin/dashboard')
+    }
+  }, [isAuthenticated, isAdmin, navigate])
 
   const handleChange = (e) => {
     setFormData({
@@ -38,21 +47,16 @@ const AdminPage = () => {
       return
     }
 
-    try {
-      // TODO: Replace with actual API call
-      console.log('Admin login attempt:', formData)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // For now, just navigate to dashboard
-      navigate('/admin/dashboard')
-    } catch (err) {
-      setErrors({ general: 'Invalid credentials. Please try again.' })
-      console.error('Login error:', err)
-    } finally {
-      setLoading(false)
+    // Login admin using AuthContext
+    const result = await loginAdmin(formData)
+    
+    if (result.success) {
+      navigate('/admin/dashboard', { replace: true })
+    } else {
+      setErrors({ general: result.error || 'Invalid credentials. Please try again.' })
     }
+    
+    setLoading(false)
   }
 
   return (

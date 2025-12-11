@@ -2,10 +2,10 @@ import { useContext } from 'react'
 import AuthContext from '../Contexts/AuthContext'
 
 /**
- * Custom hook for accessing authentication context
- * Provides smoother access to auth state and methods
+ * Main authentication hook
+ * Provides access to all auth state and methods
  * 
- * @returns {Object} Auth context value with state and methods
+ * @returns {Object} Complete auth context
  * @throws {Error} If used outside AuthProvider
  */
 export const useAuth = () => {
@@ -20,9 +20,7 @@ export const useAuth = () => {
 
 /**
  * Hook for checking if user is authenticated
- * Simplified version for quick auth checks
- * 
- * @returns {Boolean} Authentication status
+ * @returns {Boolean} True if any user type is logged in
  */
 export const useIsAuthenticated = () => {
   const { isAuthenticated } = useAuth()
@@ -30,10 +28,8 @@ export const useIsAuthenticated = () => {
 }
 
 /**
- * Hook for getting current user data
- * Returns user or partner whoever is logged in
- * 
- * @returns {Object|null} Current user/partner object
+ * Hook for getting current user/partner/admin
+ * @returns {Object|null} Currently logged in user object
  */
 export const useCurrentUser = () => {
   const { currentUser } = useAuth()
@@ -41,65 +37,25 @@ export const useCurrentUser = () => {
 }
 
 /**
- * Hook for user-specific operations
- * Only use in user-facing components
- * 
- * @returns {Object} User state and operations
+ * Hook for getting auth type
+ * @returns {String|null} 'user', 'partner', 'admin', or null
  */
-export const useUser = () => {
-  const { user, isUser, loginUser, updateUserProfile } = useAuth()
-  
-  return {
-    user,
-    isUser,
-    loginUser,
-    updateProfile: updateUserProfile
-  }
+export const useAuthType = () => {
+  const { authType } = useAuth()
+  return authType
 }
 
 /**
- * Hook for partner-specific operations
- * Only use in partner-facing components
- * 
- * @returns {Object} Partner state and operations
+ * Hook for type checking helpers
+ * @returns {Object} Boolean flags for each user type
  */
-export const usePartner = () => {
-  const { partner, isPartner, loginPartner, updatePartnerProfile } = useAuth()
-  
-  return {
-    partner,
-    isPartner,
-    loginPartner,
-    updateProfile: updatePartnerProfile
-  }
+export const useUserType = () => {
+  const { isUser, isPartner, isAdmin } = useAuth()
+  return { isUser, isPartner, isAdmin }
 }
 
 /**
- * Hook for authentication guards
- * Use for protecting routes and components
- * 
- * @returns {Object} Auth guard utilities
- */
-export const useAuthGuard = () => {
-  const { isAuthenticated, loading, authChecked, authType } = useAuth()
-  
-  return {
-    isAuthenticated,
-    loading,
-    authChecked,
-    authType,
-    canAccess: (requiredType) => {
-      if (!requiredType) return isAuthenticated
-      return authType === requiredType
-    },
-    isReady: authChecked && !loading
-  }
-}
-
-/**
- * Hook for logout with navigation
- * Automatically handles cleanup and redirect
- * 
+ * Hook for logout functionality
  * @returns {Function} Logout function
  */
 export const useLogout = () => {
