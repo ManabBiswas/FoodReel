@@ -25,6 +25,13 @@ Modern React frontend for FoodReel - a social food ordering platform with Instag
 - 📊 **Analytics** - Track engagement and orders
 - 💬 **Review Management** - Respond to customer reviews
 
+### Admin Features **NEW**
+- 👨‍💼 **Admin Dashboard** - Platform oversight and management
+- 📊 **Analytics & Reporting** - View platform metrics and statistics
+- 👥 **User & Partner Management** - Manage accounts and content
+- 💰 **Revenue Tracking** - Monitor payments and platform fees
+- 🔍 **Content Moderation** - Review and manage user-generated content
+
 ## 🛠 Tech Stack
 
 - **React 18.x** - UI framework
@@ -53,9 +60,16 @@ Client/
 │   │   │   ├── PartnerProfile.jsx
 │   │   │   ├── CreateFood.jsx
 │   │   │   └── Dashboard.jsx
+│   │   ├── Admin/                     # Admin pages (NEW)
+│   │   │   ├── AdminPage.jsx          # Admin login page
+│   │   │   └── AdminDashboard.jsx     # Admin dashboard
 │   │   ├── Reel.jsx                  # Main reels feed
 │   │   ├── Checkout.jsx              # Order checkout
 │   │   └── Home.jsx
+│   ├── Contexts/
+│   │   └── AuthContext.jsx           # Auth state with authType (user, partner, admin)
+│   ├── hooks/
+│   │   └── useAuth.jsx               # Simplified auth hooks (6 focused hooks)
 │   ├── Components/
 │   │   ├── Navbar.jsx
 │   │   ├── Footer.jsx
@@ -65,7 +79,7 @@ Client/
 │   ├── config/
 │   │   └── Api.jsx                   # Centralized API endpoints
 │   ├── routes/
-│   │   └── AppRoutes.jsx             # Route configuration
+│   │   └── AppRoutes.jsx             # Route configuration with authType protection
 │   └── main.jsx
 └── package.json
 ```
@@ -110,6 +124,7 @@ The frontend connects to the backend API via the centralized `Api.jsx` configura
 **Authentication**
 - User login/register/logout
 - Partner login/register
+- Admin login/verify **NEW**
 - Session verification
 
 **User Profile**
@@ -134,6 +149,15 @@ The frontend connects to the backend API via the centralized `Api.jsx` configura
 - Follow/unfollow
 - Reviews & ratings
 - Comments
+
+### Authentication System
+
+The app uses a unified authentication system with `AuthContext` that supports three user types:
+- **User** (`authType: 'user'`) - Regular customers
+- **Partner** (`authType: 'partner'`) - Food restaurant/business
+- **Admin** (`authType: 'admin'`) - Platform administrator
+
+Routes are automatically protected based on `authType` value.
 
 ## 🎨 UI Components
 
@@ -176,9 +200,17 @@ For production applications, consider:
 ## 🔐 Authentication
 
 - JWT-based authentication with HTTP-only cookies
-- Automatic session verification
+- Automatic session verification on app load
 - Protected routes for authenticated users
-- Separate auth flows for users and partners
+- Separate auth flows for users, partners, and admins
+- Centralized `AuthContext` with `authType` tracking
+- 6 simplified custom hooks via `useAuth.jsx`:
+  - `useAuth()` - Full context access
+  - `useIsAuthenticated()` - Boolean check
+  - `useCurrentUser()` - Get current user/partner/admin object
+  - `useAuthType()` - Get auth type as string ('user'/'partner'/'admin'/null)
+  - `useUserType()` - Get flags object {isUser, isPartner, isAdmin}
+  - `useLogout()` - Logout function
 
 ## 📦 Build & Deployment
 
