@@ -25,6 +25,7 @@ This README provides a high‑level overview, project structure, setup & run ins
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Repository Structure](#repository-structure)
+- [Documentation](#-documentation)
 - [Local Setup](#local-setup)
 - [Development Notes](#development-notes)
 - [API Documentation](#-api-documentation)
@@ -106,7 +107,8 @@ Complete folder and file tree with explanations:
 FoodReel/
 │
 ├── README.md                     # Project overview, setup, and API docs
-├── BUSINESS_MODEL.md             # Detailed India-focused business model, pricing, GTM
+
+├── docs/                         # 📁 Organized documentation (21 files) ✨ NEW
 │
 ├── Client/                       # React frontend application
 │   ├── package.json              # Frontend dependencies (React, Vite, Axios, Lucide icons)
@@ -136,13 +138,14 @@ FoodReel/
 │       │   └── AppRoutes.jsx     # React Router route configuration for all pages
 │       │
 │       ├── pages/                     # Full page components
-│       │   ├── Home.jsx               # Landing page 
-│       │   ├── Reel.jsx               # Reels page 
+│       │   ├── Home.jsx               # Landing page
+│       │   ├── Reel.jsx               # Reels page
 │       │   ├── 404.jsx                # Not found page
 │       │   ├── About.jsx              # About page
 │       │   ├── Contact.jsx            # Contact page
 │       │   ├── Checkout.jsx           # Checkout page
-│       │   ├── OrderConfirmation.jsx  # Order confirmation page
+│       │   ├── OrderConfirmation.jsx  # Order confirmation page ✨ NEW
+│       │   ├── OrderHistory.jsx       # Order history page ✨ NEW
 │       │   ├── WorkingProgress.jsx    # Placeholder for features under development
 │       │   │
 │       │   ├── FoodPartner/       # Partner/restaurant pages
@@ -174,13 +177,14 @@ FoodReel/
 │       │   └── useAuth.jsx              # Simplified auth hooks (6 focused hooks)
 │       │
 │       ├── pages/                     # Full page components
-│       │   ├── Home.jsx               # Landing page 
-│       │   ├── Reel.jsx               # Reels page 
+│       │   ├── Home.jsx               # Landing page
+│       │   ├── Reel.jsx               # Reels page
 │       │   ├── 404.jsx                # Not found page
 │       │   ├── About.jsx              # About page
 │       │   ├── Contact.jsx            # Contact page
 │       │   ├── Checkout.jsx           # Checkout page
-│       │   ├── OrderConfirmation.jsx  # Order confirmation page
+│       │   ├── OrderConfirmation.jsx  # Order confirmation page ✨ NEW
+│       │   ├── OrderHistory.jsx       # Order history page ✨ NEW
 │       │   ├── WorkingProgress.jsx    # Placeholder for features under development
 │       │   │
 │       │   ├── Admin/             # Admin pages (new)
@@ -228,6 +232,90 @@ FoodReel/
 - `foodPartner.Model.js`: Restaurant/partner accounts with business details
 - `food.model.js`: Food posts (image/video URL, tags, likes, comments, type)
 - `review.model.js`: Partner reviews with ratings and timestamps
+
+---
+
+## 📚 Documentation
+
+FoodReel maintains comprehensive documentation organized into logical categories for easy navigation and maintenance.
+
+### 📖 Quick Start Documentation
+
+| I want to... | Go to |
+|--------------|-------|
+| Understand the system architecture | [docs/architecture/](docs/architecture/) |
+| Learn about authentication | [AUTHENTICATION_SYSTEM.md](docs/architecture/AUTHENTICATION_SYSTEM.md) |
+| Implement a new feature | [docs/features/](docs/features/) |
+| Fix a bug | [docs/guides/](docs/guides/) |
+| Run tests | [TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md) |
+| Check project status | [docs/checklists/](docs/checklists/) |
+| View recent updates | [docs/updates/](docs/updates/) |
+
+### 📂 Documentation Structure
+
+```
+docs/
+├── DOCUMENTATION_INDEX.md         # Detailed navigation guide
+│
+├── architecture/                  # 🏗️ System design & architecture
+│   ├── AUTHENTICATION_SYSTEM.md   # Complete auth architecture (800+ lines)
+│   ├── BUSINESS_MODEL.md          # Business logic & monetization
+│   └── FOOD_VS_ADVERTISEMENT_SYSTEM.md # Content type system
+│
+├── features/                      # 🎨 Feature documentation
+│   ├── CHECKOUT_FROM_REEL_FEATURE.md # Checkout flow from reels
+│   ├── RAZORPAY_INTEGRATION_COMPLETE.md # Payment integration
+│   └── WEBHOOK_REFUND_FEATURES.md # Payment webhooks & refunds
+│
+├── guides/                        # 📚 How-to guides & references
+│   ├── QUICK_REFERENCE.md         # Developer cheat sheet (500+ lines)
+│   ├── AUTHENTICATION_FIXES.md    # Auth troubleshooting
+│   ├── TOAST_NOTIFICATION_FIXES.md # Toast implementation guide
+│   └── UI_CHANGES_GUIDE.md        # UI/UX guidelines
+│
+├── testing/                       # 🧪 Testing documentation
+│   └── TESTING_GUIDE.md           # Comprehensive testing guide
+│
+├── updates/                       # 🔄 Project updates & reports
+│   ├── UPDATES_DECEMBER_11.md     # Recent session updates
+│   ├── MARKDOWN_UPDATE_SUMMARY.md # Documentation updates
+│   ├── PRODUCTION_READINESS_REPORT.md # Production checklist (v1)
+│   └── PRODUCTION_READINESS_REPORT_UPDATED.md # Production checklist (v2)
+│
+└── checklists/                    # ✅ Task lists & progress tracking
+    ├── INTEGRATION_CHECKLIST.md   # Integration status (v2.0)
+    ├── INTEGRATION_SUMMARY.md     # Integration overview
+    ├── TASK_SCHEDULE.md           # Development schedule
+    ├── TODO.md                    # Active tasks
+    ├── BACKEND_UPDATE_CHECKLIST.md # Backend updates needed ✨ NEW
+    └── FRONTEND_UPDATE_CHECKLIST.md # Frontend updates needed ✨ NEW
+```
+
+### 🎯 Key Documentation Files
+
+**For New Developers:**
+- **[DOCS_INDEX.md](DOCS_INDEX.md)** - Master documentation index with quick navigation
+- **[AUTHENTICATION_SYSTEM.md](docs/architecture/AUTHENTICATION_SYSTEM.md)** - Complete auth system guide
+- **[QUICK_REFERENCE.md](docs/guides/QUICK_REFERENCE.md)** - Developer cheat sheet
+- **[INTEGRATION_CHECKLIST.md](docs/checklists/INTEGRATION_CHECKLIST.md)** - Current project status
+
+**For Current Development:**
+- **[BACKEND_UPDATE_CHECKLIST.md](docs/checklists/BACKEND_UPDATE_CHECKLIST.md)** - Backend tasks for order management
+- **[FRONTEND_UPDATE_CHECKLIST.md](docs/checklists/FRONTEND_UPDATE_CHECKLIST.md)** - Frontend tasks for order management
+- **[UPDATES_DECEMBER_11.md](docs/updates/UPDATES_DECEMBER_11.md)** - Latest development updates
+
+**For Testing & Deployment:**
+- **[TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)** - Comprehensive testing guide
+- **[PRODUCTION_READINESS_REPORT_UPDATED.md](docs/updates/PRODUCTION_READINESS_REPORT_UPDATED.md)** - Production deployment checklist
+
+### 📊 Documentation Statistics
+
+- **Total Documentation Files**: 24 (including READMEs)
+- **Organized Categories**: 6 main folders
+- **Lines of Documentation**: ~6,400+ lines
+- **Last Updated**: December 11, 2025
+
+---
 
 ## Local setup
 
@@ -355,6 +443,7 @@ Notes:
 - `GET /api/orders/partner` – Get partner's orders (partner only)
 - `PUT /api/orders/partner/:orderId/status` – Update order status (partner only)
 - `GET /api/orders/partner/statistics` – Get order statistics (partner only)
+- `GET /api/orders/:id` – Get single order by ID (user only) **NEW**
 
 #### Payments
 - `POST /api/payment/create-order` – Create Razorpay order (user only)
@@ -395,9 +484,61 @@ Notes:
 
 ## Next steps / TODO
 
+### 🚨 Critical Priority (Required for Order Management)
+
+**Backend Updates:**
+- [ ] Implement `GET /api/orders/:id` endpoint for order details
+- [ ] Add ownership verification in order controller
+- [ ] Update user's orderHistory on order creation
+- [ ] Test order API endpoints with Postman
+
+**Frontend Updates:**
+- [ ] Add OrderConfirmation route in AppRoutes.jsx
+- [ ] Update Checkout.jsx to navigate to order confirmation
+- [ ] Fix lint warnings in order pages
+- [ ] Add "My Orders" link in Navbar
+- [ ] Test complete order flow end-to-end
+
+*📋 See [BACKEND_UPDATE_CHECKLIST.md](docs/checklists/BACKEND_UPDATE_CHECKLIST.md) and [FRONTEND_UPDATE_CHECKLIST.md](docs/checklists/FRONTEND_UPDATE_CHECKLIST.md) for detailed implementation guides.*
+
+### 🔄 Medium Priority (Enhancements)
+
 - Add comment persistence and real-time updates (WebSockets)
 - Add pagination/feed endpoints and infinite scroll
+- Implement download receipt functionality
+- Add order tracking timeline UI
+- Add server-side search and filtering
+
+### 🟢 Low Priority (Future Features)
+
 - Add more robust validation & unit tests
 - Add CI pipeline and Docker setup
+- Implement advanced order analytics
+- Add bulk order operations
+- Add order export functionality
+
+### 📊 Current Status
+
+- ✅ **Completed**: OrderConfirmation.jsx and OrderHistory.jsx pages created
+- ✅ **Completed**: Documentation reorganized into 6 categories
+- ✅ **Completed**: Comprehensive checklists created
+- 🔄 **In Progress**: Backend API endpoint implementation
+- 🔄 **In Progress**: Frontend routing and navigation updates
+
+*📈 Check [INTEGRATION_CHECKLIST.md](docs/checklists/INTEGRATION_CHECKLIST.md) for overall project status and [UPDATES_DECEMBER_11.md](docs/updates/UPDATES_DECEMBER_11.md) for recent development updates.*
+
+---
+
+## 📝 Documentation Notes
+
+**Documentation Reorganization (December 11, 2025):**
+- All documentation files have been organized into the `docs/` folder with 6 logical categories
+- Created comprehensive checklists for backend and frontend updates
+- Added master documentation index ([DOCS_INDEX.md](DOCS_INDEX.md)) for easy navigation
+- See [REORGANIZATION_SUMMARY.md](REORGANIZATION_SUMMARY.md) for complete details
+
+**Quick Links:**
+- 🏗️ [System Architecture](docs/architecture/) | 🎨 [Features](docs/features/) | 📚 [Guides](docs/guides/)
+- 🧪 [Testing](docs/testing/) | 🔄 [Updates](docs/updates/) | ✅ [Checklists](docs/checklists/)
 ---
 
