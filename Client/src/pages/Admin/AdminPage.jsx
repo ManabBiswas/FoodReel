@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, Shield, Home, Eye, EyeOff, Loader2 } from 'lucide-react'
-import { useAuth } from '../../Contexts/AuthContext'
+import { useAuth } from '../../hooks/useAuth'
 
 const AdminPage = () => {
   const navigate = useNavigate()

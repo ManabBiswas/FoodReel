@@ -20,7 +20,7 @@ import About from '../pages/About'
 import Contact from '../pages/Contact'
 import AdminPage from '../pages/Admin/AdminPage'
 import AdminDashboard from '../pages/Admin/AdminDashboard'
-import { useAuth } from '../Contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 
 const AppRoutes = () => {
   const { authType, isAuthenticated } = useAuth()
@@ -37,6 +37,11 @@ const AppRoutes = () => {
             <Route path='/login' element={<UserLogin />} />
             <Route path='/partner-register' element={<PartnerRegister />} />
             <Route path='/partner-login' element={<PartnerLogin />} />
+            <Route path='/reels' element={<UserLogin />} />
+            <Route path='/profile' element={<UserLogin />} />
+            <Route path='/profile/settings' element={<UserLogin />} />
+            <Route path='/order/history' element={<UserLogin />} />
+            <Route path='/order/confirmation/:orderId' element={<UserLogin />} />
           </>
         )}
         {/* if authType === 'user' */}

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Video, Plus, Handshake, User } from 'lucide-react'
-import { useAuth } from '../Contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { CgProfile } from "react-icons/cg";
 import { FaPlus } from "react-icons/fa6";
 import { GrHomeRounded } from "react-icons/gr";

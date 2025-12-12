@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../Contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle } from 'lucide-react'
 import Logo from '../assets/logo.png'
 
