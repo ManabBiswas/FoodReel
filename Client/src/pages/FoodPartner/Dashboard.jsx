@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { showSuccess, showError } from '../../utils/toast'
@@ -13,8 +13,6 @@ import {
   Heart, 
   MessageCircle,
   IndianRupee,
-  Clock,
-  Calendar,
   Tag,
   Eye,
   Edit,
@@ -32,49 +30,59 @@ const Dashboard = () => {
   const [error, setError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(null)
 
+  const formatMedia = (post) => ({
+    ...post,
+    image: post.image || (post.type === 'image' ? post.file : null),
+    video: post.video || (post.type === 'video' ? post.file : null),
+    type: post.type || (post.video ? 'video' : 'image'),
+    likeCount: post.likeCount || post.likes?.length || 0,
+    commentCount: post.commentCount || post.comments?.length || 0,
+  })
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       setError('')
       
-      // Fetch posts and advertisements
-      const [foodResponse, adResponse] = await Promise.all([
+      const [authResponse, foodResponse, adResponse] = await Promise.all([
+        axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig),
         axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
         axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
       ])
-      
-      const foodPosts = foodResponse.data?.data || []
-      const allAds = adResponse.data?.data || []
-      
-      // Filter advertisements by current partner
-      const myAds = allAds.filter(ad => 
-        ad.foodPartner?._id === foodResponse.data?.partnerId || 
-        ad.createdBy === foodResponse.data?.partnerId
-      )
-      
-      // Combine and sort by creation date
-      const allPosts = [...foodPosts, ...myAds].sort((a, b) => 
+
+      const currentPartnerId = authResponse.data?.foodPartner?._id
+
+      const groupedFoods = foodResponse.data?.foods || {}
+      const foodPostsRaw = groupedFoods.all || groupedFoods.food || []
+      const foodPosts = foodPostsRaw.map((post) => formatMedia({ ...post, postType: 'food' }))
+
+      const advertisementsRaw = adResponse.data?.data || []
+      const myAds = (currentPartnerId
+        ? advertisementsRaw.filter((ad) => ad.partnerId === currentPartnerId)
+        : advertisementsRaw
+      ).map((ad) => formatMedia({ ...ad, postType: 'advertisement' }))
+
+      const allPosts = [...foodPosts, ...myAds].sort((a, b) =>
         new Date(b.createdAt) - new Date(a.createdAt)
       )
-      
+
       setPosts({
         food: foodPosts,
         advertisement: myAds,
         all: allPosts
       })
-      
-      // Calculate statistics
+
       const stats = {
         food: {
           count: foodPosts.length,
-          totalLikes: foodPosts.reduce((sum, post) => sum + (post.likes?.length || 0), 0),
-          totalReviews: foodPosts.reduce((sum, post) => sum + (post.reviews?.length || 0), 0),
-          totalSaves: foodPosts.reduce((sum, post) => sum + (post.saves?.length || 0), 0)
+          totalLikes: foodPosts.reduce((sum, post) => sum + post.likeCount, 0),
+          totalReviews: foodPosts.reduce((sum, post) => sum + (post.reviews?.length || post.commentCount || 0), 0),
+          totalSaves: foodPosts.reduce((sum, post) => sum + (post.saves?.length || post.savesCount || 0), 0)
         },
         advertisement: {
           count: myAds.length,
-          totalLikes: myAds.reduce((sum, ad) => sum + (ad.likes?.length || 0), 0),
-          totalComments: myAds.reduce((sum, ad) => sum + (ad.comments?.length || 0), 0),
+          totalLikes: myAds.reduce((sum, ad) => sum + ad.likeCount, 0),
+          totalComments: myAds.reduce((sum, ad) => sum + (ad.comments?.length || ad.commentCount || 0), 0),
           totalViews: myAds.reduce((sum, ad) => sum + (ad.views || 0), 0)
         },
         total: {
@@ -83,20 +91,22 @@ const Dashboard = () => {
           totalSaves: 0
         }
       }
-      
+
       stats.total.totalLikes = stats.food.totalLikes + stats.advertisement.totalLikes
       stats.total.totalComments = stats.food.totalReviews + stats.advertisement.totalComments
       stats.total.totalSaves = stats.food.totalSaves
-      
+
       setStatistics(stats)
-      
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       if (error.response?.status === 401) {
         showError('Session expired. Please login again.')
         setTimeout(() => navigate('/partner-login'), 2000)
       } else {
-        showError(error.response?.data?.message || 'Failed to load dashboard data')
+        const message = error.response?.data?.message || 'Failed to load dashboard data'
+        setError(message)
+        showError(message)
       }
     } finally {
       setLoading(false)

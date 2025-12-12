@@ -95,8 +95,8 @@ export const API_ENDPOINTS = {
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
-    getUserOrders: `${BASE_URL}/api/orders`,
-    getById: `${BASE_URL}/api/orders`, 
+    getUserOrders: `${BASE_URL}/orders`,
+    getById: (id) => `${BASE_URL}/orders/${id}`,
   },
   
   // Payment endpoints

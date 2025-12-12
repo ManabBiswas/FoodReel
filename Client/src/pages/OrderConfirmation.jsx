@@ -43,7 +43,7 @@ const OrderConfirmation = () => {
     try {
       setLoading(true)
       const response = await axios.get(
-        `${API_ENDPOINTS.order.getById}/${orderId}`,
+        API_ENDPOINTS.order.getById(orderId),
         axiosConfig
       )
       setOrder(response.data)
