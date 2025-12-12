@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { 
-  ShoppingBag, 
-  CreditCard, 
-  MapPin, 
-  User, 
-  Phone, 
-  Mail, 
+import {
+  ShoppingBag,
+  CreditCard,
+  MapPin,
+  User,
+  Phone,
+  Mail,
   Home,
   Truck,
   ChevronRight,
@@ -26,7 +26,7 @@ const Checkout = () => {
 
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  
+
   // Form data
   const [deliveryInfo, setDeliveryInfo] = useState({
     fullName: '',
@@ -72,7 +72,7 @@ const Checkout = () => {
   // Validate delivery info
   const validateDeliveryInfo = () => {
     const newErrors = {}
-    
+
     if (!deliveryInfo.fullName.trim()) newErrors.fullName = 'Name is required'
     if (!deliveryInfo.phone.trim()) {
       newErrors.phone = 'Phone is required'
@@ -135,7 +135,11 @@ const Checkout = () => {
       if (response.data) {
         toast.success('Order placed successfully!')
         // Navigate to order confirmation or orders page
-        navigate('/orders', { state: { orderId: response.data._id } })
+        navigate('/order/' + response.data.orderId, {
+          state: { orderId: response.data.orderId }
+        });
+      } else {
+        toast.error('Failed to place order')
       }
     } catch (error) {
       console.error('Order placement error:', error)
@@ -170,11 +174,10 @@ const Checkout = () => {
           <div className="flex items-center justify-center gap-4">
             {/* Step 1 */}
             <div className="flex items-center">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                currentStep >= 1 
-                  ? 'bg-orange-600 text-white' 
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${currentStep >= 1
+                  ? 'bg-orange-600 text-white'
                   : 'bg-gray-200 text-gray-500'
-              }`}>
+                }`}>
                 <MapPin className="w-5 h-5" />
                 <span className="font-medium hidden sm:inline">Delivery Info</span>
                 <span className="font-medium sm:hidden">Address</span>
@@ -185,11 +188,10 @@ const Checkout = () => {
 
             {/* Step 2 */}
             <div className="flex items-center">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                currentStep >= 2 
-                  ? 'bg-orange-600 text-white' 
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${currentStep >= 2
+                  ? 'bg-orange-600 text-white'
                   : 'bg-gray-200 text-gray-500'
-              }`}>
+                }`}>
                 <CreditCard className="w-5 h-5" />
                 <span className="font-medium hidden sm:inline">Payment</span>
                 <span className="font-medium sm:hidden">Pay</span>
@@ -202,9 +204,8 @@ const Checkout = () => {
           {/* Left Section - Forms */}
           <div className="lg:col-span-2 space-y-6">
             {/* Delivery Information */}
-            <div className={`bg-white rounded-2xl shadow-lg p-6 transition-all ${
-              currentStep === 1 ? 'ring-2 ring-orange-400' : ''
-            }`}>
+            <div className={`bg-white rounded-2xl shadow-lg p-6 transition-all ${currentStep === 1 ? 'ring-2 ring-orange-400' : ''
+              }`}>
               <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <MapPin className="w-6 h-6 text-orange-600" />
                 Delivery Information
@@ -223,9 +224,8 @@ const Checkout = () => {
                       name="fullName"
                       value={deliveryInfo.fullName}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                        errors.fullName ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.fullName ? 'border-red-500' : 'border-gray-300'
+                        }`}
                       placeholder="John Doe"
                     />
                   </div>
@@ -246,9 +246,8 @@ const Checkout = () => {
                       name="phone"
                       value={deliveryInfo.phone}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                        errors.phone ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'
+                        }`}
                       placeholder="9876543210"
                       maxLength="10"
                     />
@@ -270,9 +269,8 @@ const Checkout = () => {
                       name="email"
                       value={deliveryInfo.email}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                        errors.email ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.email ? 'border-red-500' : 'border-gray-300'
+                        }`}
                       placeholder="john@example.com"
                     />
                   </div>
@@ -292,9 +290,8 @@ const Checkout = () => {
                       name="address"
                       value={deliveryInfo.address}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                        errors.address ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.address ? 'border-red-500' : 'border-gray-300'
+                        }`}
                       rows="2"
                       placeholder="House/Flat No., Street Name"
                     />
@@ -329,9 +326,8 @@ const Checkout = () => {
                     name="city"
                     value={deliveryInfo.city}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                      errors.city ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.city ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Mumbai"
                   />
                   {errors.city && (
@@ -349,9 +345,8 @@ const Checkout = () => {
                     name="state"
                     value={deliveryInfo.state}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                      errors.state ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.state ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Maharashtra"
                   />
                   {errors.state && (
@@ -369,9 +364,8 @@ const Checkout = () => {
                     name="pincode"
                     value={deliveryInfo.pincode}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                      errors.pincode ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${errors.pincode ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="400001"
                     maxLength="6"
                   />
@@ -393,9 +387,8 @@ const Checkout = () => {
             </div>
 
             {/* Payment Method */}
-            <div className={`bg-white rounded-2xl shadow-lg p-6 transition-all ${
-              currentStep === 2 ? 'ring-2 ring-orange-400' : 'opacity-50 pointer-events-none'
-            }`}>
+            <div className={`bg-white rounded-2xl shadow-lg p-6 transition-all ${currentStep === 2 ? 'ring-2 ring-orange-400' : 'opacity-50 pointer-events-none'
+              }`}>
               <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <CreditCard className="w-6 h-6 text-orange-600" />
                 Payment Method
@@ -403,11 +396,10 @@ const Checkout = () => {
 
               <div className="space-y-3">
                 {/* Cash on Delivery */}
-                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  paymentMethod === 'cod' 
-                    ? 'border-orange-600 bg-orange-50' 
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentMethod === 'cod'
+                    ? 'border-orange-600 bg-orange-50'
                     : 'border-gray-200 hover:border-orange-300'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -423,17 +415,15 @@ const Checkout = () => {
                     </div>
                     <p className="text-sm text-gray-500 mt-1">Pay when you receive your order</p>
                   </div>
-                  <CheckCircle className={`w-6 h-6 ${
-                    paymentMethod === 'cod' ? 'text-orange-600' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`w-6 h-6 ${paymentMethod === 'cod' ? 'text-orange-600' : 'text-gray-300'
+                    }`} />
                 </label>
 
                 {/* Online Payment */}
-                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  paymentMethod === 'online' 
-                    ? 'border-orange-600 bg-orange-50' 
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentMethod === 'online'
+                    ? 'border-orange-600 bg-orange-50'
                     : 'border-gray-200 hover:border-orange-300'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -449,9 +439,8 @@ const Checkout = () => {
                     </div>
                     <p className="text-sm text-gray-500 mt-1">UPI, Cards, Net Banking</p>
                   </div>
-                  <CheckCircle className={`w-6 h-6 ${
-                    paymentMethod === 'online' ? 'text-orange-600' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`w-6 h-6 ${paymentMethod === 'online' ? 'text-orange-600' : 'text-gray-300'
+                    }`} />
                 </label>
               </div>
 
@@ -535,11 +524,10 @@ const Checkout = () => {
               <button
                 onClick={handlePlaceOrder}
                 disabled={loading || currentStep !== 2}
-                className={`w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                  loading || currentStep !== 2
+                className={`w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${loading || currentStep !== 2
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-orange-600 hover:bg-orange-700 text-white'
-                }`}
+                  }`}
               >
                 {loading ? (
                   <>

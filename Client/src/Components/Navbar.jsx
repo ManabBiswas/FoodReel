@@ -66,6 +66,7 @@ const Navbar = () => {
                   <Film className="w-4 h-4" />
                   <span>Create Post</span>
                 </Link>
+                <Link to="/order/history" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">My Orders</Link>
                 <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
                   <UserCircle className="w-4 h-4" />
                   <span>Profile</span>
@@ -180,6 +181,14 @@ const Navbar = () => {
                 >
                   <Film className="w-5 h-5" />
                   <span>Create Post</span>
+                </Link>
+                <Link 
+                  to="/order/history" 
+                  onClick={() => setMobileOpen(false)} 
+                  className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
+                >
+                  <Film className="w-5 h-5" />
+                  <span>My Orders</span>
                 </Link>
                 <Link 
                   to="/profile" 
