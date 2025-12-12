@@ -1,4 +1,5 @@
 import userModel from "../models/user.Model.js";
+import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -281,6 +282,132 @@ async function verify(req, res) {
     }
 }
 
+// ============ ADMIN AUTHENTICATION ============
+async function adminLogin(req, res) {
+    try {
+        const { email, code } = req.body;
+
+        if (!email || !code) {
+            return res.status(400).json({
+                error: "Email and code are required"
+            });
+        }
+
+        const admin = await adminModel.findOne({ email });
+        if (!admin) {
+            return res.status(400).json({
+                error: "Invalid email or code"
+            });
+        }
+
+        if (admin.code !== code) {
+            return res.status(400).json({
+                error: "Invalid email or code"
+            });
+        }
+
+        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET);
+        res.cookie('token', token, {
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 24 * 60 * 60 * 1000,
+            path: '/'
+        });
+        
+        res.status(200).json({ 
+            message: "Admin login successful",
+            admin: {
+                id: admin._id,
+                email: admin.email,
+                name: admin.name
+            }
+        });
+    } catch (error) {
+        console.error('Admin login error:', error);
+        res.status(500).json({
+            error: "Internal server error"
+        });
+    }
+}
+
+async function adminLogout(req, res) {
+    try {
+        res.clearCookie('token', { path: '/' });
+        res.status(200).json({ message: "Admin logout successful" });
+    } catch (error) {
+        console.error('Admin logout error:', error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+async function adminVerify(req, res) {
+    try {
+        const token = req.cookies.token;
+        if (!token) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Not authenticated"
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const admin = await adminModel.findById(decoded.id).select('-code');
+        
+        if (!admin) {
+            return res.status(404).json({ 
+                isAuthenticated: false,
+                error: "Admin not found" 
+            });
+        }
+        
+        res.status(200).json({
+            isAuthenticated: true,
+            admin: {
+                id: admin._id,
+                email: admin.email,
+                name: admin.name
+            }
+        });
+    } catch (error) {
+        console.error('Admin verify error:', error);
+        res.status(401).json({ 
+            isAuthenticated: false,
+            error: "Unauthorized" 
+        });
+    }
+}
+
+async function adminProfile(req, res) {
+    try {
+        const token = req.cookies.token;
+        if (!token) {
+            return res.status(401).json({
+                error: "Not authenticated"
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const admin = await adminModel.findById(decoded.id).select('-code');
+        
+        if (!admin) {
+            return res.status(404).json({ error: "Admin not found" });
+        }
+        
+        res.status(200).json({
+            admin: {
+                id: admin._id,
+                email: admin.email,
+                name: admin.name,
+                createdAt: admin.createdAt
+            }
+        });
+    } catch (error) {
+        console.error('Get admin profile error:', error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
 export default {
     register,
     login,
@@ -289,5 +416,9 @@ export default {
     getProfile,
     updateProfile,
     changePassword,
-    deleteAccount
+    deleteAccount,
+    adminLogin,
+    adminLogout,
+    adminVerify,
+    adminProfile
 }
