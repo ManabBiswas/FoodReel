@@ -243,6 +243,36 @@ const updateOrderStatus = async (req, res) => {
     }
 };
 
+const getOrderById  = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const order = await orderModel
+            .findOne({ _id: orderId })
+            .populate('user', 'username email')
+            .populate('foodItem', 'name description image video price currency preparationTime')
+            .populate('foodPartner', 'restaurantName email phoneNumber');
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        if (order.user._id.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: "Unauthorized access to this order" });
+        }
+
+        res.status(200).json({
+            message: "Order retrieved successfully",
+            order
+        });
+
+    } catch (error) {
+        console.error("Error getting order:", error);
+        res.status(500).json({ error:'Failed to retrieve order',details: error.message });
+    }
+};
+
+
 const getOrderStatistics = async (req, res) => {
     try {
         const partnerId = req.foodPartner._id;
@@ -299,5 +329,6 @@ export default {
     getUserOrders,
     getPartnerOrders,
     updateOrderStatus,
+    getOrderById,
     getOrderStatistics
 };

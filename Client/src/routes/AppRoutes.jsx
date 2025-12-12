@@ -37,11 +37,17 @@ const AppRoutes = () => {
             <Route path='/login' element={<UserLogin />} />
             <Route path='/partner-register' element={<PartnerRegister />} />
             <Route path='/partner-login' element={<PartnerLogin />} />
+            <Route path='/create-post' element={<UserLogin />} />
             <Route path='/reels' element={<UserLogin />} />
             <Route path='/profile' element={<UserLogin />} />
             <Route path='/profile/settings' element={<UserLogin />} />
             <Route path='/order/history' element={<UserLogin />} />
             <Route path='/order/confirmation/:orderId' element={<UserLogin />} />
+            <Route path='/partner-dashboard' element={<UserLogin />} />
+            <Route path='/CreateFood' element={<UserLogin />} />
+            <Route path='/partner-profile' element={<UserLogin />} />
+            <Route path='/admin-login' element={<UserLogin />} />
+            <Route path='/admin-dashboard' element={<UserLogin />} />
           </>
         )}
         {/* if authType === 'user' */}

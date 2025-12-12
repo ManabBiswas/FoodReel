@@ -17,7 +17,11 @@ router.get('/',
     isLoggedin,
     orderController.getUserOrders
 );
-
+// GET /api/orders/:orderId - Get order details
+router.get('/:orderId',
+    isLoggedin,
+    orderController.getOrderById
+);
 // Partner routes
 // GET /api/orders/partner - Get partner's orders
 router.get('/partner',
