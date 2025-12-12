@@ -26,10 +26,57 @@ export const API_ENDPOINTS = {
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
     partnerStatistics: `${BASE_URL}/auth/partner/statistics`,
     // Admin
+    // Admin
     adminLogin: `${BASE_URL}/auth/admin/login`,
     adminLogout: `${BASE_URL}/auth/admin/logout`,
     adminVerify: `${BASE_URL}/auth/admin/verify`,
     adminProfile: `${BASE_URL}/auth/admin/profile`,
+  },
+
+  // Admin endpoints
+  admin: {    
+    // Dashboard
+    dashboard: `${BASE_URL}/admin/dashboard`,
+    
+    // User Management
+    users: `${BASE_URL}/admin/users`,
+    userDetails: (userId) => `${BASE_URL}/admin/users/${userId}`,
+    toggleUserBlock: (userId) => `${BASE_URL}/admin/users/${userId}/block`,
+    deleteUser: (userId) => `${BASE_URL}/admin/users/${userId}`,
+    
+    // Partner Management
+    partners: `${BASE_URL}/admin/partners`,
+    partnerDetails: (partnerId) => `${BASE_URL}/admin/partners/${partnerId}`,
+    togglePartnerVerify: (partnerId) => `${BASE_URL}/admin/partners/${partnerId}/verify`,
+    togglePartnerBlock: (partnerId) => `${BASE_URL}/admin/partners/${partnerId}/block`,
+    deletePartner: (partnerId) => `${BASE_URL}/admin/partners/${partnerId}`,
+    
+    // Content Moderation
+    foodItems: `${BASE_URL}/admin/food-items`,
+    foodItemDetails: (foodId) => `${BASE_URL}/admin/food-items/${foodId}`,
+    approveFoodItem: (foodId) => `${BASE_URL}/admin/food-items/${foodId}/approve`,
+    deleteFoodItem: (foodId) => `${BASE_URL}/admin/food-items/${foodId}`,
+    
+    advertisements: `${BASE_URL}/admin/advertisements`,
+    approveAdvertisement: (adId) => `${BASE_URL}/admin/advertisements/${adId}/approve`,
+    deleteAdvertisement: (adId) => `${BASE_URL}/admin/advertisements/${adId}`,
+    
+    // Reviews
+    reviews: `${BASE_URL}/admin/reviews`,
+    deleteReview: (reviewId) => `${BASE_URL}/admin/reviews/${reviewId}`,
+    
+    // Orders
+    orders: `${BASE_URL}/admin/orders`,
+    orderDetails: (orderId) => `${BASE_URL}/admin/orders/${orderId}`,
+    
+    // Analytics
+    revenueAnalytics: `${BASE_URL}/admin/analytics/revenue`,
+    userAnalytics: `${BASE_URL}/admin/analytics/users`,
+    partnerAnalytics: `${BASE_URL}/admin/analytics/partners`,
+    
+    // Support
+    supportTickets: `${BASE_URL}/admin/support-tickets`,
+    updateSupportTicket: (ticketId) => `${BASE_URL}/admin/support-tickets/${ticketId}`,
   },
 
   // User profile endpoints
