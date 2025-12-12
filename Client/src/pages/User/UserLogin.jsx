@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, Home } from 'lucide-react';
+import { showSuccess, showError } from '../../utils/toast';
 
 const UserLogin = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -14,7 +15,9 @@ const UserLogin = () => {
 
   useEffect(() => {
     if (isAuthenticated && isUser) {
-      navigate('/');
+      setTimeout(() => {
+        navigate('/');
+      }), 2000
     }
   }, [isAuthenticated, isUser, navigate]);
 
@@ -33,15 +36,18 @@ const UserLogin = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      showError('Please fill in all required fields');
       setLoading(false);
       return;
     }
 
     const result = await loginUser(formData);
     if (result.success) {
+      showSuccess('Login successful! Redirecting...');
       navigate('/', { replace: true });
     } else {
       setErrors({ general: result.error });
+      showError(result.error || 'Login failed. Please try again.');
     }
     setLoading(false);
   };
@@ -64,14 +70,7 @@ const UserLogin = () => {
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back 👋</h2>
           <p className="text-sm text-gray-600">Sign in to continue</p>
         </div>
-
-        {/* Error */}
-        {errors.general && (
-          <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 border border-red-300">
-            {errors.general}
-          </div>
-        )}
-
+        
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-6">
           {/* Email */}
@@ -129,7 +128,7 @@ const UserLogin = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+            className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 hover:cursor-pointer hover:bg-gradient-to-r hover:shadow-lg"
           >
             {loading ? (
               <div className="flex items-center justify-center">

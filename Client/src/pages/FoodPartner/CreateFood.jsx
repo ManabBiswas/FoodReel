@@ -11,7 +11,7 @@ import {
   ArrowLeft, 
   Loader2, 
   X,
-  Plus,
+  Plus,Hash,
   Tag as TagIcon,
   ShoppingBag,
   Megaphone,
@@ -618,8 +618,8 @@ const CreateFood = () => {
                           onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
                           className="opacity-0 w-0 h-0 peer"
                         />
-                        <span className={`absolute cursor-pointer inset-0 rounded-full transition duration-200 ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                        <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${formData.isAvailable ? 'translate-x-6' : ''}`}></span>
+                        {/* <span className={`absolute cursor-pointer inset-0 rounded-full transition duration-200 ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${formData.isAvailable ? 'translate-x-6' : ''}`}></span> */}
                       </div>
                     </label>
                   </div>
@@ -820,7 +820,7 @@ const CreateFood = () => {
                   <button
                     type="button"
                     onClick={addTag}
-                    className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                    className="bg-blue-500 text-white px-3 py-2 hover:bg-blue-600 transition-colors rounded-2xl"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -833,12 +833,12 @@ const CreateFood = () => {
                         key={index}
                         className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
                       >
-                        <TagIcon className="w-3 h-3" />
+                        <Hash className="w-3 h-3 flex-shrink-0" />
                         {tag}
                         <button
                           type="button"
                           onClick={() => removeTag(tag)}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-200 hover:cursor-pointer rounded-full p-1 transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -852,7 +852,7 @@ const CreateFood = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:cursor-pointer ${
                   formData.postType === 'food'
                     ? 'bg-green-500 hover:bg-green-600 disabled:bg-green-400 focus:ring-green-500'
                     : 'bg-purple-500 hover:bg-purple-600 disabled:bg-purple-400 focus:ring-purple-500'

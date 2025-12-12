@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { LogIn, Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { showSuccess, showError } from '../../utils/toast'
 
 const PartnerLogin = () => {
   const [formData, setFormData] = useState({
@@ -30,6 +31,7 @@ const PartnerLogin = () => {
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
+      showError('Please check the form for errors')
       setLoading(false)
       return
     }
@@ -38,6 +40,7 @@ const PartnerLogin = () => {
     const result = await loginPartner(formData)
     
     if (result.success) {
+      showSuccess('Login successful! Redirecting to dashboard...')
       setFormData({
         email: '',
         password: ''
@@ -45,6 +48,7 @@ const PartnerLogin = () => {
       navigate('/partner-dashboard', { replace: true })
     } else {
       setErrors({ general: result.error })
+      showError(result.error || 'Login failed. Please try again.')
     }
     
     setLoading(false)
