@@ -17,7 +17,7 @@ import {
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showInfo } from '../utils/toast'
 
 const OrderConfirmation = () => {
   const navigate = useNavigate()
@@ -50,7 +50,7 @@ const OrderConfirmation = () => {
     } catch (err) {
       console.error('Error fetching order:', err)
       setError('Failed to load order details')
-      toast.error('Failed to load order')
+      showError('Failed to load order')
     } finally {
       setLoading(false)
     }
@@ -59,12 +59,12 @@ const OrderConfirmation = () => {
   const copyOrderId = () => {
     navigator.clipboard.writeText(orderId)
     setCopied(true)
-    toast.success('Order ID copied!')
+    showSuccess('Order ID copied!')
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleDownloadReceipt = () => {
-    toast.info('Downloading receipt...')
+    showInfo('Downloading receipt...')
   }
 
   if (loading) {

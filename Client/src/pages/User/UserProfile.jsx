@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
@@ -46,7 +46,7 @@ const UserProfile = () => {
       if (error.response?.status === 401) {
         navigate('/login')
       } else {
-        toast.error('Failed to load profile')
+        showError('Failed to load profile')
       }
     } finally {
       setLoading(false)
@@ -60,11 +60,11 @@ const UserProfile = () => {
   const handleLogout = async () => {
     try {
       await axios.post(API_ENDPOINTS.auth.userLogout, {}, axiosConfig)
-      toast.success('Logged out successfully')
+      showSuccess('Logged out successfully')
       navigate('/login')
     } catch (error) {
       console.error('Logout error:', error)
-      toast.error('Logout failed, please try again')
+      showError('Logout failed, please try again')
       // Navigate anyway after showing error
       setTimeout(() => navigate('/login'), 1000)
     }

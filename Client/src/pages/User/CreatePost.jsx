@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showWarning } from '../../utils/toast'
 import { API_ENDPOINTS, multipartConfig, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import ErrorBoundary from '../../Components/ErrorBoundary'
@@ -94,7 +94,7 @@ const CreatePost = () => {
         }
       } catch (err) {
         console.error('Error fetching food items:', err)
-        toast.error('Failed to load food items from this restaurant')
+        showError('Failed to load food items from this restaurant')
       } finally {
         setLoadingFoodItems(false)
       }
@@ -117,9 +117,9 @@ const CreatePost = () => {
     if (!f) return
     const isImage = f.type.startsWith('image/')
     const isVideo = f.type.startsWith('video/')
-    if (type === 'image' && !isImage) return toast.warning('Please select an image file')
-    if (type === 'video' && !isVideo) return toast.warning('Please select a video file')
-    if (f.size > 5 * 1024 * 1024) return toast.warning('File must be less than 5MB')
+    if (type === 'image' && !isImage) return showWarning('Please select an image file')
+    if (type === 'video' && !isVideo) return showWarning('Please select a video file')
+    if (f.size > 5 * 1024 * 1024) return showWarning('File must be less than 5MB')
     setFile(f)
     const reader = new FileReader()
     reader.onload = () => setPreview(reader.result)
@@ -136,19 +136,19 @@ const CreatePost = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    if (!name.trim()) { toast.warning('Title required'); setLoading(false); return }
-    if (!description.trim()) { toast.warning('Description required'); setLoading(false); return }
-    if (!file) { toast.warning('Please select a file'); setLoading(false); return }
+    if (!name.trim()) { showWarning('Title required'); setLoading(false); return }
+    if (!description.trim()) { showWarning('Description required'); setLoading(false); return }
+    if (!file) { showWarning('Please select a file'); setLoading(false); return }
 
     // Validate tagging
     if (wantToTag === 'yes') {
       if (!selectedPartner) {
-        toast.warning('Please select a restaurant')
+        showWarning('Please select a restaurant')
         setLoading(false)
         return
       }
       if (!selectedFood) {
-        toast.warning('Please select a food item from the restaurant')
+        showWarning('Please select a food item from the restaurant')
         setLoading(false)
         return
       }
@@ -170,12 +170,12 @@ const CreatePost = () => {
 
       const res = await axios.post(API_ENDPOINTS.food.createUserPost, fd, multipartConfig)
       if (res?.data) {
-        toast.success('Post created successfully! Redirecting...')
+        showSuccess('Post created successfully! Redirecting...')
         setTimeout(() => navigate('/reels'), 1500)
       }
     } catch (err) {
       console.error(err)
-      toast.error(err?.response?.data?.error || err.message || 'Failed to create post')
+      showError(err?.response?.data?.error || err.message || 'Failed to create post')
     } finally { setLoading(false) }
   }
 

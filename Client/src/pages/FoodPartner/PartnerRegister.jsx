@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showInfo } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { useNavigate, Link } from 'react-router-dom'
 import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, UserPlus, Loader2, Navigation } from 'lucide-react'
@@ -79,7 +79,7 @@ const PartnerRegister = () => {
 
     try {
       // Get location before submitting
-      toast.info('Getting your location...')
+      showInfo('Getting your location...')
       const location = await getLocation()
       
       const submitData = {
@@ -95,12 +95,12 @@ const PartnerRegister = () => {
       const response = await axios.post(API_ENDPOINTS.FOOD_PARTNER_REGISTER, submitData, axiosConfig)
       
       if (response.data.isAuthenticated) {
-          toast.info('Already logged in! Redirecting to dashboard...')
+          showInfo('Already logged in! Redirecting to dashboard...')
           setTimeout(() => navigate('/partner-dashboard'), 1000)
         }
         
       // console.log(response)
-      toast.success('Registration successful! Redirecting...')
+      showSuccess('Registration successful! Redirecting...')
       
       setFormData({
         companyName: '',
@@ -118,10 +118,10 @@ const PartnerRegister = () => {
     } catch (error) {
       console.error("Registration error: ", error)
       if (error.message && error.message.includes('location')) {
-        toast.error(`Location Error: ${error.message}. Please enable location access and try again.`)
+        showError(`Location Error: ${error.message}. Please enable location access and try again.`)
       } else {
         const serverMsg = error?.response?.data?.message || error?.message || 'Registration failed'
-        toast.error(serverMsg)
+        showError(serverMsg)
       }
     } finally {
       setLoading(false)

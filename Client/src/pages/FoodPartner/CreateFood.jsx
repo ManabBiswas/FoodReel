@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { showWarning, showError, showLoading, updateToSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
 import { 
   UtensilsCrossed, 
@@ -85,18 +85,18 @@ const CreateFood = () => {
     const isVideo = selectedFile.type.startsWith('video/')
     
     if (formData.type === 'image' && !isImage) {
-      toast.warning('Please select an image file')
+      showWarning('Please select an image file')
       return
     }
     
     if (formData.type === 'video' && !isVideo) {
-      toast.warning('Please select a video file')
+      showWarning('Please select a video file')
       return
     }
 
     // File size validation (5MB limit)
     if (selectedFile.size > 5 * 1024 * 1024) {
-      toast.warning('File size must be less than 5MB')
+      showWarning('File size must be less than 5MB')
       return
     }
 
@@ -186,14 +186,14 @@ const CreateFood = () => {
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      toast.warning('Please fill up form correctly')
+      showWarning('Please fill up form correctly')
       setLoading(false)
       return
     }
 
     // Check file upload
     if (!file) {
-      toast.warning('Please select a file to upload')
+      showWarning('Please select a file to upload')
       setLoading(false)
       return
     }
@@ -236,7 +236,7 @@ const CreateFood = () => {
       // Always use 'file' as the field name to match backend expectation
       submitData.append('file', file)
 
-      const loadingToast = toast.loading('Uploading your post...')
+      const loadingToast = showLoading('Uploading your post...')
       
       // Use different API endpoints based on post type
        const apiUrl = formData.postType === 'food' 
@@ -248,12 +248,10 @@ const CreateFood = () => {
       // console.log(response)
       // console.log('Post created successfully:', response.data)
       if (response.data) {
-          toast.update(loadingToast, {
-            render: `${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`,
-            type: 'success',
-            isLoading: false,
-            autoClose: 2000
-          })
+          updateToSuccess(
+            loadingToast,
+            `${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`
+          )
         }
       
       
@@ -262,7 +260,7 @@ const CreateFood = () => {
     } catch (error) {
       console.error('Create post error:', error)
       const serverMsg = error?.response?.data?.error || error?.message || 'Failed to create post'
-      toast.error(serverMsg)
+      showError(serverMsg)
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import { showSuccess, showError } from '../utils/toast'
 import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle } from 'lucide-react'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
 
@@ -99,7 +99,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Order error:', error)
-      toast.error('Failed to create order. Please try again.')
+      showError('Failed to create order. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -120,13 +120,13 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
 
       if (response.data.success) {
         // Show success and navigate
-        toast.success('Order placed successfully!')
+        showSuccess('Order placed successfully!')
         onClose()
         window.location.href = `/order/${orderId}`
       }
     } catch (error) {
       console.error('Payment verification error:', error)
-      toast.error('Payment verification failed')
+      showError('Payment verification failed')
     }
   }
 

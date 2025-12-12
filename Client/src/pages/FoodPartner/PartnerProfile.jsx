@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import { useNavigate } from 'react-router-dom'
@@ -94,10 +94,10 @@ const PartnerProfile = () => {
 
       setPartnerData(prev => ({ ...prev, bio: bioText }))
       setIsEditingBio(false)
-      toast.success('Bio updated successfully!')
+      showSuccess('Bio updated successfully!')
     } catch (error) {
       console.error('Error updating bio:', error)
-      toast.error('Error updating bio')
+      showError('Error updating bio')
     } finally {
       setBioLoading(false)
     }

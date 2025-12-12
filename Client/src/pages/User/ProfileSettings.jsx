@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig, multipartConfig } from '../../config/Api'
 import { 
   User, Mail, Phone, Save, ArrowLeft, Camera, Upload, 
@@ -90,7 +90,7 @@ const ProfileSettings = () => {
       if (error.response?.status === 401) {
         navigate('/login')
       } else {
-        toast.error('Failed to load profile')
+        showError('Failed to load profile')
       }
     } finally {
       setLoading(false)
@@ -126,11 +126,11 @@ const ProfileSettings = () => {
 
       if (response.data.user) {
         setUser(response.data.user)
-        toast.success('Profile updated successfully!')
+        showSuccess('Profile updated successfully!')
       }
     } catch (error) {
       console.error('Error updating profile:', error)
-      toast.error(error.response?.data?.error || 'Failed to update profile')
+      showError(error.response?.data?.error || 'Failed to update profile')
     } finally {
       setUpdating(false)
     }
@@ -142,13 +142,13 @@ const ProfileSettings = () => {
     setError('')
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match')
+      showError('New passwords do not match')
       setUpdating(false)
       return
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters long')
+      showError('New password must be at least 6 characters long')
       setUpdating(false)
       return
     }
@@ -163,11 +163,11 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      toast.success('Password changed successfully!')
+      showSuccess('Password changed successfully!')
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (error) {
       console.error('Error changing password:', error)
-      toast.error(error.response?.data?.error || 'Failed to change password')
+      showError(error.response?.data?.error || 'Failed to change password')
     } finally {
       setUpdating(false)
     }
@@ -185,10 +185,10 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      toast.success('Preferences updated successfully!')
+      showSuccess('Preferences updated successfully!')
     } catch (error) {
       console.error('Error updating preferences:', error)
-      toast.error(error.response?.data?.error || 'Failed to update preferences')
+      showError(error.response?.data?.error || 'Failed to update preferences')
     } finally {
       setUpdating(false)
     }
@@ -206,10 +206,10 @@ const ProfileSettings = () => {
         axiosConfig
       )
 
-      toast.success('Address updated successfully!')
+      showSuccess('Address updated successfully!')
     } catch (error) {
       console.error('Error updating address:', error)
-      toast.error(error.response?.data?.error || 'Failed to update address')
+      showError(error.response?.data?.error || 'Failed to update address')
     } finally {
       setUpdating(false)
     }
@@ -226,7 +226,7 @@ const ProfileSettings = () => {
         axiosConfig
       )
       
-      toast.success('Delivery address added successfully!')
+      showSuccess('Delivery address added successfully!')
       setAddresses(response.data.addresses || [])
       setShowAddressForm(false)
       setAddressForm({
@@ -240,7 +240,7 @@ const ProfileSettings = () => {
       })
     } catch (error) {
       console.error('Error adding address:', error)
-      toast.error(error.response?.data?.error || 'Failed to add address')
+      showError(error.response?.data?.error || 'Failed to add address')
     } finally {
       setUpdating(false)
     }
@@ -257,7 +257,7 @@ const ProfileSettings = () => {
         axiosConfig
       )
       
-      toast.success('Delivery address updated successfully!')
+      showSuccess('Delivery address updated successfully!')
       setAddresses(response.data.addresses || [])
       setEditingAddress(null)
       setShowAddressForm(false)
@@ -272,7 +272,7 @@ const ProfileSettings = () => {
       })
     } catch (error) {
       console.error('Error updating address:', error)
-      toast.error(error.response?.data?.error || 'Failed to update address')
+      showError(error.response?.data?.error || 'Failed to update address')
     } finally {
       setUpdating(false)
     }
@@ -290,11 +290,11 @@ const ProfileSettings = () => {
         axiosConfig
       )
       
-      toast.success('Address deleted successfully!')
+      showSuccess('Address deleted successfully!')
       setAddresses(response.data.addresses || [])
     } catch (error) {
       console.error('Error deleting address:', error)
-      toast.error(error.response?.data?.error || 'Failed to delete address')
+      showError(error.response?.data?.error || 'Failed to delete address')
     } finally {
       setUpdating(false)
     }
@@ -309,11 +309,11 @@ const ProfileSettings = () => {
         axiosConfig
       )
       
-      toast.success('Default address updated!')
+      showSuccess('Default address updated!')
       setAddresses(response.data.addresses || [])
     } catch (error) {
       console.error('Error setting default address:', error)
-      toast.error(error.response?.data?.error || 'Failed to set default address')
+      showError(error.response?.data?.error || 'Failed to set default address')
     } finally {
       setUpdating(false)
     }
@@ -364,11 +364,11 @@ const ProfileSettings = () => {
 
       if (response.data.profileImage) {
         setUser({ ...user, profileImage: response.data.profileImage })
-        toast.success('Profile picture updated successfully!')
+        showSuccess('Profile picture updated successfully!')
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      toast.error(error.response?.data?.error || 'Failed to upload profile picture')
+      showError(error.response?.data?.error || 'Failed to upload profile picture')
     } finally {
       setUpdating(false)
     }

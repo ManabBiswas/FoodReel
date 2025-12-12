@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showWarning } from '../utils/toast'
 import axios from 'axios'
 import {
   ShoppingBag,
@@ -45,7 +45,7 @@ const Checkout = () => {
   // Redirect if no order data
   useEffect(() => {
     if (!orderData) {
-      toast.error('No order data found. Please try again.')
+      showError('No order data found. Please try again.')
       navigate('/')
     }
   }, [orderData, navigate])
@@ -107,7 +107,7 @@ const Checkout = () => {
   // Handle place order
   const handlePlaceOrder = async () => {
     if (!validateDeliveryInfo()) {
-      toast.warning('Please fill all required fields')
+      showWarning('Please fill all required fields')
       setCurrentStep(1)
       return
     }
@@ -133,17 +133,17 @@ const Checkout = () => {
       )
 
       if (response.data) {
-        toast.success('Order placed successfully!')
+        showSuccess('Order placed successfully!')
         // Navigate to order confirmation or orders page
         navigate('/order/' + response.data.orderId, {
           state: { orderId: response.data.orderId }
         });
       } else {
-        toast.error('Failed to place order')
+        showError('Failed to place order')
       }
     } catch (error) {
       console.error('Order placement error:', error)
-      toast.error(error.response?.data?.message || 'Failed to place order')
+      showError(error.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
     }

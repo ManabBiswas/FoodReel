@@ -3,33 +3,24 @@ import { toast } from 'react-toastify'
 // Centralized toast notification helpers with React 19 compatibility
 const defaultOptions = {
   transition: undefined, // Disable transitions to avoid findDOMNode error
+  position: "top-center",
   hideProgressBar: false,
   closeOnClick: true,
   pauseOnHover: true,
   draggable: true,
+  theme: "colored",
 }
 
 export const showSuccess = (message) => {
   toast.success(message, {
     ...defaultOptions,
-    position: "top-left",
     autoClose: 3000,
-    // position: "top-right",
-    // autoClose: 1000,
-    hideProgressBar: false,
-    closeOnClick: false,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "colored",
-    // transition: Bounce,
   })
 }
 
 export const showError = (message) => {
   toast.error(message, {
     ...defaultOptions,
-    position: "top-center",
     autoClose: 4000,
   })
 }
@@ -37,7 +28,6 @@ export const showError = (message) => {
 export const showWarning = (message) => {
   toast.warning(message, {
     ...defaultOptions,
-    position: "top-right",
     autoClose: 3000,
   })
 }
@@ -45,7 +35,6 @@ export const showWarning = (message) => {
 export const showInfo = (message) => {
   toast.info(message, {
     ...defaultOptions,
-    position: "top-right",
     autoClose: 3000,
   })
 }

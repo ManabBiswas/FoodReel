@@ -15,7 +15,7 @@ import {
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-import { toast } from 'react-toastify'
+import { showError } from '../utils/toast'
 
 const OrderHistory = () => {
   const navigate = useNavigate()
@@ -40,7 +40,7 @@ const OrderHistory = () => {
     } catch (err) {
       console.error('Error fetching orders:', err)
       setError('Failed to load order history')
-      toast.error('Failed to load orders')
+      showError('Failed to load orders')
     } finally {
       setLoading(false)
     }

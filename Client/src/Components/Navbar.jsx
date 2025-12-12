@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle } from 'lucide-react'
+import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle, Plus } from 'lucide-react'
 import Logo from '../assets/logo.png'
 
 const Navbar = () => {
@@ -63,10 +63,13 @@ const Navbar = () => {
             {user && !partner && (
               <>
                 <Link to="/create-post" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
-                  <Film className="w-4 h-4" />
+                  <Plus className="w-4 h-4" />
                   <span>Create Post</span>
                 </Link>
-                <Link to="/order/history" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">My Orders</Link>
+                <Link to="/order/history" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>My Orders</span>
+                  </Link>
                 <Link to="/profile" className="text-gray-700 hover:text-red-500 transition cursor-pointer flex items-center gap-1">
                   <UserCircle className="w-4 h-4" />
                   <span>Profile</span>
@@ -85,15 +88,15 @@ const Navbar = () => {
               </button>
             ) : (
               <>
-                <Link 
-                  to="/partner-register" 
+                <Link
+                  to="/partner-register"
                   className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
                 >
                   <ChefHat className="w-4 h-4" />
                   <span>Join as Partner</span>
                 </Link>
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition cursor-pointer"
                 >
                   <User className="w-4 h-4" />
@@ -124,17 +127,17 @@ const Navbar = () => {
         <div className="sm:hidden bg-white border-t border-gray-100">
           <div className="px-4 pt-4 pb-4 space-y-3">
             {/* Common links for all */}
-            <Link 
-              to="/" 
-              onClick={() => setMobileOpen(false)} 
+            <Link
+              to="/"
+              onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
             >
               <Home className="w-5 h-5" />
               <span>Home</span>
             </Link>
-            <Link 
-              to="/reels" 
-              onClick={() => setMobileOpen(false)} 
+            <Link
+              to="/reels"
+              onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
             >
               <Film className="w-5 h-5" />
@@ -144,25 +147,25 @@ const Navbar = () => {
             {/* Partner-specific links */}
             {partner && (
               <>
-                <Link 
-                  to="/partner-dashboard" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/partner-dashboard"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
                   <ShoppingBag className="w-5 h-5" />
                   <span>Dashboard</span>
                 </Link>
-                <Link 
-                  to="/CreateFood" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/CreateFood"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
                   <ChefHat className="w-5 h-5" />
                   <span>Create Food</span>
                 </Link>
-                <Link 
-                  to="/partner-profile" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/partner-profile"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
                   <UserCircle className="w-5 h-5" />
@@ -174,25 +177,25 @@ const Navbar = () => {
             {/* User-specific links */}
             {user && !partner && (
               <>
-                <Link 
-                  to="/create-post" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/create-post"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
-                  <Film className="w-5 h-5" />
+                  <Plus className="w-5 h-5" />
                   <span>Create Post</span>
                 </Link>
-                <Link 
-                  to="/order/history" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/order/history"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
-                  <Film className="w-5 h-5" />
+                  <ShoppingBag className="w-5 h-5" />
                   <span>My Orders</span>
                 </Link>
-                <Link 
-                  to="/profile" 
-                  onClick={() => setMobileOpen(false)} 
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-gray-700 hover:text-red-500 transition cursor-pointer py-2"
                 >
                   <UserCircle className="w-5 h-5" />
@@ -216,17 +219,17 @@ const Navbar = () => {
                 </button>
               ) : (
                 <>
-                  <Link 
-                    to="/partner-register" 
-                    onClick={() => setMobileOpen(false)} 
+                  <Link
+                    to="/partner-register"
+                    onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
                   >
                     <ChefHat className="w-5 h-5" />
                     <span>Join as Partner</span>
                   </Link>
-                  <Link 
-                    to="/login" 
-                    onClick={() => setMobileOpen(false)} 
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition cursor-pointer"
                   >
                     <User className="w-5 h-5" />
