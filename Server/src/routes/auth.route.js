@@ -55,4 +55,10 @@ router.get('/partner/profile', isFoodPartnerLoggedin, foodPartnerAuthController.
 router.put('/partner/bio', isFoodPartnerLoggedin, foodPartnerAuthController.updateBio);
 router.get('/partner/reviews', isFoodPartnerLoggedin, foodPartnerAuthController.getReviews);
 
+// Admin Authentication Routes
+router.post('/admin/login', authController.adminLogin);
+router.post('/admin/logout', authController.adminLogout);
+router.get('/admin/verify', authController.adminVerify);
+router.get('/admin/profile', authController.adminProfile);
+
 export default router;
