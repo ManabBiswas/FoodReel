@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { 
@@ -27,19 +27,8 @@ const OrderConfirmation = () => {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    if (!orderId) {
-      setError('Order not found')
-      setLoading(false)
-      return
-    }
-
-    fetchOrderDetails()
-  }, [orderId])
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true)
       const response = await axios.get(
@@ -54,13 +43,21 @@ const OrderConfirmation = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    if (!orderId) {
+      setError('Order not found')
+      setLoading(false)
+      return
+    }
+
+    fetchOrderDetails()
+  }, [orderId, fetchOrderDetails])
 
   const copyOrderId = () => {
     navigator.clipboard.writeText(orderId)
-    setCopied(true)
     showSuccess('Order ID copied!')
-    setTimeout(() => setCopied(false), 2000)
   }
 
   const handleDownloadReceipt = () => {
