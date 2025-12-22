@@ -21,7 +21,6 @@ const OrderHistory = () => {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
 
@@ -39,7 +38,6 @@ const OrderHistory = () => {
       setOrders(response.data.orders || [])
     } catch (err) {
       console.error('Error fetching orders:', err)
-      setError('Failed to load order history')
       showError('Failed to load orders')
     } finally {
       setLoading(false)
