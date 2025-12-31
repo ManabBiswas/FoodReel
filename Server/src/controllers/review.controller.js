@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import reviewModel from "../models/review.model.js";
 import userModel from "../models/user.Model.js";
 import foodPartnerModel from "../models/foodPartner.Model.js";
@@ -147,7 +148,7 @@ export const getReviewsByFoodPartner = async (req, res) => {
 
         // Get rating distribution
         const ratingDistribution = await reviewModel.aggregate([
-            { $match: { foodPartner: mongoose.Types.ObjectId(foodPartnerId), isActive: true, status: 'approved' } },
+            { $match: { foodPartner: new mongoose.Types.ObjectId(foodPartnerId), isActive: true, status: 'approved' } },
             { $group: { _id: '$rating', count: { $sum: 1 } } },
             { $sort: { _id: -1 } }
         ]);
@@ -201,7 +202,7 @@ export const getReviewsByFoodItem = async (req, res) => {
 
         // Calculate average rating
         const avgRating = await reviewModel.aggregate([
-            { $match: { foodItem: mongoose.Types.ObjectId(foodItemId), isActive: true, status: 'approved' } },
+            { $match: { foodItem: new mongoose.Types.ObjectId(foodItemId), isActive: true, status: 'approved' } },
             { $group: { _id: null, avgRating: { $avg: '$rating' } } }
         ]);
 

@@ -17,11 +17,12 @@ const ReelReviewModal = ({
 }) => {
   if (!show || !item) return null
 
+  // FIXED: Use keys that match the review model schema
   const ratingCategories = [
-    { key: 'taste', label: 'Taste', icon: '😋' },
-    { key: 'presentation', label: 'Presentation', icon: '🎨' },
-    { key: 'value', label: 'Value', icon: '💰' },
-    { key: 'service', label: 'Service', icon: '⭐' }
+    { key: 'food', label: 'Food Quality', icon: '😋' },
+    { key: 'service', label: 'Service', icon: '⭐' },
+    { key: 'ambiance', label: 'Ambiance', icon: '🎨' },
+    { key: 'value', label: 'Value for Money', icon: '💰' }
   ]
 
   return (
@@ -51,7 +52,7 @@ const ReelReviewModal = ({
                 : 'text-white/60 hover:text-white/80'
             }`}
           >
-            All Reviews
+            All Reviews ({existingReviews.length})
           </button>
           <button
             onClick={() => onTabChange(false)}
@@ -86,12 +87,13 @@ const ReelReviewModal = ({
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center">
                         <span className="text-white font-bold">
-                          {review.user?.name?.[0]?.toUpperCase() || 'U'}
+                          {review.user?.firstName?.[0]?.toUpperCase() || 
+                           review.user?.name?.[0]?.toUpperCase() || 'U'}
                         </span>
                       </div>
                       <div className="flex-1">
                         <p className="text-white font-semibold">
-                          {review.user?.name || 'Anonymous'}
+                          {review.user?.firstName || review.user?.name || 'Anonymous'}
                         </p>
                         <div className="flex gap-1">
                           {[1, 2, 3, 4, 5].map(star => (
@@ -106,8 +108,89 @@ const ReelReviewModal = ({
                           ))}
                         </div>
                       </div>
+                      {review.isVerifiedPurchase && (
+                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+                          ✓ Verified
+                        </span>
+                      )}
                     </div>
-                    <p className="text-white/80 text-sm">{review.comment}</p>
+                    <p className="text-white/80 text-sm leading-relaxed">{review.comment}</p>
+                    
+                    {/* Show detailed ratings if available */}
+                    {review.ratings && Object.keys(review.ratings).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {review.ratings.food > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/60">Food:</span>
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Star
+                                    key={s}
+                                    className={`w-2.5 h-2.5 ${
+                                      s <= review.ratings.food
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-white/20'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {review.ratings.service > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/60">Service:</span>
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Star
+                                    key={s}
+                                    className={`w-2.5 h-2.5 ${
+                                      s <= review.ratings.service
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-white/20'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {review.ratings.ambiance > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/60">Ambiance:</span>
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Star
+                                    key={s}
+                                    className={`w-2.5 h-2.5 ${
+                                      s <= review.ratings.ambiance
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-white/20'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {review.ratings.value > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/60">Value:</span>
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Star
+                                    key={s}
+                                    className={`w-2.5 h-2.5 ${
+                                      s <= review.ratings.value
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-white/20'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -115,8 +198,35 @@ const ReelReviewModal = ({
           ) : (
             /* Write Review Form */
             <div className="space-y-6">
+              {/* Overall Rating Display */}
+              {reviewData.rating > 0 && (
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/80 font-medium">Overall Rating:</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <= reviewData.rating
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-white/30'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-white font-bold text-lg">
+                        {reviewData.rating}/5
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Rating Categories */}
               <div className="space-y-4">
+                <p className="text-white/60 text-sm">Rate different aspects:</p>
                 {ratingCategories.map(category => (
                   <div key={category.key}>
                     <label className="text-white font-semibold mb-2 flex items-center gap-2">
@@ -129,17 +239,22 @@ const ReelReviewModal = ({
                           key={star}
                           type="button"
                           onClick={() => onRatingChange(category.key, star)}
-                          className="transition-transform hover:scale-110"
+                          className="transition-transform hover:scale-110 active:scale-95"
                         >
                           <Star 
                             className={`w-6 h-6 ${
-                              star <= reviewData.ratings[category.key] 
+                              star <= (reviewData.ratings[category.key] || 0)
                                 ? 'text-yellow-400 fill-yellow-400' 
-                                : 'text-white/30'
+                                : 'text-white/30 hover:text-white/50'
                             } transition-all`}
                           />
                         </button>
                       ))}
+                      {reviewData.ratings[category.key] > 0 && (
+                        <span className="text-white/60 text-sm ml-2 self-center">
+                          {reviewData.ratings[category.key]}/5
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -147,20 +262,32 @@ const ReelReviewModal = ({
 
               {/* Comment */}
               <div>
-                <label className="text-white font-semibold mb-2 block">Your Review</label>
+                <label className="text-white font-semibold mb-2 block">
+                  Your Review
+                  <span className="text-red-400 ml-1">*</span>
+                </label>
                 <textarea
                   value={reviewData.comment}
                   onChange={onCommentChange}
-                  placeholder="Share your experience..."
+                  placeholder="Share your experience... What did you like? What could be improved?"
                   className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 transition-colors resize-none h-32"
+                  maxLength={1000}
                 />
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-white/40 text-xs">
+                    Share your honest experience
+                  </span>
+                  <span className="text-white/40 text-xs">
+                    {reviewData.comment.length}/1000
+                  </span>
+                </div>
               </div>
 
               {/* Submit Button */}
               <button
                 onClick={onSubmit}
-                disabled={submittingReview}
-                className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={submittingReview || reviewData.rating === 0 || !reviewData.comment.trim()}
+                className="w-full bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               >
                 {submittingReview ? (
                   <>
@@ -174,6 +301,12 @@ const ReelReviewModal = ({
                   </>
                 )}
               </button>
+              
+              {reviewData.rating === 0 && (
+                <p className="text-orange-400 text-xs text-center -mt-2">
+                  Please rate at least one category to continue
+                </p>
+              )}
             </div>
           )}
         </div>

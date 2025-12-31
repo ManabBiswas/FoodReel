@@ -18,7 +18,7 @@ const Reel = () => {
   const [selectedFoodForOrder, setSelectedFoodForOrder] = useState(null)
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
   const [openShopFor, setOpenShopFor] = useState(null)
-
+  
   // New states for follow and review
   const [followingStatus, setFollowingStatus] = useState({})
   const [savedPosts, setSavedPosts] = useState({})
@@ -35,10 +35,10 @@ const Reel = () => {
   const [existingReviews, setExistingReviews] = useState([])
   const [loadingReviews, setLoadingReviews] = useState(false)
   const [showReviewsList, setShowReviewsList] = useState(true)
-
+  
   // Store current user ID
   const [currentUserId, setCurrentUserId] = useState(null)
-
+  
   const containerRef = useRef(null)
   const videoRefs = useRef([])
   const hasInitializedInteractions = useRef(false)
@@ -52,23 +52,23 @@ const Reel = () => {
     const fetchData = async () => {
       try {
         setLoading(true)
-
+        
         // Fetch food posts (partner posts)
         const postsResponse = await axios.get(API_ENDPOINTS.food.getAll, axiosConfig)
         console.log('Food Posts API Response:', postsResponse.data)
-
+        
         // Fetch user posts
         const userPostsResponse = await axios.get(API_ENDPOINTS.userPost.getAll, axiosConfig)
         console.log('User Posts API Response:', userPostsResponse.data)
-
+        
         // Fetch advertisements
         const adsResponse = await axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
         console.log('Ads API Response:', adsResponse.data)
-
+        
         let mappedPosts = []
         let mappedUserPosts = []
         let mappedAds = []
-
+        
         // Map partner food posts
         if (postsResponse.data.data) {
           mappedPosts = postsResponse.data.data.map(post => ({
@@ -94,7 +94,7 @@ const Reel = () => {
             createdAt: post.createdAt || new Date().toISOString()
           }))
         }
-
+        
         // Map user posts
         if (userPostsResponse.data.data) {
           mappedUserPosts = userPostsResponse.data.data.map(post => ({
@@ -123,7 +123,7 @@ const Reel = () => {
             createdAt: post.createdAt || new Date().toISOString()
           }))
         }
-
+        
         if (adsResponse.data.data) {
           mappedAds = adsResponse.data.data.map(ad => ({
             _id: ad._id,
@@ -143,17 +143,17 @@ const Reel = () => {
             createdAt: ad.createdAt || new Date().toISOString()
           }))
         }
-
+        
         // Merge partner posts and user posts, then combine with ads
-        const allPosts = [...mappedPosts, ...mappedUserPosts].sort((a, b) =>
+        const allPosts = [...mappedPosts, ...mappedUserPosts].sort((a, b) => 
           new Date(b.createdAt) - new Date(a.createdAt)
         )
-
+        
         // Combine posts and ads
         const combined = insertAdsIntoPosts(allPosts, mappedAds)
         console.log('Combined content with ads:', combined)
         setCombinedContent(combined)
-
+        
       } catch (error) {
         console.error('Error fetching data:', error)
         showError('Failed to load reels. Please refresh the page.')
@@ -161,30 +161,30 @@ const Reel = () => {
         setLoading(false)
       }
     }
-
+    
     fetchData()
   }, [])
 
   const insertAdsIntoPosts = (posts, ads) => {
     if (ads.length === 0) return posts
-
+    
     const combined = []
     const adFrequency = 2
     let adIndex = 0
-
+    
     posts.forEach((post, index) => {
       combined.push(post)
-
+      
       if ((index + 1) % adFrequency === 0 && adIndex < ads.length) {
         combined.push(ads[adIndex])
         adIndex = (adIndex + 1) % ads.length
       }
     })
-
+    
     if (combined.length === posts.length && ads.length > 0) {
       combined.push(ads[0])
     }
-
+    
     return combined
   }
 
@@ -217,7 +217,7 @@ const Reel = () => {
       if (idx === currentIndex) {
         const playPromise = video.play()
         if (playPromise !== undefined) {
-          playPromise.catch(() => { })
+          playPromise.catch(() => {})
         }
         setPlaying(true)
       } else {
@@ -230,27 +230,27 @@ const Reel = () => {
 
   const handleLike = useCallback(async (postId, postSource) => {
     try {
-      const endpoint = postSource === 'user'
+      const endpoint = postSource === 'user' 
         ? API_ENDPOINTS.userPost.like(postId)
         : API_ENDPOINTS.food.like(postId)
-
+      
       // Store previous state for rollback
       const wasLiked = likedPosts[postId] || false
-
+      
       // Optimistically update UI immediately
       setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }))
-
+      
       const response = await axios.post(endpoint, {}, axiosConfig)
       console.log('Like response:', response.data)
-
+      
       // Update combinedContent with new likeCount AND likes array
       setCombinedContent(prev => prev.map(item => {
         if (item._id === postId && item.type === 'post') {
           const newLikeCount = response.data.likeCount || response.data.likes || item.likeCount
-
+          
           // Update the likes array to reflect current state
           let updatedLikes = [...(item.likes || [])]
-
+          
           if (response.data.isLiked) {
             // Add current user to likes array if not already present
             if (currentUserId && !updatedLikes.includes(currentUserId)) {
@@ -265,7 +265,7 @@ const Reel = () => {
               })
             }
           }
-
+          
           return {
             ...item,
             likeCount: newLikeCount,
@@ -274,16 +274,16 @@ const Reel = () => {
         }
         return item
       }))
-
+      
       // Confirm the liked state from server
       setLikedPosts(prev => ({ ...prev, [postId]: response.data.isLiked }))
-
+      
     } catch (error) {
       console.error('Error liking post:', error)
-
+      
       // Revert optimistic update on error
       setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
-
+      
       if (error.response?.status === 401) {
         showError('Please login to like posts')
       } else {
@@ -296,9 +296,9 @@ const Reel = () => {
     try {
       const wasSaved = savedPosts[postId]
       setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
-
+      
       await axios.post(API_ENDPOINTS.food.save(postId), {}, axiosConfig)
-
+      
       if (!wasSaved) {
         showSuccess('Post saved!')
       } else {
@@ -307,7 +307,7 @@ const Reel = () => {
     } catch (error) {
       console.error('Error saving post:', error)
       setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
-
+      
       if (error.response?.status === 401) {
         showError('Please login to save posts')
       } else {
@@ -319,11 +319,11 @@ const Reel = () => {
   const handleFollow = useCallback(async (targetId, targetType) => {
     try {
       const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString()
-
+      
       const isFollowing = followingStatus[targetIdStr]
-
+      
       setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }))
-
+      
       if (isFollowing) {
         await axios.post(
           API_ENDPOINTS.follow.unfollow,
@@ -341,10 +341,10 @@ const Reel = () => {
       }
     } catch (error) {
       console.error('Error toggling follow:', error)
-
+      
       const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString()
       setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }))
-
+      
       if (error.response?.status === 401) {
         showError('Please login to follow')
       } else {
@@ -363,38 +363,38 @@ const Reel = () => {
       comment: '',
       ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
     })
-
+    
     await fetchReviews(item)
   }, [])
-
+  
   const fetchReviews = async (item) => {
     setLoadingReviews(true)
     try {
       let endpoint = null
-
+      
       if (item.postSource === 'partner' && item.partnerId?._id) {
         endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
       } else if (item.foodId) {
         endpoint = API_ENDPOINTS.reviews.byFood(item.foodId)
       }
-
+      
       if (endpoint) {
         const response = await axios.get(endpoint, axiosConfig)
         const reviews = response.data.data || response.data.reviews || []
         setExistingReviews(reviews)
-
+        
         try {
           const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
           const userId = (userProfileResponse.data.user || userProfileResponse.data)?._id
-
+          
           if (userId) {
-            const hasReviewed = reviews.some(review =>
+            const hasReviewed = reviews.some(review => 
               review.user?._id?.toString() === userId.toString() ||
               review.userId?.toString() === userId.toString()
             )
-
+            
             setUserHasReviewed(hasReviewed)
-
+            
             if (hasReviewed) {
               showInfo('You have already reviewed this item')
             }
@@ -434,23 +434,23 @@ const Reel = () => {
       showWarning('You have already reviewed this item')
       return
     }
-
+    
     if (reviewData.rating === 0) {
       showWarning('Please select a rating')
       return
     }
-
+    
     if (!reviewData.comment.trim()) {
       showWarning('Please write a comment')
       return
     }
 
     setSubmittingReview(true)
-
+    
     try {
       const reviewPayload = {
-        foodPartnerId: currentReviewItem.postSource === 'partner'
-          ? currentReviewItem.partnerId._id
+        foodPartnerId: currentReviewItem.postSource === 'partner' 
+          ? currentReviewItem.partnerId._id 
           : currentReviewItem.taggedPartner?._id,
         foodItemId: currentReviewItem.foodId,
         rating: reviewData.rating,
@@ -468,7 +468,7 @@ const Reel = () => {
       setUserHasReviewed(true)
       await fetchReviews(currentReviewItem)
       setShowReviewsList(true)
-
+      
       setReviewData({
         rating: 0,
         comment: '',
@@ -491,7 +491,7 @@ const Reel = () => {
   // Check all user interactions on load - ONLY ONCE
   useEffect(() => {
     if (hasInitializedInteractions.current || combinedContent.length === 0) return
-
+    
     const checkUserInteractions = async () => {
       try {
         // Fetch user profile
@@ -506,29 +506,29 @@ const Reel = () => {
 
         const userId = userProfile._id?.toString()
         if (!userId) return
-
+        
         // Store user ID for later use
         setCurrentUserId(userId)
 
         const followingChecks = {}
         const likedChecks = {}
         const savedChecks = {}
-
+        
         const savedFoodIds = new Set(
-          (userProfile.savedFoods || []).map(item =>
+          (userProfile.savedFoods || []).map(item => 
             typeof item === 'string' ? item : item._id?.toString() || item.toString()
           )
         )
         const savedPostIds = new Set(
-          (userProfile.savedPosts || []).map(item =>
+          (userProfile.savedPosts || []).map(item => 
             typeof item === 'string' ? item : item._id?.toString() || item.toString()
           )
         )
-
+        
         for (const item of combinedContent) {
           if (item.type === 'post') {
             const postId = item._id.toString()
-
+            
             // Check if post is liked
             if (item.likes && Array.isArray(item.likes)) {
               likedChecks[postId] = item.likes.some(likeId => {
@@ -538,18 +538,18 @@ const Reel = () => {
             } else {
               likedChecks[postId] = false
             }
-
+            
             // Check if post is saved
             if (item.postSource === 'user') {
               savedChecks[postId] = savedPostIds.has(postId)
             } else {
               savedChecks[postId] = savedFoodIds.has(postId)
             }
-
+            
             // Check following status
             let targetId = null
             let targetType = null
-
+            
             if (item.postSource === 'partner' && item.partnerId?._id) {
               targetId = item.partnerId._id.toString()
               targetType = 'FoodPartner'
@@ -557,7 +557,7 @@ const Reel = () => {
               targetId = item.postedBy._id.toString()
               targetType = 'User'
             }
-
+            
             if (targetId && targetType && targetId !== userId) {
               if (!(targetId in followingChecks)) {
                 try {
@@ -573,7 +573,7 @@ const Reel = () => {
             }
           }
         }
-
+        
         console.log('Initialized states:', {
           totalPostsChecked: Object.keys(likedChecks).length,
           actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
@@ -582,19 +582,19 @@ const Reel = () => {
           totalUsersChecked: Object.keys(followingChecks).length,
           actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
         })
-
+        
         setFollowingStatus(followingChecks)
         setLikedPosts(likedChecks)
         setSavedPosts(savedChecks)
-
+        
         // Mark as initialized
         hasInitializedInteractions.current = true
-
+        
       } catch (error) {
         console.error('Error checking user interactions:', error)
       }
     }
-
+    
     checkUserInteractions()
   }, [combinedContent])
 
@@ -634,7 +634,7 @@ const Reel = () => {
       description: food.originalFoodDescription || food.taggedFood.description || food.description,
       foodImageUrl: food.foodImageUrl
     } : food
-
+    
     setSelectedFoodForOrder(orderData)
     setIsOrderModalOpen(true)
   }, [])
@@ -678,7 +678,7 @@ const Reel = () => {
     const now = new Date()
     const diffTime = Math.abs(now - date)
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
+    
     if (diffDays === 0) return 'Today'
     if (diffDays === 1) return 'Yesterday'
     if (diffDays < 7) return `${diffDays} days ago`
@@ -712,7 +712,7 @@ const Reel = () => {
 
   return (
     <>
-      <div
+      <div 
         ref={containerRef}
         className="fixed inset-0 bg-black overflow-y-scroll snap-y snap-mandatory scroll-smooth hide-scrollbar"
         style={{
@@ -748,7 +748,7 @@ const Reel = () => {
         ))}
       </div>
 
-      <QuickOrderModal
+      <QuickOrderModal 
         food={selectedFoodForOrder}
         isOpen={isOrderModalOpen}
         onClose={handleCloseOrderModal}
@@ -764,13 +764,23 @@ const Reel = () => {
         loadingReviews={loadingReviews}
         onClose={closeReviewModal}
         onSubmit={handleSubmitReview}
-        onRatingChange={(category, value) =>
-          setReviewData(prev => ({
-            ...prev,
-            ratings: { ...prev.ratings, [category]: value }
-          }))
+        onRatingChange={(category, value) => 
+          setReviewData(prev => {
+            const newRatings = { ...prev.ratings, [category]: value }
+            // Calculate average rating from all categories
+            const values = Object.values(newRatings).filter(v => v > 0)
+            const avgRating = values.length > 0 
+              ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+              : 0
+            
+            return {
+              ...prev,
+              rating: avgRating, // Update main rating
+              ratings: newRatings
+            }
+          })
         }
-        onCommentChange={(e) =>
+        onCommentChange={(e) => 
           setReviewData(prev => ({ ...prev, comment: e.target.value }))
         }
         onTabChange={setShowReviewsList}
