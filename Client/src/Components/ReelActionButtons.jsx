@@ -1,79 +1,115 @@
+import { useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { Heart, MessageCircle, Share2, Bookmark, BookmarkCheck, Star, ShoppingBag, VolumeX, Volume2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ReelActionButtons = ({
     item,
-    likedPosts, 
+    likedPosts,
     savedPosts,
     muted,
     onLike,
     onSave,
-    //   onShare,
     onReview,
     onShopToggle,
     onToggleMute,
     formatCount
 }) => {
-    const { user, isAuthenticated } = useAuth();
-    const nevigate = useNavigate();
-    
-    // redirect to login if not login act as a middleware
-    const redirect = () => {
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+
+    // Centralized authentication handler
+    const handleAuthenticatedAction = useCallback((action) => {
         if (!isAuthenticated) {
-            alert("Please login first");
-            setTimeout(() => { nevigate('/login') }, 1000);
+            navigate('/login', {
+                state: {
+                    message: 'Please login first',
+                    from: window.location.pathname
+                }
+            });
+            return;
         }
-    }
+        action();
+    }, [isAuthenticated, navigate]);
+
+    // Memoized handlers
+    const handleLike = useCallback(() => {
+        handleAuthenticatedAction(() => onLike(item._id, item.postSource));
+    }, [handleAuthenticatedAction, onLike, item._id, item.postSource]);
+
+    const handleReview = useCallback(() => {
+        handleAuthenticatedAction(() => onReview(item));
+    }, [handleAuthenticatedAction, onReview, item]);
+
+    const handleSave = useCallback(() => {
+        handleAuthenticatedAction(() => onSave(item._id));
+    }, [handleAuthenticatedAction, onSave, item._id]);
+
+    const handleShopToggle = useCallback(() => {
+        handleAuthenticatedAction(() => onShopToggle(item._id));
+    }, [handleAuthenticatedAction, onShopToggle, item._id]);
+
+    // Shared styles
+    const buttonContainer = "w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all";
+    const iconSize = "w-5 h-5 sm:w-6 sm:h-6";
+    const textSize = "text-white text-[10px] sm:text-xs font-semibold";
 
     return (
         <div className="absolute -right-4 sm:right-4 bottom-36 md:bottom-56 sm:bottom-64 flex flex-col gap-3 sm:gap-4 z-10">
             {/* Like Button */}
             <button
-                onClick={() => { redirect(); onLike(item._id, item.postSource) }}
+                onClick={handleLike}
                 className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+                aria-label={likedPosts[item._id] ? "Unlike post" : "Like post"}
             >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all ${likedPosts[item._id] ? 'bg-red-500/30' : ''}`}>
-                    <Heart className={`w-5 h-5 sm:w-6 sm:h-6 transition-all ${likedPosts[item._id] ? 'fill-red-500 text-red-500 animate-scale-in' : 'text-white group-hover:fill-red-500 group-hover:text-red-500'}`} />
+                <div className={`${buttonContainer} ${likedPosts[item._id] ? 'bg-red-500/30' : ''}`}>
+                    <Heart
+                        className={`${iconSize} transition-all ${likedPosts[item._id]
+                                ? 'fill-red-500 text-red-500 animate-scale-in'
+                                : 'text-white group-hover:fill-red-500 group-hover:text-red-500'
+                            }`}
+                    />
                 </div>
-                <span className="text-white text-[10px] sm:text-xs font-semibold">
+                <span className={textSize}>
                     {formatCount(item.likeCount || 0)}
                 </span>
             </button>
 
             {/* Review Button */}
             <button
-                onClick={() => { redirect(); onReview(item) }}
+                onClick={handleReview}
                 className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+                aria-label="Review post"
             >
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                    <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:fill-yellow-400 group-hover:text-yellow-400 transition-all" />
+                <div className={buttonContainer}>
+                    <Star className={`${iconSize} text-white group-hover:fill-yellow-400 group-hover:text-yellow-400 transition-all`} />
                 </div>
             </button>
 
-
             {/* Save Button */}
             <button
-                onClick={() => { redirect(); onSave(item._id) }}
+                onClick={handleSave}
                 className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+                aria-label={savedPosts[item._id] ? "Unsave post" : "Save post"}
             >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all cursor-pointer ${savedPosts[item._id] ? 'bg-orange-500/30' : ''}`}>
+                <div className={`${buttonContainer} ${savedPosts[item._id] ? 'bg-orange-500/30' : ''}`}>
                     {savedPosts[item._id] ? (
-                        <BookmarkCheck className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400 fill-orange-400 animate-scale-in" />
+                        <BookmarkCheck className={`${iconSize} text-orange-400 fill-orange-400 animate-scale-in`} />
                     ) : (
-                        <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-white  group-hover:fill-green-400 group-hover:text-green-400 transition-all" />
+                        <Bookmark className={`${iconSize} text-white group-hover:fill-green-400 group-hover:text-green-400 transition-all`} />
                     )}
                 </div>
             </button>
 
-            {/* Shop Button */}
-            {user && item.price && (
+            {/* Shop Button - Only show if authenticated AND has price */}
+            {isAuthenticated && item.price && (
                 <button
-                    onClick={() => { redirect(); onShopToggle(item._id) }}
+                    onClick={handleShopToggle}
                     className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+                    aria-label="Shop this item"
                 >
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/20 transition-all">
-                        <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className={buttonContainer}>
+                        <ShoppingBag className={`${iconSize} text-white group-hover:text-green-400 transition-all`} />
                     </div>
                 </button>
             )}
@@ -82,12 +118,13 @@ const ReelActionButtons = ({
             {item.mediaType === 'video' && (
                 <button
                     onClick={onToggleMute}
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all"
+                    className={`${buttonContainer} hover:bg-white/20`}
+                    aria-label={muted ? "Unmute video" : "Mute video"}
                 >
                     {muted ? (
-                        <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        <VolumeX className={`${iconSize} text-white`} />
                     ) : (
-                        <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        <Volume2 className={`${iconSize} text-white`} />
                     )}
                 </button>
             )}
