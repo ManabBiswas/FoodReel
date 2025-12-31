@@ -12,8 +12,7 @@ const UserProfile = () => {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('posts')
   const [userPosts, setUserPosts] = useState([])
-  const [likedFoods, setLikedFoods] = useState([])
-  const [savedFoods, setSavedFoods] = useState([])
+  const [savedItems, setSavedItems] = useState([]) // Combined saved foods and posts
   const navigate = useNavigate()
 
   const fetchUserData = useCallback(async () => {
@@ -23,9 +22,19 @@ const UserProfile = () => {
 
       if (response.data) {
         setUser(response.data)
-        // These would come from separate API calls when you implement favorites/saved items
-        setLikedFoods(response.data.likedFoods || [])
-        setSavedFoods(response.data.savedFoods || [])
+        
+        // Combine savedFoods and savedPosts into one array
+        const combinedSaved = [
+          ...(response.data.savedFoods || []).map(food => ({
+            ...food,
+            itemType: 'food'
+          })),
+          ...(response.data.savedPosts || []).map(post => ({
+            ...post,
+            itemType: 'post'
+          }))
+        ]
+        setSavedItems(combinedSaved)
         setError('')
 
         // Fetch user's posts
@@ -36,7 +45,6 @@ const UserProfile = () => {
           }
         } catch (postsError) {
           console.error('Error fetching user posts:', postsError)
-          // Optional: Show toast for post fetch errors only if critical
         }
       } else {
         navigate('/login')
@@ -189,12 +197,12 @@ const UserProfile = () => {
               <span className="text-gray-600 text-xs">posts</span>
             </div>
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">0</span>
-              <span className="text-gray-600 text-xs">orders</span>
+              <span className="font-semibold text-gray-900 block">{user?.followersCount || 0}</span>
+              <span className="text-gray-600 text-xs">followers</span>
             </div>
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">{likedFoods.length + savedFoods.length}</span>
-              <span className="text-gray-600 text-xs">favorites</span>
+              <span className="font-semibold text-gray-900 block">{user?.followingCount || 0}</span>
+              <span className="text-gray-600 text-xs">following</span>
             </div>
           </div>
 
@@ -225,17 +233,6 @@ const UserProfile = () => {
                 <span className="hidden sm:inline">Posts</span>
               </button>
               <button
-                onClick={() => setActiveTab('favorites')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'favorites'
-                    ? 'text-gray-900 border-t-2 border-gray-900'
-                    : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <Heart className="w-4 h-4" />
-                <span className="hidden sm:inline">Favorites ({likedFoods.length})</span>
-                <span className="sm:hidden">{likedFoods.length}</span>
-              </button>
-              <button
                 onClick={() => setActiveTab('saved')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'saved'
                     ? 'text-gray-900 border-t-2 border-gray-900'
@@ -243,8 +240,8 @@ const UserProfile = () => {
                   }`}
               >
                 <Bookmark className="w-4 h-4" />
-                <span className="hidden sm:inline">Saved ({savedFoods.length})</span>
-                <span className="sm:hidden">{savedFoods.length}</span>
+                <span className="hidden sm:inline">Saved ({savedItems.length})</span>
+                <span className="sm:hidden">{savedItems.length}</span>
               </button>
             </div>
           </div>
@@ -305,43 +302,31 @@ const UserProfile = () => {
               )}
             </div>
           )}
-          {activeTab === 'favorites' && (
-            <div className="px-4 py-6">
-              {likedFoods.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {likedFoods.map((food) => (
-                    <div key={food._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                      <img
-                        src={food.thumbnail?.url || food.thumbnail}
-                        alt={food.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-gray-900 flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-gray-900" />
-                  </div>
-                  <h3 className="text-xl font-light text-gray-900 mb-2">No Favorites Yet</h3>
-                  <p className="text-gray-500">Start exploring and heart your favorite food items</p>
-                </div>
-              )}
-            </div>
-          )}
 
           {activeTab === 'saved' && (
             <div className="px-4 py-6">
-              {savedFoods.length > 0 ? (
+              {savedItems.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {savedFoods.map((food) => (
-                    <div key={food._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                      <img
-                        src={food.thumbnail?.url || food.thumbnail}
-                        alt={food.name}
-                        className="w-full h-full object-cover"
-                      />
+                  {savedItems.map((item) => (
+                    <div key={item._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
+                      {item.itemType === 'food' ? (
+                        <img
+                          src={item.image || item.video}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={item.image || item.video}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-white text-xs font-medium truncate">
+                          {item.itemType === 'food' ? item.name : item.title}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -351,7 +336,7 @@ const UserProfile = () => {
                     <Bookmark className="w-6 h-6 text-gray-900" />
                   </div>
                   <h3 className="text-xl font-light text-gray-900 mb-2">No Saved Items</h3>
-                  <p className="text-gray-500">Save food items you want to order later</p>
+                  <p className="text-gray-500">Save food items and posts you want to revisit later</p>
                 </div>
               )}
             </div>

@@ -118,7 +118,27 @@ async function login(req, res) {
 
 async function getProfile(req, res) {
     try {
-        const user = req.user;
+        const userId = req.user._id;
+        
+        // Populate savedFoods and savedPosts with actual data
+        const user = await userModel.findById(userId)
+            .populate({
+                path: 'savedFoods',
+                select: 'name description image video price isAvailable type'
+            })
+            .populate({
+                path: 'savedPosts',
+                select: 'title description image video type postedBy createdAt likeCount commentCount',
+                populate: {
+                    path: 'postedBy',
+                    select: 'firstName lastName profileImage'
+                }
+            });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
         res.status(200).json({
             _id: user._id,
             firstName: user.firstName,
@@ -131,10 +151,15 @@ async function getProfile(req, res) {
             isEmailVerified: user.isEmailVerified,
             isMobileVerified: user.isMobileVerified,
             profileImage: user.profileImage ? `data:image/jpeg;base64,${user.profileImage.toString('base64')}` : null,
+            savedFoods: user.savedFoods || [],
+            savedPosts: user.savedPosts || [],
+            followersCount: user.followersCount || 0,
+            followingCount: user.followingCount || 0,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt
         });
     } catch (error) {
+        console.error('Error in getProfile:', error);
         res.status(400).json({ error: error.message });
     }
 }
