@@ -26,7 +26,9 @@ const MenuBarBottom = () => {
       icon: <Film className="h-4 w-4 text-amber-50" />
     },
     {
-      path: '/CreateFood',
+      path: isAuthenticated
+        ? (isPartner ? '/create-food' : '/create-post')
+        : (isPartner ? '/partner-login' : '/login'),
       label: 'Create',
       icon: <FaPlus className="h-4 w-4 text-amber-50" />
     },
@@ -54,8 +56,8 @@ const MenuBarBottom = () => {
               key={item.path}
               to={item.path}
               className={`flex flex-col items-center py-1 rounded-2xl transition-all duration-300 group relative ${isActive
-                  ? 'text-white transform scale-105'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400'
+                ? 'text-white transform scale-105'
+                : 'text-gray-600 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400'
                 }`}
             >
               {/* Active background with glassmorphism */}
