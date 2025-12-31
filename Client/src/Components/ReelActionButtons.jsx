@@ -55,7 +55,7 @@ const ReelActionButtons = ({
     const textSize = "text-white text-[10px] sm:text-xs font-semibold";
 
     return (
-        <div className="absolute -right-4 sm:right-4 bottom-36 md:bottom-56 sm:bottom-64 flex flex-col gap-3 sm:gap-4 z-10">
+        <div className="absolute -right-4 sm:right-4 sm:top-36 md:top-42 lg:top-48 flex flex-col gap-3 sm:gap-4 z-10">
             {/* Like Button */}
             <button
                 onClick={handleLike}

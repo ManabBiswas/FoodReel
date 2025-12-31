@@ -5,7 +5,7 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
   if (item.type !== 'post') return null
 
   return (
-    <div className="absolute bottom-6 left-0 right-0 p-3 pb-24 sm:pb-8 z-10">
+    <div className="absolute bottom-6 left-0 right-0 p-3 pb-12 sm:pb-12 z-10">
       <div className="max-w-full pr-16 sm:pr-20">
         {/* Partner Post Content */}
         {item.postSource === 'partner' && item.partnerId && (
