@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import API_ENDPOINTS, { axiosConfig } from '../config/Api'
+import { showSuccess, showError, showWarning, showInfo } from '../utils/toast'
+import { ChefHat } from 'lucide-react'
 // import { useAuth } from '../Contexts/AuthContext'
 import ReelArea from '../Components/ReelArea'
 import ReelReviewModal from '../Components/ReelReviewModal'
@@ -24,6 +26,7 @@ const Reel = () => {
   const [likedPosts, setLikedPosts] = useState({})
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [currentReviewItem, setCurrentReviewItem] = useState(null)
+  const [userHasReviewed, setUserHasReviewed] = useState(false)
   const [reviewData, setReviewData] = useState({
     rating: 0,
     comment: '',
@@ -82,7 +85,8 @@ const Reel = () => {
             price: (post.price && post.isAvailable !== false) ? post.price : null,
             preparationTime: post.preparationTime || null,
             isAvailable: post.isAvailable !== false,
-            likes: post.likeCount || 0,
+            likes: post.likes || [], // Array of user IDs who liked
+            likeCount: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
             shares: post.shares || 0,
@@ -114,7 +118,8 @@ const Reel = () => {
             // Store original food data for ordering
             originalFoodName: post.taggedFood?.name || null,
             originalFoodDescription: post.taggedFood?.description || null,
-            likes: post.likeCount || 0,
+            likes: post.likes || [], // Array of user IDs who liked
+            likeCount: post.likeCount || 0,
             comments: post.commentCount || 0,
             views: post.views || 0,
             shares: post.shares || 0,
@@ -154,7 +159,7 @@ const Reel = () => {
         
       } catch (error) {
         console.error('Error fetching data:', error)
-        console.error('Failed to fetch data. Please try again.')
+        showError('Failed to load reels. Please refresh the page.')
       } finally {
         setLoading(false)
       }
@@ -244,73 +249,102 @@ const Reel = () => {
         ? API_ENDPOINTS.userPost.like(postId)
         : API_ENDPOINTS.food.like(postId)
       
+      // Optimistically update UI immediately
+      setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      
       const response = await axios.post(endpoint, {}, axiosConfig)
       console.log('Like response:', response.data)
       
-      // Optimistically update UI with animation
-      setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
-      
-      setCombinedContent(combinedContent.map(item => 
-        item._id === postId && item.type === 'post'
-          ? { 
-              ...item, 
-              likes: response.data.liked 
-                ? (item.likes || 0) + 1 
-                : Math.max(0, (item.likes || 0) - 1)
-            }
-          : item
-      ))
+      // Update like count and maintain likes array consistency
+      setCombinedContent(combinedContent.map(item => {
+        if (item._id === postId && item.type === 'post') {
+          return {
+            ...item,
+            likeCount: response.data.likeCount || response.data.likes || item.likeCount
+          }
+        }
+        return item
+      }))
     } catch (error) {
       console.error('Error liking post:', error)
-      console.error(error.response?.data?.message || 'Failed to like post. Please login first.')
+      // Revert optimistic update on error
+      setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      
+      if (error.response?.status === 401) {
+        showError('Please login to like posts')
+      } else {
+        showError(error.response?.data?.message || 'Failed to like post')
+      }
     }
   }
 
   const handleSave = async (postId) => {
     try {
-      await axios.post(API_ENDPOINTS.food.save(postId), {}, axiosConfig)
-      
-      // Update saved status with animation
+      // Optimistically update UI
+      const wasSaved = savedPosts[postId]
       setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
       
-      // Show feedback
-      const isSaved = !savedPosts[postId]
-      const message = isSaved ? 'Post saved!' : 'Post unsaved'
+      await axios.post(API_ENDPOINTS.food.save(postId), {}, axiosConfig)
       
-      // Create console notification
-      console.log(message)
+      // Show feedback
+      if (!wasSaved) {
+        showSuccess('Post saved!')
+      } else {
+        showInfo('Post removed from saved')
+      }
     } catch (error) {
       console.error('Error saving post:', error)
-      console.error(error.response?.data?.message || 'Failed to save post. Please login first.')
+      // Revert optimistic update on error
+      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      
+      if (error.response?.status === 401) {
+        showError('Please login to save posts')
+      } else {
+        showError(error.response?.data?.message || 'Failed to save post')
+      }
     }
   }
 
   const handleFollow = async (targetId, targetType) => {
     try {
-      const isFollowing = followingStatus[targetId]
+      // Ensure targetId is a string
+      const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString();
+      
+      console.log('handleFollow called:', { targetId: targetIdStr, targetType });
+      
+      const isFollowing = followingStatus[targetIdStr];
+      
+      // Optimistically update UI
+      setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }));
       
       if (isFollowing) {
         await axios.post(
           API_ENDPOINTS.follow.unfollow,
-          { targetId, targetType },
+          { targetId: targetIdStr, targetType },
           axiosConfig
-        )
+        );
+        showSuccess('Unfollowed successfully');
       } else {
         await axios.post(
           API_ENDPOINTS.follow.follow,
-          { targetId, targetType },
+          { targetId: targetIdStr, targetType },
           axiosConfig
-        )
+        );
+        showSuccess('Following!');
       }
-      
-      // Update following status with animation
-      setFollowingStatus(prev => ({ ...prev, [targetId]: !prev[targetId] }))
-      
-      // Show feedback
-      console.log(isFollowing ? 'Unfollowed' : 'Following!')
     } catch (error) {
-      console.error('Error toggling follow:', error)
-      console.error(error.response?.data?.message || 'Failed to update follow status. Please login first.')
+      console.error('Error toggling follow:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Revert optimistic update on error
+      const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString();
+      setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }));
+      
+      if (error.response?.status === 401) {
+        showError('Please login to follow');
+      } else {
+        showError(error.response?.data?.message || 'Failed to update follow status');
+      }
     }
   }
 
@@ -318,13 +352,14 @@ const Reel = () => {
     setCurrentReviewItem(item)
     setShowReviewModal(true)
     setShowReviewsList(true)
+    setUserHasReviewed(false) // Reset state
     setReviewData({
       rating: 0,
       comment: '',
       ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
     })
     
-    // Fetch existing reviews
+    // Fetch existing reviews and check if user already reviewed
     await fetchReviews(item)
   }
   
@@ -342,12 +377,40 @@ const Reel = () => {
       
       if (endpoint) {
         const response = await axios.get(endpoint, axiosConfig)
-        setExistingReviews(response.data.data || response.data.reviews || [])
+        const reviews = response.data.data || response.data.reviews || []
+        setExistingReviews(reviews)
+        
+        // Check if current user already reviewed
+        try {
+          const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
+          const currentUserId = (userProfileResponse.data.user || userProfileResponse.data)?._id
+          
+          if (currentUserId) {
+            const hasReviewed = reviews.some(review => 
+              review.user?._id?.toString() === currentUserId.toString() ||
+              review.userId?.toString() === currentUserId.toString()
+            )
+            
+            setUserHasReviewed(hasReviewed)
+            
+            if (hasReviewed) {
+              showInfo('You have already reviewed this item')
+            }
+          }
+        } catch {
+          // User not logged in, no need to check
+          setUserHasReviewed(false)
+        }
+      } else {
+        setExistingReviews([])
       }
     } catch (error) {
       console.error('Error fetching reviews:', error)
-      // Don't show error toast, just set empty array
       setExistingReviews([])
+      // Only show error if it's not a 404 (no reviews found)
+      if (error.response?.status !== 404) {
+        showError('Failed to load reviews')
+      }
     } finally {
       setLoadingReviews(false)
     }
@@ -358,6 +421,7 @@ const Reel = () => {
     setCurrentReviewItem(null)
     setExistingReviews([])
     setShowReviewsList(true)
+    setUserHasReviewed(false)
     setReviewData({
       rating: 0,
       comment: '',
@@ -366,13 +430,19 @@ const Reel = () => {
   }
 
   const handleSubmitReview = async () => {
+    // Check if user already reviewed
+    if (userHasReviewed) {
+      showWarning('You have already reviewed this item')
+      return
+    }
+    
     if (reviewData.rating === 0) {
-      console.warn('Please select a rating')
+      showWarning('Please select a rating')
       return
     }
     
     if (!reviewData.comment.trim()) {
-      console.warn('Please write a comment')
+      showWarning('Please write a comment')
       return
     }
 
@@ -395,7 +465,10 @@ const Reel = () => {
         axiosConfig
       )
 
-      console.log('Review submitted successfully!')
+      showSuccess('Review submitted successfully!')
+      
+      // Mark as reviewed
+      setUserHasReviewed(true)
       
       // Refresh reviews list
       await fetchReviews(currentReviewItem)
@@ -411,55 +484,128 @@ const Reel = () => {
       })
     } catch (error) {
       console.error('Error submitting review:', error)
-      console.error(error.response?.data?.message || 'Failed to submit review. Please login first.')
+      if (error.response?.status === 401) {
+        showError('Please login to submit a review')
+      } else if (error.response?.status === 400) {
+        showError(error.response?.data?.message || 'Invalid review data')
+      } else {
+        showError(error.response?.data?.message || 'Failed to submit review')
+      }
     } finally {
       setSubmittingReview(false)
     }
   }
 
-  // Check following status on load
+  // Check all user interactions on load (likes, saves, follows)
   useEffect(() => {
-    const checkFollowingStatus = async () => {
+    const checkUserInteractions = async () => {
       if (combinedContent.length === 0) return
       
       try {
-        const statusChecks = {}
+        // Fetch user profile to get saved posts and user ID
+        let userProfile = null
+        try {
+          const profileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
+          userProfile = profileResponse.data.user || profileResponse.data
+        } catch {
+          // User not logged in - all interactions will be false
+          console.log('User not logged in, skipping interaction checks')
+          return
+        }
+
+        const currentUserId = userProfile._id?.toString()
+        if (!currentUserId) return
+
+        // Initialize all state objects
+        const followingChecks = {}
+        const likedChecks = {}
+        const savedChecks = {}
         
+        // Get saved food IDs and saved post IDs from user profile
+        const savedFoodIds = new Set(
+          (userProfile.savedFoods || []).map(item => 
+            typeof item === 'string' ? item : item._id?.toString() || item.toString()
+          )
+        )
+        const savedPostIds = new Set(
+          (userProfile.savedPosts || []).map(item => 
+            typeof item === 'string' ? item : item._id?.toString() || item.toString()
+          )
+        )
+        
+        // Process each item in combined content
         for (const item of combinedContent) {
           if (item.type === 'post') {
+            const postId = item._id.toString()
+            
+            // Check if post is liked - use the data we already have from initial fetch
+            // The likes array should already be populated in combinedContent
+            if (item.likes && Array.isArray(item.likes)) {
+              likedChecks[postId] = item.likes.some(likeId => {
+                const likeIdStr = typeof likeId === 'string' ? likeId : likeId._id?.toString() || likeId.toString()
+                return likeIdStr === currentUserId
+              })
+            } else {
+              likedChecks[postId] = false
+            }
+            
+            // Check if post is saved using user profile data
+            if (item.postSource === 'user') {
+              savedChecks[postId] = savedPostIds.has(postId)
+            } else {
+              savedChecks[postId] = savedFoodIds.has(postId)
+            }
+            
+            // Check following status
             let targetId = null
             let targetType = null
             
             if (item.postSource === 'partner' && item.partnerId?._id) {
-              targetId = item.partnerId._id
+              targetId = item.partnerId._id.toString()
               targetType = 'FoodPartner'
             } else if (item.postSource === 'user' && item.postedBy?._id) {
-              targetId = item.postedBy._id
+              targetId = item.postedBy._id.toString()
               targetType = 'User'
             }
             
-            if (targetId && targetType) {
-              try {
-                const response = await axios.get(
-                  API_ENDPOINTS.follow.check(targetId, targetType),
-                  axiosConfig
-                )
-                statusChecks[targetId] = response.data.isFollowing
-              } catch {
-                // User not logged in or error
-                statusChecks[targetId] = false
+            // Don't check if user is following themselves
+            if (targetId && targetType && targetId !== currentUserId) {
+              // Only check if not already checked for this target
+              if (!(targetId in followingChecks)) {
+                try {
+                  const response = await axios.get(
+                    API_ENDPOINTS.follow.check(targetId, targetType),
+                    axiosConfig
+                  )
+                  followingChecks[targetId] = response.data.isFollowing
+                } catch {
+                  followingChecks[targetId] = false
+                }
               }
             }
           }
         }
         
-        setFollowingStatus(statusChecks)
+        console.log('Initialized states:', {
+          totalPostsChecked: Object.keys(likedChecks).length,
+          actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
+          totalSavedChecked: Object.keys(savedChecks).length,
+          actuallySaved: Object.entries(savedChecks).filter(([, isSaved]) => isSaved).length,
+          totalUsersChecked: Object.keys(followingChecks).length,
+          actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
+        })
+        
+        // Update all states at once
+        setFollowingStatus(followingChecks)
+        setLikedPosts(likedChecks)
+        setSavedPosts(savedChecks)
+        
       } catch (error) {
-        console.error('Error checking following status:', error)
+        console.error('Error checking user interactions:', error)
       }
     }
     
-    checkFollowingStatus()
+    checkUserInteractions()
   }, [combinedContent])
 
   const handleShare = (item) => {
@@ -468,9 +614,21 @@ const Reel = () => {
         title: item.title,
         text: item.description,
         url: window.location.href
-      }).catch(err => console.log('Error sharing:', err))
+      }).then(() => {
+        showInfo('Shared successfully!')
+      }).catch(err => {
+        console.log('Error sharing:', err)
+        // User cancelled or error - don't show error toast
+      })
     } else {
-      console.info('Share functionality not supported on this device')
+      // Fallback: copy link to clipboard
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => {
+          showInfo('Link copied to clipboard!')
+        })
+        .catch(() => {
+          showError('Unable to share')
+        })
     }
   }
 

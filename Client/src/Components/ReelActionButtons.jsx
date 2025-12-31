@@ -1,11 +1,10 @@
-import React from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { Heart, MessageCircle, Share2, Bookmark, BookmarkCheck, Star, ShoppingBag, VolumeX, Volume2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ReelActionButtons = ({
     item,
-    likedPosts,
+    likedPosts, 
     savedPosts,
     muted,
     onLike,
@@ -18,14 +17,13 @@ const ReelActionButtons = ({
 }) => {
     const { user, isAuthenticated } = useAuth();
     const nevigate = useNavigate();
+    
     // redirect to login if not login act as a middleware
     const redirect = () => {
         if (!isAuthenticated) {
             alert("Please login first");
             setTimeout(() => { nevigate('/login') }, 1000);
-            ;
         }
-
     }
 
     return (
@@ -39,7 +37,7 @@ const ReelActionButtons = ({
                     <Heart className={`w-5 h-5 sm:w-6 sm:h-6 transition-all ${likedPosts[item._id] ? 'fill-red-500 text-red-500 animate-scale-in' : 'text-white group-hover:fill-red-500 group-hover:text-red-500'}`} />
                 </div>
                 <span className="text-white text-[10px] sm:text-xs font-semibold">
-                    {formatCount(item.likes)}
+                    {formatCount(item.likeCount || 0)}
                 </span>
             </button>
 

@@ -460,6 +460,7 @@ const getAllFoods = async (req, res) => {
         const foods = await foodModel
             .find(filter)
             .populate('foodPartner', 'restaurantName email verified profileImage')
+            .populate('likes', '_id') // Populate likes to check if user liked
             .sort(sortObj)
             .skip(skip)
             .limit(validLimit)

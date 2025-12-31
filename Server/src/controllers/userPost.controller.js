@@ -95,6 +95,7 @@ const getAllUserPosts = async (req, res) => {
       .populate('postedBy', 'firstName lastName email')
       .populate('taggedPartner', 'companyName email')
       .populate('taggedFood', 'name price preparationTime isAvailable description')
+      .populate('likes', '_id') // Populate likes to check if user liked
       .sort(sortObj)
       .skip(skip)
       .limit(validLimit)

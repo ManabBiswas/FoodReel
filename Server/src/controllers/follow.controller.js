@@ -7,7 +7,10 @@ export const followUser = async (req, res) => {
     try {
         const { targetId, targetType } = req.body; // targetType: 'User' or 'FoodPartner'
         const followerId = req.user._id;
-        const followerType = req.user.role || 'User'; // Assuming you have role in token
+        
+        // Determine follower type by checking which model the user belongs to
+        // User model has 'firstName', FoodPartner has 'companyName'
+        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
@@ -24,23 +27,49 @@ export const followUser = async (req, res) => {
             });
         }
 
-        // Check if already following
+        // Check if follow relationship exists (active or inactive)
         const existingFollow = await followModel.findOne({
             follower: followerId,
             followerModel: followerType,
             following: targetId,
-            followingModel: targetType,
-            isActive: true
+            followingModel: targetType
         });
 
         if (existingFollow) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Already following this user" 
+            // If already actively following
+            if (existingFollow.isActive) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Already following this user" 
+                });
+            }
+            
+            // Reactivate the existing follow relationship
+            existingFollow.isActive = true;
+            await existingFollow.save();
+            
+            // Update follower's following count
+            const FollowerModel = followerType === 'User' ? userModel : foodPartnerModel;
+            await FollowerModel.findByIdAndUpdate(followerId, {
+                $inc: { followingCount: 1 },
+                $addToSet: { following: targetId }
+            });
+
+            // Update target's followers count
+            const TargetModel = targetType === 'User' ? userModel : foodPartnerModel;
+            await TargetModel.findByIdAndUpdate(targetId, {
+                $inc: { followersCount: 1 },
+                $addToSet: { followers: followerId }
+            });
+            
+            return res.status(200).json({
+                success: true,
+                message: "Successfully followed",
+                data: existingFollow
             });
         }
 
-        // Create follow relationship
+        // Create new follow relationship
         const follow = await followModel.create({
             follower: followerId,
             followerModel: followerType,
@@ -84,7 +113,9 @@ export const unfollowUser = async (req, res) => {
     try {
         const { targetId, targetType } = req.body;
         const followerId = req.user._id;
-        const followerType = req.user.role || 'User';
+        
+        // Determine follower type by checking which model the user belongs to
+        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
@@ -239,7 +270,9 @@ export const checkFollowing = async (req, res) => {
     try {
         const { targetId, targetType } = req.params;
         const followerId = req.user._id;
-        const followerType = req.user.role || 'User';
+        
+        // Determine follower type by checking which model the user belongs to
+        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
 
         const isFollowing = await followModel.exists({
             follower: followerId,
@@ -268,7 +301,9 @@ export const checkFollowing = async (req, res) => {
 export const getSuggestedFollows = async (req, res) => {
     try {
         const userId = req.user._id;
-        const userType = req.user.role || 'User';
+        
+        // Determine user type by checking which model the user belongs to
+        const userType = req.user.companyName ? 'FoodPartner' : 'User';
         const limit = parseInt(req.query.limit) || 10;
 
         // Get users the current user is already following
