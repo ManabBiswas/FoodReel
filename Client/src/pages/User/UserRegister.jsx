@@ -1,11 +1,23 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { useAuth } from '../../hooks/useAuth'
 import { useNavigate, Link } from 'react-router-dom'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
-import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone } from 'lucide-react'
+import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone, Home } from 'lucide-react'
 
 const UserRegister = () => {
+
+  const { isAuthenticated, isUser, loginUser } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isAuthenticated && isUser) {
+      setTimeout(() => {
+        navigate('/')
+      }, 2000)
+    }
+  }, [isAuthenticated, isUser, navigate])
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -20,7 +32,6 @@ const UserRegister = () => {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const navigate = useNavigate()
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -105,20 +116,26 @@ const UserRegister = () => {
       )
 
       console.log('Registration successful:', response.data)
+
+      showSuccess('Registration successful! Logging you in...')
       
-      showSuccess('Registration successful! Redirecting to login...')
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        mobile: '',
+      // Automatically log in the user with their credentials
+      const loginResult = await loginUser({
+        email: formData.email,
+        password: formData.password
       })
-      
-      setTimeout(() => {
-        navigate('/')
-      }, 2000)
+
+      if (loginResult.success) {
+        showSuccess('Welcome! Redirecting to home...')
+        setTimeout(() => {
+          navigate('/', { replace: true })
+        }, 1000)
+      } else {
+        showError('Registration successful, but auto-login failed. Please login manually.')
+        setTimeout(() => {
+          navigate('/login')
+        }, 2000)
+      }
 
     } catch (error) {
       console.error('Registration error:', error)
@@ -132,10 +149,22 @@ const UserRegister = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-200 to-purple-200 p-6">
+      <div className="w-full max-w-md bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-fadeIn">
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors duration-200 group"
+          >
+            <Home className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
+            <span className="font-medium">Back to Home</span>
+          </Link>
+        </div>
+
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            Create Account
+          </h1>
           <p className="text-gray-600">Join us today and get started</p>
         </div>
 
@@ -161,7 +190,7 @@ const UserRegister = () => {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   placeholder="First Name"
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'
                     }`}
                 />
               </div>
@@ -181,7 +210,7 @@ const UserRegister = () => {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   placeholder="Last Name"
-                  className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'
                     }`}
                 />
               </div>
@@ -202,7 +231,7 @@ const UserRegister = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Email Address"
-                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.email ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
             </div>
@@ -222,7 +251,7 @@ const UserRegister = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Password"
-                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.password ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.password ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
               <button
@@ -253,7 +282,7 @@ const UserRegister = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 placeholder="Confirm Password"
-                className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
               <button
@@ -284,7 +313,7 @@ const UserRegister = () => {
                 value={formData.mobile}
                 onChange={handleInputChange}
                 placeholder="Mobile Number"
-                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors shadow-sm ${errors.mobile ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.mobile ? 'border-red-500' : 'border-gray-300'
                   }`}
               />
             </div>
@@ -296,17 +325,17 @@ const UserRegister = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:hover:scale-100"
           >
             {loading ? (
               <div className="flex items-center justify-center">
-                <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                Registering...
+                <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                <span>Registering...</span>
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Create Account
+                <UserPlus className="h-5 w-5 mr-2" />
+                <span>Create Account</span>
               </div>
             )}
           </button>
@@ -315,7 +344,7 @@ const UserRegister = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors duration-200">
               Sign in
             </Link>
           </p>
