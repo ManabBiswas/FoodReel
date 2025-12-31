@@ -267,11 +267,58 @@ const getComments = async (req, res) => {
   }
 };
 
+const toggleSave = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    const userId = req.user._id;
+    
+    const post = await UserPost.findById(id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    // Import User model
+    const userModel = (await import('../models/user.Model.js')).default;
+    const user = await userModel.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Check if post is already saved
+    const isSaved = user.savedPosts.includes(id);
+    
+    if (isSaved) {
+      // Unsave: Remove from user's savedPosts array
+      user.savedPosts = user.savedPosts.filter(postId => postId.toString() !== id);
+    } else {
+      // Save: Add to user's savedPosts array
+      user.savedPosts.push(id);
+    }
+    
+    await user.save();
+    
+    res.status(200).json({
+      message: isSaved ? 'Post unsaved' : 'Post saved',
+      isSaved: !isSaved
+    });
+  } catch (error) {
+    console.error('Error toggling save:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export default { 
   createUserPost, 
   getAllUserPosts, 
   getUserPostsByUserId,
   toggleLike,
   addComment,
-  getComments
+  getComments,
+  toggleSave
 };

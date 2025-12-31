@@ -122,6 +122,7 @@ export const API_ENDPOINTS = {
     myPosts: `${BASE_URL}/food/user/my-posts`,
     byUserId: (userId) => `${BASE_URL}/food/user/${userId}`,
     like: (id) => `${BASE_URL}/food/user/${id}/like`,
+    save: (id) => `${BASE_URL}/food/user/${id}/save`,
     comment: (id) => `${BASE_URL}/food/user/${id}/comment`,
     comments: (id) => `${BASE_URL}/food/user/${id}/comments`,
   },

@@ -294,27 +294,38 @@ const Reel = () => {
 
   const handleSave = useCallback(async (postId) => {
     try {
-      const wasSaved = savedPosts[postId]
-      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      const currentItem = combinedContent.find(item => item._id === postId);
+      if (!currentItem) return;
       
-      await axios.post(API_ENDPOINTS.food.save(postId), {}, axiosConfig)
+      const wasSaved = savedPosts[postId];
+      
+      // Optimistically update UI
+      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
+      
+      // Call the appropriate endpoint based on post source
+      const endpoint = currentItem.postSource === 'user' 
+        ? API_ENDPOINTS.userPost.save(postId)
+        : API_ENDPOINTS.food.save(postId);
+      
+      await axios.post(endpoint, {}, axiosConfig);
       
       if (!wasSaved) {
-        showSuccess('Post saved!')
+        showSuccess('Post saved!');
       } else {
-        showInfo('Post removed from saved')
+        showInfo('Post removed from saved');
       }
     } catch (error) {
-      console.error('Error saving post:', error)
-      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+      console.error('Error saving post:', error);
+      // Revert optimistic update on error
+      setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
       
       if (error.response?.status === 401) {
-        showError('Please login to save posts')
+        showError('Please login to save posts');
       } else {
-        showError(error.response?.data?.message || 'Failed to save post')
+        showError(error.response?.data?.message || 'Failed to save post');
       }
     }
-  }, [savedPosts])
+  }, [savedPosts, combinedContent])
 
   const handleFollow = useCallback(async (targetId, targetType) => {
     try {

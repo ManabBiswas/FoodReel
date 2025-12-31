@@ -544,16 +544,28 @@ const toggleSave = async (req, res) => {
             return res.status(404).json({ error: "Post not found" });
         }
         
-        // Check if user has saved this post (you might need to add a saves array to food model)
-        // For now, just increment/decrement the counter
-        const isSaved = req.body.isSaved || false;
+        // Import User model
+        const userModel = (await import('../models/user.Model.js')).default;
+        const user = await userModel.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        // Check if food is already saved
+        const isSaved = user.savedFoods.includes(id);
         
         if (isSaved) {
+            // Unsave: Remove from user's savedFoods array
+            user.savedFoods = user.savedFoods.filter(foodId => foodId.toString() !== id);
             food.savesCount = Math.max(0, food.savesCount - 1);
         } else {
+            // Save: Add to user's savedFoods array
+            user.savedFoods.push(id);
             food.savesCount += 1;
         }
         
+        await user.save();
         await food.save();
         
         res.status(200).json({

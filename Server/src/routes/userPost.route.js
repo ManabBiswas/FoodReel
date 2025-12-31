@@ -46,4 +46,7 @@ router.post('/user/:id/comment', isLoggedin, userPostController.addComment);
 // GET /api/food/user/:id/comments - get comments for user post
 router.get('/user/:id/comments', userPostController.getComments);
 
+// POST /api/food/user/:id/save - Toggle save on user post
+router.post('/user/:id/save', isLoggedin, userPostController.toggleSave);
+
 export default router;
