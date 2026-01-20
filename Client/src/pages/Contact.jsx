@@ -31,7 +31,8 @@ const Contact = () => {
 
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <h1 className="text-3xl font-extrabold mb-4">Contact Us</h1>
+
+          <h1 className="text-5xl italic font-serif font-extrabold mb-4 bg-gradient-to-tr from-amber-300 to-red-400 bg-clip-text text-transparent ">Contact Us</h1>
           <p className="text-gray-600 mb-8">Have a question, partnership inquiry, or feedback? Send us a message and we'll get back to you within a few business days.</p>
 
           <div className="bg-white shadow rounded-lg p-6">
@@ -52,7 +53,7 @@ const Contact = () => {
               </label>
 
               <div className="flex items-center gap-3">
-                <button type="submit" className="px-4 py-2 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600">Send message</button>
+                <button type="submit" className="px-4 py-2 bg-orange-500 text-white rounded-md font-semibold hover:bg-rose-500 hover:cursor-pointer">Send message</button>
                 {status === 'sending' && <span className="text-sm text-gray-500">Sending...</span>}
                 {status === 'sent' && <span className="text-sm text-green-600">Message sent — thanks!</span>}
                 {status === 'error' && <span className="text-sm text-red-600">Failed to send. Try again later.</span>}
