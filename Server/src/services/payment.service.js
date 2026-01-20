@@ -51,7 +51,7 @@ class PaymentService {
         }
     }
 
-    validatePaymentSignature(orderId, paymentId, signature) {
+    verifyPaymentSignature(orderId, paymentId, signature) {
         try {
             if (!orderId || !paymentId || !signature) {
                 console.error('Missing required parameters for signature verification');

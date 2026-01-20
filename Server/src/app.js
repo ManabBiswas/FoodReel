@@ -9,6 +9,7 @@ import paymentRoutes from './routes/payment.route.js';
 import userPostRoutes from './routes/userPost.route.js';
 import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
+import adminRoutes from './routes/admin.route.js';
 import cors from 'cors';
 const app = express() 
 
@@ -31,6 +32,7 @@ app.use('/api/orders',orderRoutes);
 app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
+app.use('/api/admin',adminRoutes);
 
 
 export default app;
