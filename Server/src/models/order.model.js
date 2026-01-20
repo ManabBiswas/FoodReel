@@ -6,22 +6,27 @@ const orderSchema = new mongoose.Schema({
         ref: "User",
         required: true
     },
-    foodItem: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "food",
-        required: true
-    },
-    foodPartner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "FoodPartner",
-        required: true
-    },
-    quantity: {
-        type: Number,
-        required: true,
-        min: 1,
-        default: 1
-    },
+    items: [{
+        foodItem: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "food",
+            required: true
+        },
+        quantity: {
+            type: Number,
+            required: true,
+            min: 1
+        },
+        priceAtOrder: {
+            type: Number,
+            required: true
+        },
+        foodPartner: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "FoodPartner",
+            required: true
+        },
+    }],
     currency: {
         type: String,
         enum: ['INR'],
@@ -30,11 +35,15 @@ const orderSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
-        default: 'pending'
+        default: 'pending',
+        confirmedAt: Date,
+        deliveredAt: Date,
+        cancelledAt: Date,
+        
     },
     orderSource: {
         type: String,
-        enum: ['reel', 'modal', 'menu', 'search'],
+        enum: ['reel', 'modal', 'menu', 'search', 'cart', 'other'],
         default: 'modal',
         required: true
     },
@@ -63,6 +72,7 @@ const orderSchema = new mongoose.Schema({
         },
         phone: {
             type: String,
+            match: /^[6-9]\d{9}$/,
             required: true
         },
         addressLine1: {
@@ -81,6 +91,7 @@ const orderSchema = new mongoose.Schema({
         },
         pincode: {
             type: String,
+            match: /^\d{6}$/,
             required: true
         },
         coordinates: {
@@ -133,18 +144,18 @@ const orderSchema = new mongoose.Schema({
         type: Date
     },
     orderNotes: [{
-        note: { 
-            type: String, 
-            required: true 
+        note: {
+            type: String,
+            required: true
         },
-        timestamp: { 
-            type: Date, 
-            default: Date.now 
+        timestamp: {
+            type: Date,
+            default: Date.now
         },
-        addedBy: { 
-            type: String, 
-            enum: ['user', 'partner', 'system'], 
-            default: 'system' 
+        addedBy: {
+            type: String,
+            enum: ['user', 'partner', 'system'],
+            default: 'system'
         }
     }],
     cancellation: {
@@ -171,37 +182,35 @@ const orderSchema = new mongoose.Schema({
 
 // Add indexes for better query performance
 orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ foodPartner: 1, createdAt: -1 });
+orderSchema.index({ 'items.foodPartner': 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ 'paymentDetails.status': 1 });
-orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 });
+orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 }, { unique: true, sparse: true });
 
 // Calculate pricing before saving
 orderSchema.pre('save', function (next) {
     if (this.pricing && this.isModified('pricing')) {
         const { itemPrice, deliveryFee, platformFee, taxes, discount } = this.pricing;
-        
+
         // Auto-calculate total amount
-        this.pricing.totalAmount = 
-            itemPrice + 
-            deliveryFee + 
-            platformFee + 
-            (taxes?.total || 0) - 
-            (discount || 0);
+        this.pricing.totalAmount = Math.max(
+            itemPrice + deliveryFee + platformFee + (taxes?.total || 0) - (discount || 0),
+            0
+        );
     }
     next();
 });
 
 // Virtual fields
-orderSchema.virtual('totalAmount').get(function() {
+orderSchema.virtual('totalAmount').get(function () {
     return this.pricing.totalAmount;
 });
 
-orderSchema.virtual('paymentStatus').get(function() {
+orderSchema.virtual('paymentStatus').get(function () {
     return this.paymentDetails.status;
 });
 
-orderSchema.virtual('paymentMethod').get(function() {
+orderSchema.virtual('paymentMethod').get(function () {
     return this.paymentDetails.method === 'cod' ? 'cash_on_delivery' : 'online_payment';
 });
 

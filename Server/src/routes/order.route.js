@@ -17,12 +17,13 @@ router.get('/',
     isLoggedin,
     orderController.getUserOrders
 );
-// GET /api/orders/:orderId - Get order details
-router.get('/:orderId',
-    isLoggedin,
-    orderController.getOrderById
+
+// GET /api/orders/partner/statistics - Get order statistics for partners
+router.get('/partner/statistics',
+    isFoodPartnerLoggedin,
+    orderController.getOrderStatistics
 );
-// Partner routes
+
 // GET /api/orders/partner - Get partner's orders
 router.get('/partner',
     isFoodPartnerLoggedin,
@@ -35,10 +36,10 @@ router.put('/partner/:orderId/status',
     orderController.updateOrderStatus
 );
 
-// GET /api/orders/partner/statistics - Get order statistics for partners
-router.get('/partner/statistics',
-    isFoodPartnerLoggedin,
-    orderController.getOrderStatistics
+// GET /api/orders/:orderId - Get order details 
+router.get('/:orderId',
+    isLoggedin,
+    orderController.getOrderById
 );
 
 export default router;
