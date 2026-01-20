@@ -5,7 +5,7 @@ import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig, multipartConfig } from '../../config/Api'
 import { 
   User, Mail, Phone, Save, ArrowLeft, Camera, Upload, 
-  Loader2, Eye, EyeOff, Lock, Trash2, AlertTriangle, Plus, Edit2, MapPin
+  Loader2, Eye, EyeOff, Lock, Trash2,  Plus, Edit2, MapPin
 } from 'lucide-react'
 
 const ProfileSettings = () => {
@@ -787,7 +787,7 @@ const ProfileSettings = () => {
                       onClick={cancelAddressForm}
                       className="text-gray-500 hover:text-gray-700"
                     >
-                      <AlertTriangle className="w-5 h-5" />
+                      <MapPin className="w-5 h-5" />
                     </button>
                   </div>
 

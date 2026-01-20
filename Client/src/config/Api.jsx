@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     userLogin: `${BASE_URL}/auth/user/login`,
     userRegister: `${BASE_URL}/auth/user/register`,
     userProfile: `${BASE_URL}/auth/user/profile`,
+    updateProfile: `${BASE_URL}/auth/user/profile`,
     userLogout: `${BASE_URL}/auth/user/logout`,
     userVerify: `${BASE_URL}/auth/verify`,
     userChangePassword: `${BASE_URL}/auth/user/change-password`,

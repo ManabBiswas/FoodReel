@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
     profileImage: {
         type: Buffer,
     },
+    bio: {
+        type: String,
+        maxlength: 150,
+        default: ''
+    },
     mobile: {
         type: String,
         validate: {

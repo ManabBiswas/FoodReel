@@ -145,6 +145,7 @@ async function getProfile(req, res) {
             lastName: user.lastName,
             email: user.email,
             mobile: user.mobile,
+            bio: user.bio || '',
             dateOfBirth: user.dateOfBirth,
             address: user.address,
             preferences: user.preferences,
@@ -167,13 +168,14 @@ async function getProfile(req, res) {
 async function updateProfile(req, res) {
     try {
         const userId = req.user._id;
-        const { firstName, lastName, mobile } = req.body;
+        const { firstName, lastName, mobile, bio } = req.body;
 
         // Build update object with only provided fields
         const updateData = {};
         if (firstName) updateData.firstName = firstName;
         if (lastName) updateData.lastName = lastName;
         if (mobile) updateData.mobile = mobile;
+        if (bio !== undefined) updateData.bio = bio.substring(0, 150); // Limit to 150 chars
 
         // Handle profile image if uploaded
         if (req.file) {
@@ -198,6 +200,7 @@ async function updateProfile(req, res) {
                 lastName: updatedUser.lastName,
                 email: updatedUser.email,
                 mobile: updatedUser.mobile,
+                bio: updatedUser.bio || '',
                 profileImage: updatedUser.profileImage ? `data:image/jpeg;base64,${updatedUser.profileImage.toString('base64')}` : null,
                 updatedAt: updatedUser.updatedAt
             }
