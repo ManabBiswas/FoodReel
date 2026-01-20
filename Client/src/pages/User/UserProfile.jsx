@@ -13,6 +13,9 @@ const UserProfile = () => {
   const [activeTab, setActiveTab] = useState('posts')
   const [userPosts, setUserPosts] = useState([])
   const [savedItems, setSavedItems] = useState([]) // Combined saved foods and posts
+  const [bioText, setBioText] = useState('')
+  const [isEditingBio, setIsEditingBio] = useState(false)
+  const [savingBio, setSavingBio] = useState(false)
   const navigate = useNavigate()
 
   const fetchUserData = useCallback(async () => {
@@ -22,7 +25,7 @@ const UserProfile = () => {
 
       if (response.data) {
         setUser(response.data)
-        
+
         // Combine savedFoods and savedPosts into one array
         const combinedSaved = [
           ...(response.data.savedFoods || []).map(food => ({
@@ -60,6 +63,38 @@ const UserProfile = () => {
       setLoading(false)
     }
   }, [navigate])
+
+  const handleEditBio = () => {
+    setBioText(user?.bio || '')
+    setIsEditingBio(true)
+  }
+
+  const handleSaveBio = async () => {
+    try {
+      setSavingBio(true)
+      const response = await axios.put(
+        API_ENDPOINTS.auth.updateProfile,
+        { bio: bioText },
+        axiosConfig
+      )
+      
+      if (response.data?.user) {
+        setUser(prev => ({ ...prev, bio: response.data.user.bio }))
+        setIsEditingBio(false)
+        showSuccess('Bio updated successfully')
+      }
+    } catch (error) {
+      console.error('Error updating bio:', error)
+      showError('Failed to update bio')
+    } finally {
+      setSavingBio(false)
+    }
+  }
+
+  const handleCancelBio = () => {
+    setBioText(user?.bio || '')
+    setIsEditingBio(false)
+  }
 
   useEffect(() => {
     fetchUserData()
@@ -110,7 +145,7 @@ const UserProfile = () => {
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
             {/* Profile Picture */}
             <div className="flex justify-center sm:justify-start">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-0.5 flex-shrink-0">
+              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 via-yellow-500 to-amber-600 p-0.5 flex-shrink-0">
                 <div className="w-full h-full rounded-full bg-white p-1">
                   <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden relative group cursor-pointer">
                     {user.profileImage ? (
@@ -140,13 +175,10 @@ const UserProfile = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row justify-center sm:justify-start gap-2">
-                  <Link
-                    to="/profile/settings"
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                  >
+                  <button onClick={handleEditBio} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer" style={{ width: 'auto' }}>
                     <Edit3 className="w-4 h-4" />
                     Edit Profile
-                  </Link>
+                  </button>
                   <Link
                     to="/profile/settings"
                     className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer"
@@ -167,8 +199,56 @@ const UserProfile = () => {
           {/* Bio Section */}
           <div className="mb-4 text-center sm:text-left">
             <div className="text-sm text-gray-900 leading-relaxed mb-3">
-              <p className="font-medium">🍕 Food Enthusiast</p>
-              <p>Exploring culinary delights one bite at a time</p>
+              {isEditingBio ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={bioText}
+                    onChange={(e) => setBioText(e.target.value.substring(0, 150))}
+                    placeholder="Write something about yourself..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows="3"
+                    maxLength="150"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">{bioText.length}/150</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCancelBio}
+                        disabled={savingBio}
+                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-md transition-colors disabled:opacity-50 hover:cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveBio}
+                        disabled={savingBio}
+                        className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors disabled:opacity-50 flex items-center gap-1 hover:cursor-pointer"
+                      >
+                        {savingBio ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative group">
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    {user?.bio || 'No bio yet. Click edit to add one.'}
+                  </p>
+                  <button
+                    onClick={handleEditBio}
+                    className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded-full"
+                  >
+                    <Edit3 className="w-3 h-3 text-gray-600" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Contact Info */}
@@ -225,8 +305,8 @@ const UserProfile = () => {
               <button
                 onClick={() => setActiveTab('posts')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'posts'
-                    ? 'text-gray-900 border-t-2 border-gray-900'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 border-t-2 border-gray-900'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 <Grid3X3 className="w-4 h-4" />
@@ -235,8 +315,8 @@ const UserProfile = () => {
               <button
                 onClick={() => setActiveTab('saved')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'saved'
-                    ? 'text-gray-900 border-t-2 border-gray-900'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 border-t-2 border-gray-900'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 <Bookmark className="w-4 h-4" />
