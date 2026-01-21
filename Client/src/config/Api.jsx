@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// Remove trailing slash from base URL to prevent double slashes
+// const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
 const API_VERSION = import.meta.env.VITE_API_VERSION || '';
 
 // Construct base API URL
