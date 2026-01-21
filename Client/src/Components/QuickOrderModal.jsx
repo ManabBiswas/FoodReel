@@ -44,8 +44,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   }
 
   const isAddressValid = () => {
-    return address.fullName && address.phone && address.addressLine1 && 
-           address.city && address.state && address.pincode
+    return address.fullName && address.phone && address.addressLine1 &&
+      address.city && address.state && address.pincode
   }
 
   const handleContinueToPayment = () => {
@@ -133,7 +133,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   if (!isOpen || !food) return null
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed mb-16 inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-lg ">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
@@ -147,10 +147,10 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto p-4">
           {/* Food Summary */}
           <div className="flex gap-3 mb-6 p-3 bg-gray-50 rounded-xl">
-            <img 
-              src={food.foodImageUrl || food.mediaUrl} 
+            <img
+              src={food.foodImageUrl || food.mediaUrl}
               alt={food.title}
-              className="w-20 h-20 object-cover rounded-lg"
+              className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-cover rounded-lg"
             />
             <div className="flex-1">
               <h3 className="font-semibold">{food.title}</h3>
@@ -173,7 +173,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 placeholder="Full Name"
                 value={address.fullName}
                 onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
               />
 
               <input
@@ -182,7 +182,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 placeholder="Phone Number"
                 value={address.phone}
                 onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
               />
 
               <textarea
@@ -191,7 +191,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 value={address.addressLine1}
                 onChange={handleAddressChange}
                 rows={2}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm sm:text-base"
               />
 
               <input
@@ -200,7 +200,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 placeholder="Road Name, Area, Colony (Optional)"
                 value={address.addressLine2}
                 onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
               />
 
               <input
@@ -209,10 +209,10 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 placeholder="Landmark (Optional)"
                 value={address.landmark}
                 onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
               />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input
                   type="text"
                   name="city"
@@ -238,7 +238,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 value={address.pincode}
                 onChange={handleAddressChange}
                 maxLength={6}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
               />
 
               <textarea
@@ -246,14 +246,14 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 value={orderNotes}
                 onChange={(e) => setOrderNotes(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm sm:text-base"
               />
             </div>
           )}
 
           {/* Step 2: Payment */}
           {step === 2 && pricing && (
-            <div className="space-y-4">
+            <div className="space-y-2">
               <h3 className="font-semibold flex items-center gap-2">
                 <CreditCard className="w-5 h-5" />
                 Order Summary
@@ -287,7 +287,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
               <div className="p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-start justify-between mb-2">
                   <h4 className="font-semibold text-sm">Delivering to:</h4>
-                  <button 
+                  <button
                     onClick={() => setStep(1)}
                     className="text-sm text-green-600 hover:underline"
                   >
@@ -311,7 +311,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
             <button
               onClick={handleContinueToPayment}
               disabled={!isAddressValid()}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all"
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all text-sm sm:text-base md:text-lg"
             >
               Continue to Payment
             </button>
@@ -319,7 +319,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
             <button
               onClick={handlePlaceOrder}
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base md:text-lg "
             >
               {loading ? (
                 <>

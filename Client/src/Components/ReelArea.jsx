@@ -1,4 +1,3 @@
-import React from 'react'
 import ReelPageHeader from './ReelPageheader'
 import ReelMediaPlayer from './ReelMediaPlayer'
 import ReelActionButtons from './ReelActionButtons'
