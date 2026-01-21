@@ -41,6 +41,16 @@ const Checkout = () => {
 
   const [paymentMethod, setPaymentMethod] = useState('cod') // cod, online
   const [errors, setErrors] = useState({})
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false)
+
+  // Check if Razorpay is loaded
+  useEffect(() => {
+    if (window.Razorpay) {
+      setRazorpayLoaded(true)
+    } else {
+      console.warn('Razorpay not loaded. Online payment will not be available.')
+    }
+  }, [])
 
   // Redirect if no order data
   useEffect(() => {
@@ -104,6 +114,100 @@ const Checkout = () => {
     }
   }
 
+  // Handle Razorpay Payment
+  const handleRazorpayPayment = async () => {
+    try {
+      // Create payment order via backend
+      const paymentResponse = await axios.post(
+        API_ENDPOINTS.payment.createOrder,
+        {
+          foodId: orderData.items[0]?.foodId || orderData.items[0]?._id,
+          deliveryAddress: {
+            fullName: deliveryInfo.fullName,
+            phone: deliveryInfo.phone,
+            addressLine1: deliveryInfo.address,
+            city: deliveryInfo.city,
+            state: deliveryInfo.state,
+            pincode: deliveryInfo.pincode,
+            landmark: deliveryInfo.landmark
+          },
+          quantity: orderData.items[0]?.quantity || 1
+        },
+        axiosConfig
+      )
+
+      // Handle both possible response structures
+      const paymentData = paymentResponse.data.data || paymentResponse.data
+      const { razorpayOrderId, amount, razorpayKeyId, orderId } = paymentData
+
+      // Configure Razorpay options
+      const options = {
+        key: razorpayKeyId,
+        amount: amount,
+        currency: 'INR',
+        name: 'FoodReel',
+        description: 'Order Payment',
+        order_id: razorpayOrderId,
+        handler: async function (response) {
+          // Payment successful - verify payment
+          try {
+            const verifyResponse = await axios.post(
+              API_ENDPOINTS.payment.verify,
+              {
+                orderId: orderId,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature
+              },
+              axiosConfig
+            )
+
+            if (verifyResponse.data.success) {
+              showSuccess('Payment successful! Order confirmed.')
+              navigate(`/order/confirmation/${orderId}`, {
+                state: { orderId: orderId }
+              })
+            } else {
+              showError('Payment verification failed')
+            }
+          } catch (verifyError) {
+            console.error('Payment verification error:', verifyError)
+            showError('Payment verification failed')
+          } finally {
+            setLoading(false)
+          }
+        },
+        prefill: {
+          name: deliveryInfo.fullName,
+          email: deliveryInfo.email,
+          contact: deliveryInfo.phone
+        },
+        theme: {
+          color: '#ea580c'
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false)
+            showWarning('Payment cancelled')
+          }
+        }
+      }
+
+      // Open Razorpay modal
+      const razorpay = new window.Razorpay(options)
+      razorpay.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error)
+        showError('Payment failed: ' + response.error.description)
+        setLoading(false)
+      })
+      razorpay.open()
+    } catch (error) {
+      console.error('Payment initiation error:', error)
+      showError(error.response?.data?.message || 'Failed to initiate payment')
+      setLoading(false)
+    }
+  }
+
   // Handle place order
   const handlePlaceOrder = async () => {
     if (!validateDeliveryInfo()) {
@@ -113,6 +217,7 @@ const Checkout = () => {
     }
 
     setLoading(true)
+
     try {
       const orderPayload = {
         items: orderData.items,
@@ -126,6 +231,13 @@ const Checkout = () => {
         }
       }
 
+      // If online payment, trigger Razorpay
+      if (paymentMethod === 'online') {
+        await handleRazorpayPayment()
+        return // Don't set loading to false here, Razorpay handlers will do it
+      }
+
+      // For COD, create order directly
       const response = await axios.post(
         API_ENDPOINTS.order.create,
         orderPayload,
@@ -134,10 +246,17 @@ const Checkout = () => {
 
       if (response.data) {
         showSuccess('Order placed successfully!')
+        // Get orderId from response (could be response.data.orderId or response.data.order._id)
+        const orderId = response.data.orderId || response.data.order?._id
+        if (!orderId) {
+          console.error('No orderId in response:', response.data)
+          showError('Order created but tracking ID not found')
+          return
+        }
         // Navigate to order confirmation page
-        navigate('/order/confirmation/' + response.data.orderId, {
-          state: { orderId: response.data.orderId }
-        });
+        navigate(`/order/confirmation/${orderId}`, {
+          state: { orderId: orderId }
+        })
       } else {
         showError('Failed to place order')
       }
@@ -145,7 +264,9 @@ const Checkout = () => {
       console.error('Order placement error:', error)
       showError(error.response?.data?.message || 'Failed to place order')
     } finally {
-      setLoading(false)
+      if (paymentMethod === 'cod') {
+        setLoading(false)
+      }
     }
   }
 
@@ -420,7 +541,9 @@ const Checkout = () => {
                 </label>
 
                 {/* Online Payment */}
-                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentMethod === 'online'
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-lg transition-all ${
+                  !razorpayLoaded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                } ${paymentMethod === 'online'
                     ? 'border-orange-600 bg-orange-50'
                     : 'border-gray-200 hover:border-orange-300'
                   }`}>
@@ -430,6 +553,7 @@ const Checkout = () => {
                     value="online"
                     checked={paymentMethod === 'online'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled={!razorpayLoaded}
                     className="w-5 h-5 text-orange-600"
                   />
                   <div className="flex-1">
@@ -437,7 +561,9 @@ const Checkout = () => {
                       <CreditCard className="w-5 h-5 text-orange-600" />
                       <span className="font-medium text-gray-800">Online Payment</span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">UPI, Cards, Net Banking</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {razorpayLoaded ? 'UPI, Cards, Net Banking' : 'Currently unavailable'}
+                    </p>
                   </div>
                   <CheckCircle className={`w-6 h-6 ${paymentMethod === 'online' ? 'text-orange-600' : 'text-gray-300'
                     }`} />
