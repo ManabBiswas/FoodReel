@@ -11,6 +11,7 @@ import Dashboard from '../pages/FoodPartner/Dashboard'
 import UserProfile from '../pages/User/UserProfile'
 import ProfileSettings from '../pages/User/ProfileSettings'
 import OrderHistory from '../pages/OrderHistory'
+import Checkout from '../pages/Checkout'
 import OrderConfirmation from '../pages/OrderConfirmation'
 import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
@@ -42,6 +43,7 @@ const AppRoutes = () => {
             <Route path='/profile' element={<UserLogin />} />
             <Route path='/profile/settings' element={<UserLogin />} />
             <Route path='/order/history' element={<UserLogin />} />
+            <Route path='/checkout' element={<UserLogin />} />
             <Route path='/order/confirmation/:orderId' element={<UserLogin />} />
             <Route path='/partner-dashboard' element={<UserLogin />} />
             <Route path='/CreateFood' element={<UserLogin />} />
@@ -58,6 +60,7 @@ const AppRoutes = () => {
             <Route path='/profile' element={<UserProfile />} />
             <Route path='/profile/settings' element={<ProfileSettings />} />
             <Route path='/order/history' element={<OrderHistory />} />
+            <Route path='/checkout' element={<Checkout />} />
             <Route path='/order/confirmation/:orderId' element={<OrderConfirmation />} />
           </>
         )}

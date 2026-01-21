@@ -134,8 +134,8 @@ const Checkout = () => {
 
       if (response.data) {
         showSuccess('Order placed successfully!')
-        // Navigate to order confirmation or orders page
-        navigate('/order/' + response.data.orderId, {
+        // Navigate to order confirmation page
+        navigate('/order/confirmation/' + response.data.orderId, {
           state: { orderId: response.data.orderId }
         });
       } else {

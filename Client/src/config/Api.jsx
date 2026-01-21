@@ -26,8 +26,7 @@ export const API_ENDPOINTS = {
     partnerBio: `${BASE_URL}/auth/partner/bio`,
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
     partnerStatistics: `${BASE_URL}/auth/partner/statistics`,
-    // Admin
-    // Admin
+    // Admin  
     adminLogin: `${BASE_URL}/auth/admin/login`,
     adminLogout: `${BASE_URL}/auth/admin/logout`,
     adminVerify: `${BASE_URL}/auth/admin/verify`,
@@ -144,7 +143,6 @@ export const API_ENDPOINTS = {
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
-    getUserOrders: `${BASE_URL}/orders`,
     getById: (id) => `${BASE_URL}/orders/${id}`,
   },
   

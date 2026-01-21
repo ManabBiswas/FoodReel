@@ -32,7 +32,7 @@ const OrderHistory = () => {
     try {
       setLoading(true)
       const response = await axios.get(
-        API_ENDPOINTS.order.getUserOrders,
+        API_ENDPOINTS.order.getAll,
         axiosConfig
       )
       setOrders(response.data.orders || [])
