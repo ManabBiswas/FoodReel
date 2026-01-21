@@ -211,6 +211,13 @@ const OrderConfirmation = () => {
 
             <div className="space-y-2">
               <button
+                onClick={() => navigate(`/order/tracking/${orderId}`)}
+                className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-medium flex items-center justify-center gap-2"
+              >
+                <Truck className="w-5 h-5" />
+                Track Order
+              </button>
+              <button
                 onClick={handleDownloadReceipt}
                 className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg hover:bg-gray-200 transition font-medium flex items-center justify-center gap-2"
               >
@@ -218,8 +225,8 @@ const OrderConfirmation = () => {
                 Download Receipt
               </button>
               <button
-                onClick={() => navigate('/orders')}
-                className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition font-medium"
+                onClick={() => navigate('/order/history')}
+                className="w-full bg-gray-50 border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-100 transition font-medium"
               >
                 View All Orders
               </button>

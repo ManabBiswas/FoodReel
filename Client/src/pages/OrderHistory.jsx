@@ -10,7 +10,8 @@ import {
   Download,
   Search,
   AlertCircle,
-  Loader2
+  Loader2,
+  Truck
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
@@ -196,12 +197,20 @@ const OrderHistory = () => {
                         <span>{getStatusIcon(order.status)}</span>
                         {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                       </span>
-                      <button
-                        onClick={() => navigate(`/order-confirmation/${order._id}`, { state: { orderId: order._id } })}
-                        className="text-red-500 hover:text-red-700 text-sm font-medium mt-2 flex items-center gap-1"
-                      >
-                        View Details <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => navigate(`/order/tracking/${order._id}`)}
+                          className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1"
+                        >
+                          Track Order <Truck className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/order/confirmation/${order._id}`, { state: { orderId: order._id } })}
+                          className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center gap-1"
+                        >
+                          Details <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
