@@ -13,6 +13,7 @@ import ProfileSettings from '../pages/User/ProfileSettings'
 import OrderHistory from '../pages/OrderHistory'
 import Checkout from '../pages/Checkout'
 import OrderConfirmation from '../pages/OrderConfirmation'
+import OrderTracking from '../pages/OrderTracking'
 import ErrorPage from '../pages/404'
 import WorkingProgress from '../pages/WorkingProgress'
 import Reel from '../pages/Reel'
@@ -45,6 +46,7 @@ const AppRoutes = () => {
             <Route path='/order/history' element={<UserLogin />} />
             <Route path='/checkout' element={<UserLogin />} />
             <Route path='/order/confirmation/:orderId' element={<UserLogin />} />
+            <Route path='/order/tracking/:orderId' element={<UserLogin />} />
             <Route path='/partner-dashboard' element={<UserLogin />} />
             <Route path='/CreateFood' element={<UserLogin />} />
             <Route path='/partner-profile' element={<UserLogin />} />
@@ -62,6 +64,7 @@ const AppRoutes = () => {
             <Route path='/order/history' element={<OrderHistory />} />
             <Route path='/checkout' element={<Checkout />} />
             <Route path='/order/confirmation/:orderId' element={<OrderConfirmation />} />
+            <Route path='/order/tracking/:orderId' element={<OrderTracking />} />
           </>
         )}
         {/* if authType === 'partner' */}

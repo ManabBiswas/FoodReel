@@ -201,21 +201,9 @@ orderSchema.pre('save', function (next) {
     next();
 });
 
-// Virtual fields
-orderSchema.virtual('totalAmount').get(function () {
-    return this.pricing.totalAmount;
-});
-
-orderSchema.virtual('paymentStatus').get(function () {
-    return this.paymentDetails.status;
-});
-
-orderSchema.virtual('paymentMethod').get(function () {
-    return this.paymentDetails.method === 'cod' ? 'cash_on_delivery' : 'online_payment';
-});
-
-orderSchema.set('toJSON', { virtuals: true });
-orderSchema.set('toObject', { virtuals: true });
+// Virtual fields - only keep necessary ones
+orderSchema.set('toJSON', { virtuals: true, getters: true });
+orderSchema.set('toObject', { virtuals: true, getters: true });
 
 const orderModel = mongoose.model("Order", orderSchema);
 

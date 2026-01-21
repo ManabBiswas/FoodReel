@@ -93,9 +93,9 @@ const createOrder = async (req, res) => {
 
     // Populate related data
     await newOrder.populate([
-      { path: 'user', select: 'username email' },
-      { path: 'items.foodItem', select: 'name description image video price currency preparationTime' },
-      { path: 'items.foodPartner', select: 'restaurantName email phoneNumber address' }
+      { path: 'user', select: 'firstName lastName email mobile' },
+      { path: 'items.foodItem', select: 'name description image video price currency preparationTime postType' },
+      { path: 'items.foodPartner', select: 'companyName email mobile address' }
     ]);
 
     // Update user order history
@@ -136,8 +136,9 @@ const getUserOrders = async (req, res) => {
 
         const orders = await orderModel
             .find(filter)
-            .populate('items.foodItem', 'name description image video price currency preparationTime')
-            .populate('items.foodPartner', 'restaurantName email phoneNumber')
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name description image video price currency preparationTime postType')
+            .populate('items.foodPartner', 'companyName email mobile address')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(validLimit);
@@ -177,9 +178,9 @@ const getPartnerOrders = async (req, res) => {
 
         const orders = await orderModel
             .find(filter)
-            .populate('user', 'username email')
-            .populate('items.foodItem', 'name description image price currency')
-            .populate('items.foodPartner', 'restaurantName email')
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name description image video price currency preparationTime')
+            .populate('items.foodPartner', 'companyName email mobile address')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(validLimit);
@@ -240,8 +241,9 @@ const updateOrderStatus = async (req, res) => {
         await order.save();
 
         await order.populate([
-            { path: 'user', select: 'username email' },
-            { path: 'foodItem', select: 'name description price currency' }
+            { path: 'user', select: 'firstName lastName email mobile' },
+            { path: 'items.foodItem', select: 'name description image video price currency' },
+            { path: 'items.foodPartner', select: 'companyName email mobile' }
         ]);
 
         res.status(200).json({
@@ -310,9 +312,9 @@ const getOrderById = async (req, res) => {
 
         const order = await orderModel
             .findOne({ _id: orderId })
-            .populate('user', 'username email')
-            .populate('items.foodItem', 'name description image video price currency preparationTime')
-            .populate('items.foodPartner', 'restaurantName email phoneNumber');
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name description image video price currency preparationTime postType')
+            .populate('items.foodPartner', 'companyName email mobile address');
 
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
