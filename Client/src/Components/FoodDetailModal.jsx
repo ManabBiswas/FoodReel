@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { showSuccess, showError, showWarning } from '../utils/toast'
-import API_ENDPOINTS, { axiosConfig } from '../config/Api'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
 
 const FoodDetailModal = ({ food, onClose }) => {

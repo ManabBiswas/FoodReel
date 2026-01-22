@@ -4,6 +4,14 @@ import orderModel from '../models/order.model.js';
 export const createPaymentOrder = async (req, res) => {
   try {
     const { orderId } = req.body;
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
     const userId = req.user._id;
 
     const order = await orderModel.findOne({ 
@@ -45,16 +53,24 @@ export const createPaymentOrder = async (req, res) => {
       }
     );
 
-    // Update order
-    order.paymentDetails.razorpayOrderId = razorpayOrder.orderId;
+    if (!razorpayOrder.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create Razorpay order',
+        error: razorpayOrder.error
+      });
+    }
+
+    // Update order with Razorpay order ID (note: service returns order_id in snake_case)
+    order.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
     order.paymentDetails.status = 'processing';
     await order.save();
 
     res.status(200).json({
       success: true,
-      razorpayOrderId: razorpayOrder.orderId,
-      amount: order.pricing.totalAmount,
-      currency: order.currency,
+      razorpayOrderId: razorpayOrder.order_id,
+      amount: razorpayOrder.amount / 100, // Convert from paise to rupees
+      currency: razorpayOrder.currency,
       keyId: paymentService.getKeyId(),
       order: {
         id: order._id,
@@ -79,6 +95,13 @@ export const verifyPayment = async (req, res) => {
       razorpay_signature,
       orderId
     } = req.body;
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
 
     const userId = req.user._id;
 
@@ -156,6 +179,14 @@ export const verifyPayment = async (req, res) => {
 export const handlePaymentFailure = async (req, res) => {
   try {
     const { orderId, error } = req.body;
+    
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
     const userId = req.user._id;
 
     const order = await orderModel.findOne({ 
@@ -190,6 +221,14 @@ export const handlePaymentFailure = async (req, res) => {
 export const initiateRefund = async (req, res) => {
   try {
     const { orderId, reason, amount } = req.body;
+    
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
     const userId = req.user._id;
 
     // Find the order

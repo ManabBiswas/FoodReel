@@ -15,7 +15,7 @@ const app = express()
 
 // CORS configuration for production and development
 const allowedOrigins = [
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(cors({

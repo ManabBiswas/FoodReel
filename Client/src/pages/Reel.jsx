@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import axios from 'axios'
-import API_ENDPOINTS, { axiosConfig } from '../config/Api'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showWarning, showInfo } from '../utils/toast'
 import { ChefHat } from 'lucide-react'
 import ReelArea from '../Components/ReelArea'

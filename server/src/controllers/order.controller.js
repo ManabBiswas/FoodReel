@@ -14,6 +14,14 @@ const createOrder = async (req, res) => {
       paymentMethod = 'cod'
     } = req.body;
 
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Unauthorized'
+      });
+    }
+
+    const userId = req.user._id;
+
     // Validate required fields
     if (!items.length || !deliveryAddress) {
       return res.status(400).json({
@@ -70,7 +78,7 @@ const createOrder = async (req, res) => {
 
     // Create order
     const orderData = {
-      user: req.user._id,
+      user: userId,
       items: orderItems,
       currency: 'INR',
       deliveryAddress,
@@ -100,7 +108,7 @@ const createOrder = async (req, res) => {
 
     // Update user order history
     await userModel.findByIdAndUpdate(
-      req.user._id,
+      userId,
       { $push: { orderHistory: newOrder._id } }
     );
 

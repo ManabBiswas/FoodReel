@@ -72,7 +72,7 @@ const orderSchema = new mongoose.Schema({
         },
         phone: {
             type: String,
-            match: /^[6-9]\d{9}$/,
+            match: /^(0?[6-9]\d{9})$/,
             required: true
         },
         addressLine1: {

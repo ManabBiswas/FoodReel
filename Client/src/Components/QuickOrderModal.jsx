@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { showSuccess, showError } from '../utils/toast'
 import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle } from 'lucide-react'
-import API_ENDPOINTS, { axiosConfig } from '../config/Api'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const [step, setStep] = useState(1) // 1: Address, 2: Payment
@@ -22,15 +22,16 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
 
   useEffect(() => {
     if (food) {
-      // Calculate pricing
-      const deliveryFee = 20
-      const platformFee = Math.round(food.price * 0.02)
-      const subtotal = food.price + deliveryFee + platformFee
-      const gst = Math.round(subtotal * 0.05)
-      const total = subtotal + gst
+     
+      const basePrice = Math.round(food.price * 100) / 100
+      const deliveryFee = 0 // default deliveryDistance=0 in backend calculatePricing
+      const platformFee = Math.round(basePrice * 0.03 * 100) / 100
+      const subtotal = basePrice + deliveryFee + platformFee
+      const gst = Math.round(subtotal * 0.05 * 100) / 100
+      const total = Math.round((subtotal + gst) * 100) / 100
 
       setPricing({
-        itemPrice: food.price,
+        itemPrice: basePrice,
         deliveryFee,
         platformFee,
         gst,
@@ -58,30 +59,56 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     try {
       setLoading(true)
 
-      // Create payment order
-      const response = await axios.post(
-        API_ENDPOINTS.payment.createOrder,
+      // Step 1: Create the order first
+      const orderResponse = await axios.post(
+        API_ENDPOINTS.order.create,
         {
-          foodId: food._id,
+          items: [
+            {
+              foodItemId: food._id,
+              quantity: 1
+            }
+          ],
           deliveryAddress: address,
-          orderNotes
+          orderNotes: orderNotes,
+          orderSource: 'modal',
+          paymentMethod: 'razorpay'
         },
         axiosConfig
       )
 
-      if (response.data.success) {
-        // Open Razorpay
+      if (!orderResponse.data.order || !orderResponse.data.order._id) {
+        showError('Failed to create order')
+        return
+      }
+
+      const orderId = orderResponse.data.order._id
+
+      // Step 2: Create payment order with the order ID
+      const paymentResponse = await axios.post(
+        API_ENDPOINTS.payment.createOrder,
+        {
+          orderId: orderId
+        },
+        axiosConfig
+      )
+
+      if (paymentResponse.data.success) {
+        // Step 3: Open Razorpay
+        // Convert amount to paise (1 rupee = 100 paise)
+        const amountInPaise = Math.round(paymentResponse.data.amount * 100);
+        
         const options = {
-          key: response.data.data.razorpayKeyId,
-          amount: response.data.data.amount,
-          currency: response.data.data.currency,
+          key: paymentResponse.data.keyId,
+          amount: amountInPaise,
+          currency: paymentResponse.data.currency,
           name: 'FoodReel',
           description: food.title,
-          order_id: response.data.data.razorpayOrderId,
+          order_id: paymentResponse.data.razorpayOrderId,
           handler: async function (razorpayResponse) {
             // Verify payment
             await verifyPayment(
-              response.data.data.orderId,
+              orderId,
               razorpayResponse
             )
           },
@@ -90,7 +117,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
             contact: address.phone
           },
           theme: {
-            color: '#22c55e'
+            color: '#FACC15'
           }
         }
 
@@ -99,7 +126,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Order error:', error)
-      showError('Failed to create order. Please try again.')
+      showError(error.response?.data?.message || error.response?.data?.error || 'Failed to create order. Please try again.')
     } finally {
       setLoading(false)
     }
