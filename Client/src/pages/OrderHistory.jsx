@@ -46,8 +46,8 @@ const OrderHistory = () => {
   }
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order._id?.includes(searchTerm.toLowerCase()) ||
-                         order.deliveryInfo?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.deliveryAddress?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -170,10 +170,10 @@ const OrderHistory = () => {
                         <MapPin className="w-4 h-4" /> Delivery
                       </p>
                       <p className="font-medium text-gray-900 text-sm">
-                        {order.deliveryInfo?.city || 'N/A'}
+                        {order.deliveryAddress?.city || 'N/A'}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {order.deliveryInfo?.fullName}
+                        {order.deliveryAddress?.fullName}
                       </p>
                     </div>
 
@@ -188,7 +188,7 @@ const OrderHistory = () => {
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Amount</p>
                       <p className="font-bold text-red-500 text-lg">
-                        ₹{order.pricing?.grandTotal?.toFixed(2) || '0.00'}
+                        ₹{order.pricing?.totalAmount?.toFixed(2) || '0.00'}
                       </p>
                     </div>
 
