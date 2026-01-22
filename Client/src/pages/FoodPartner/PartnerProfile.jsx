@@ -87,9 +87,9 @@ const PartnerProfile = () => {
   const handleSaveBio = async () => {
     try {
       setBioLoading(true)
-      await axios.put('http://localhost:3000/api/auth/partner/bio',
+      await axios.put(API_ENDPOINTS.auth.partnerBio,
         { bio: bioText },
-        { withCredentials: true }
+        axiosConfig
       )
 
       setPartnerData(prev => ({ ...prev, bio: bioText }))
@@ -105,7 +105,7 @@ const PartnerProfile = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.get('http://localhost:3000/api/auth/partner/logout', { withCredentials: true })
+      await axios.get(API_ENDPOINTS.auth.partnerLogout, axiosConfig)
     } catch (err) {
       console.warn('Logout request failed:', err)
     } finally {

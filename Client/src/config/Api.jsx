@@ -1,6 +1,5 @@
 // Remove trailing slash from base URL to prevent double slashes
-// const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const API_VERSION = import.meta.env.VITE_API_VERSION || '';
 
 // Construct base API URL
@@ -184,6 +183,11 @@ export const API_ENDPOINTS = {
   // Partner follow endpoint
   partner: {
     follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,
+  },
+  
+  // Contact endpoint
+  contact: {
+    send: `${BASE_URL}/contact`,
   }
 };
 

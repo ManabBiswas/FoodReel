@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 
 const Contact = () => {
   const [name, setName] = useState('')
@@ -14,7 +15,7 @@ const Contact = () => {
     setStatus('sending')
     try {
       // If backend /api/contact exists it will receive this. If not, we'll just mimic success.
-      await axios.post('/api/contact', { name, email, message })
+      await axios.post(API_ENDPOINTS.contact.send, { name, email, message }, axiosConfig)
       setStatus('sent')
       setName('')
       setEmail('')

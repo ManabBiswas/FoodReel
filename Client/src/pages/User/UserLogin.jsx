@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, Home } from 'lucide-react';
@@ -11,15 +11,7 @@ const UserLogin = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { isAuthenticated, isUser, loginUser } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated && isUser) {
-      setTimeout(() => {
-        navigate('/');
-      }), 2000
-    }
-  }, [isAuthenticated, isUser, navigate]);
+  const { loginUser } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -43,7 +35,7 @@ const UserLogin = () => {
 
     const result = await loginUser(formData);
     if (result.success) {
-      showSuccess('Login successful! Redirecting...');
+      showSuccess('Login successful!');
       navigate('/', { replace: true });
     } else {
       setErrors({ general: result.error });
