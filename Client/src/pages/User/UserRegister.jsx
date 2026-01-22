@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '../../hooks/useAuth'
 import { useNavigate, Link } from 'react-router-dom'
@@ -8,16 +8,9 @@ import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone, Home } from 'l
 
 const UserRegister = () => {
 
-  const { isAuthenticated, isUser, loginUser } = useAuth()
+  const { loginUser } = useAuth()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    if (isAuthenticated && isUser) {
-      setTimeout(() => {
-        navigate('/')
-      }, 2000)
-    }
-  }, [isAuthenticated, isUser, navigate])
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -110,7 +103,7 @@ const UserRegister = () => {
       submitData.append('mobile', formData.mobile)
 
       const response = await axios.post(
-        API_ENDPOINTS.USER_REGISTER || 'http://localhost:3000/api/auth/user/register',
+        API_ENDPOINTS.auth.userRegister,
         submitData,
         axiosConfig
       )
@@ -126,15 +119,11 @@ const UserRegister = () => {
       })
 
       if (loginResult.success) {
-        showSuccess('Welcome! Redirecting to home...')
-        setTimeout(() => {
-          navigate('/', { replace: true })
-        }, 1000)
+        showSuccess('Welcome!')
+        navigate('/', { replace: true })
       } else {
         showError('Registration successful, but auto-login failed. Please login manually.')
-        setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+        navigate('/login', { replace: true })
       }
 
     } catch (error) {

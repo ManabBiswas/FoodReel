@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Home from '../pages/Home'
 import UserRegister from '../pages/User/UserRegister'
 import UserLogin from '../pages/User/UserLogin'
@@ -23,70 +23,82 @@ import Contact from '../pages/Contact'
 import AdminPage from '../pages/Admin/AdminPage'
 import AdminDashboard from '../pages/Admin/AdminDashboard'
 import { useAuth } from '../hooks/useAuth'
+import { Loader2 } from 'lucide-react'
+
+// Loading Component
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-200 to-purple-200">
+    <div className="text-center">
+      <Loader2 className="w-12 h-12 animate-spin mx-auto text-indigo-600 mb-4" />
+      <p className="text-gray-600 font-medium">Loading...</p>
+    </div>
+  </div>
+)
+
+// Protected Route Component
+const ProtectedRoute = ({ children, requireAuth = false, allowedType = null }) => {
+  const { authType, isAuthenticated, loading, authChecked } = useAuth()
+
+  // Show loading while checking auth
+  if (!authChecked || loading) {
+    return <LoadingScreen />
+  }
+
+  // If route requires authentication
+  if (requireAuth) {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />
+    }
+    if (allowedType && authType !== allowedType) {
+      return <Navigate to="/" replace />
+    }
+  }
+
+  // If user is authenticated and trying to access login/register pages
+  if (!requireAuth && isAuthenticated && ['/login', '/register', '/partner-login', '/partner-register'].includes(window.location.pathname)) {
+    return <Navigate to="/" replace />
+  }
+
+  return children
+}
 
 const AppRoutes = () => {
-  const { authType, isAuthenticated } = useAuth()
   return (
     <Router>
       <Routes>
+        {/* Public Routes */}
         <Route path='/' element={<Home />} />
         <Route path='/about' element={<About />} />
         <Route path='/contact-us' element={<Contact />} />
-        {/* if authType === 'not-logged-in' */}
-        {!isAuthenticated && (
-          <>
-            <Route path='/register' element={<UserRegister />} />
-            <Route path='/login' element={<UserLogin />} />
-            <Route path='/partner-register' element={<PartnerRegister />} />
-            <Route path='/partner-login' element={<PartnerLogin />} />
-            <Route path='/create-post' element={<UserLogin />} />
-            <Route path='/reels' element={<UserLogin />} />
-            <Route path='/profile' element={<UserLogin />} />
-            <Route path='/profile/settings' element={<UserLogin />} />
-            <Route path='/order/history' element={<UserLogin />} />
-            <Route path='/checkout' element={<UserLogin />} />
-            <Route path='/order/confirmation/:orderId' element={<UserLogin />} />
-            <Route path='/order/tracking/:orderId' element={<UserLogin />} />
-            <Route path='/partner-dashboard' element={<UserLogin />} />
-            <Route path='/CreateFood' element={<UserLogin />} />
-            <Route path='/partner-profile' element={<UserLogin />} />
-            <Route path='/admin-login' element={<UserLogin />} />
-            <Route path='/admin-dashboard' element={<UserLogin />} />
-          </>
-        )}
-        {/* if authType === 'user' */}
-        {isAuthenticated && authType === 'user' && (
-          <>
-            <Route path='/create-post' element={<CreatePost />} />
-            <Route path='/reels' element={<Reel />} />
-            <Route path='/profile' element={<UserProfile />} />
-            <Route path='/profile/settings' element={<ProfileSettings />} />
-            <Route path='/order/history' element={<OrderHistory />} />
-            <Route path='/checkout' element={<Checkout />} />
-            <Route path='/order/confirmation/:orderId' element={<OrderConfirmation />} />
-            <Route path='/order/tracking/:orderId' element={<OrderTracking />} />
-          </>
-        )}
-        {/* if authType === 'partner' */}
-        {isAuthenticated && authType === 'partner' && (
-          <>
-            <Route path='/partner-dashboard' element={<Dashboard />} />
-            <Route path='/CreateFood' element={<CreateFood />} />
-            <Route path='/partner-profile' element={<PartnerProfile />} />
-            <Route path='/partner-profile/settings' element={<ProfileSettings />} />
-            <Route path='/reels' element={<Reel />} />
-          </>
-        )}
-
-        {/* if authType === 'admin' */}
-        {isAuthenticated && authType === 'admin' && (
-          <>
-            <Route path='/admin-login' element={<AdminPage />} />
-            <Route path='/admin/dashboard' element={<AdminDashboard />} />
-          </>
-        )}
-
         <Route path='/work' element={<WorkingProgress />} />
+
+        {/* Auth Routes - Redirect if already logged in */}
+        <Route path='/register' element={<ProtectedRoute><UserRegister /></ProtectedRoute>} />
+        <Route path='/login' element={<ProtectedRoute><UserLogin /></ProtectedRoute>} />
+        <Route path='/partner-register' element={<ProtectedRoute><PartnerRegister /></ProtectedRoute>} />
+        <Route path='/partner-login' element={<ProtectedRoute><PartnerLogin /></ProtectedRoute>} />
+
+        {/* User Protected Routes */}
+        <Route path='/create-post' element={<ProtectedRoute requireAuth allowedType="user"><CreatePost /></ProtectedRoute>} />
+        <Route path='/reels' element={<ProtectedRoute requireAuth allowedType="user"><Reel /></ProtectedRoute>} />
+        <Route path='/profile' element={<ProtectedRoute requireAuth allowedType="user"><UserProfile /></ProtectedRoute>} />
+        <Route path='/profile/settings' element={<ProtectedRoute requireAuth allowedType="user"><ProfileSettings /></ProtectedRoute>} />
+        <Route path='/order/history' element={<ProtectedRoute requireAuth allowedType="user"><OrderHistory /></ProtectedRoute>} />
+        <Route path='/checkout' element={<ProtectedRoute requireAuth allowedType="user"><Checkout /></ProtectedRoute>} />
+        <Route path='/order/confirmation/:orderId' element={<ProtectedRoute requireAuth allowedType="user"><OrderConfirmation /></ProtectedRoute>} />
+        <Route path='/order/tracking/:orderId' element={<ProtectedRoute requireAuth allowedType="user"><OrderTracking /></ProtectedRoute>} />
+
+        {/* Partner Protected Routes */}
+        <Route path='/partner-dashboard' element={<ProtectedRoute requireAuth allowedType="partner"><Dashboard /></ProtectedRoute>} />
+        <Route path='/CreateFood' element={<ProtectedRoute requireAuth allowedType="partner"><CreateFood /></ProtectedRoute>} />
+        <Route path='/partner-profile' element={<ProtectedRoute requireAuth allowedType="partner"><PartnerProfile /></ProtectedRoute>} />
+        <Route path='/partner-profile/settings' element={<ProtectedRoute requireAuth allowedType="partner"><ProfileSettings /></ProtectedRoute>} />
+
+        {/* Admin Protected Routes */}
+        <Route path='/admin-login' element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+        <Route path='/admin/dashboard' element={<ProtectedRoute requireAuth allowedType="admin"><AdminDashboard /></ProtectedRoute>} />
+
+        {/* 404 Route */}
         <Route path='*' element={<ErrorPage />} />
       </Routes>
     </Router>
