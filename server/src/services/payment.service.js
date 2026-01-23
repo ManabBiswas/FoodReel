@@ -131,7 +131,7 @@ class PaymentService {
         else if (deliveryDistance < 10) deliveryFee = 40;
         else deliveryFee = 60;
 
-        const platformFee = Math.round(basePrice * 0.02 * 100) / 100;
+        const platformFee = Math.round(basePrice * 0.03 * 100) / 100;
         const subtotal = basePrice + deliveryFee + platformFee;
         const gst = Math.round(subtotal * 0.05 * 100) / 100;
         const totalAmount = Math.round((subtotal + gst - discount) * 100) / 100;

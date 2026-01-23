@@ -43,8 +43,8 @@ const orderSchema = new mongoose.Schema({
     },
     orderSource: {
         type: String,
-        enum: ['reel', 'modal', 'menu', 'search', 'cart', 'other'],
-        default: 'modal',
+        enum: ['reel', 'home', 'menu', 'search', 'cart', 'other'],
+        default: 'reel',
         required: true
     },
     // CONSOLIDATED PAYMENT INFORMATION (removed duplicates)
