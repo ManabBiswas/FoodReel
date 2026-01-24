@@ -9,6 +9,10 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
   const [step, setStep] = useState(1) // 1: Address, 2: Payment
   const [loading, setLoading] = useState(false)
+  const [loadingAddresses, setLoadingAddresses] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState([])
+  const [selectedAddressId, setSelectedAddressId] = useState(null)
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -22,6 +26,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const [orderNotes, setOrderNotes] = useState('')
   const [pricing, setPricing] = useState(null)
   const [quant, setQuant] = useState(1)
+  const [paymentMethod, setPaymentMethod] = useState('razorpay') // 'razorpay' or 'cod'
 
   const handleIncrement = () => {
     setQuant(prev => prev + 1)
@@ -33,12 +38,68 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     }
   }
 
+  // Fetch saved addresses when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchSavedAddresses()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
+  const fetchSavedAddresses = async () => {
+    try {
+      setLoadingAddresses(true)
+      const response = await axios.get(API_ENDPOINTS.user.address, axiosConfig)
+      if (response.data.addresses && response.data.addresses.length > 0) {
+        setSavedAddresses(response.data.addresses)
+        // Auto-select default address if available
+        const defaultAddr = response.data.addresses.find(addr => addr.isDefault)
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr._id)
+          populateAddressForm(defaultAddr)
+        } else {
+          // Select first address
+          setSelectedAddressId(response.data.addresses[0]._id)
+          populateAddressForm(response.data.addresses[0])
+        }
+      } else {
+        setShowNewAddressForm(true)
+      }
+    } catch (error) {
+      console.error('Error fetching addresses:', error)
+      setShowNewAddressForm(true)
+    } finally {
+      setLoadingAddresses(false)
+    }
+  }
+
+  const populateAddressForm = (addr) => {
+    setAddress({
+      fullName: addr.fullName || '',
+      phone: addr.phone || '',
+      addressLine1: addr.addressLine1 || '',
+      addressLine2: addr.addressLine2 || '',
+      landmark: addr.landmark || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      pincode: addr.pincode || ''
+    })
+  }
+
+  const handleAddressSelection = (addrId) => {
+    setSelectedAddressId(addrId)
+    const selectedAddr = savedAddresses.find(addr => addr._id === addrId)
+    if (selectedAddr) {
+      populateAddressForm(selectedAddr)
+    }
+  }
+
   // Recalculate pricing when quantity changes
   useEffect(() => {
     if (food && food.price) {
       const basePrice = Math.round(food.price * quant * 100) / 100
       const deliveryFee = 0 // default deliveryDistance=0 in backend calculatePricing
-      const platformFee = Math.round(basePrice * 0.03 * 100) / 100
+      const platformFee = Math.round(basePrice * 0.02 * 100) / 100 // 2% platform fee
       const subtotal = basePrice + deliveryFee + platformFee
       const gst = Math.round(subtotal * 0.05 * 100) / 100
       const total = Math.round((subtotal + gst) * 100) / 100
@@ -85,7 +146,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           deliveryAddress: address,
           specialInstructions: orderNotes,
           orderSource: 'reel',
-          paymentMethod: 'razorpay'
+          paymentMethod: paymentMethod
         },
         axiosConfig
       )
@@ -97,7 +158,15 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
 
       const orderId = orderResponse.data.order._id
 
-      // Step 2: Create payment order with the order ID
+      // If COD, navigate directly to confirmation
+      if (paymentMethod === 'cod') {
+        showSuccess('Order placed successfully!')
+        onClose()
+        navigate('/order/confirmation', { state: { orderId } })
+        return
+      }
+
+      // Step 2: For Razorpay - Create payment order with the order ID
       const paymentResponse = await axios.post(
         API_ENDPOINTS.payment.createOrder,
         {
@@ -182,6 +251,10 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       setStep(1)
       setQuant(1)
       setOrderNotes('')
+      setPaymentMethod('razorpay')
+      setSelectedAddressId(null)
+      setShowNewAddressForm(false)
+      setSavedAddresses([])
       setAddress({
         fullName: '',
         phone: '',
@@ -251,87 +324,156 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 Delivery Address
               </h3>
 
-              <input
-                type="text"
-                name="fullName"
-                placeholder="Full Name *"
-                value={address.fullName}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-                required
-              />
+              {loadingAddresses ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                  <span className="ml-2 text-gray-600">Loading addresses...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Saved Addresses */}
+                  {savedAddresses.length > 0 && !showNewAddressForm && (
+                    <div className="space-y-3">
+                      {savedAddresses.map((addr) => (
+                        <div
+                          key={addr._id}
+                          onClick={() => handleAddressSelection(addr._id)}
+                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            selectedAddressId === addr._id
+                              ? 'border-green-600 bg-green-50'
+                              : 'border-gray-200 hover:border-green-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-800">{addr.fullName}</p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {addr.addressLine1}
+                                {addr.addressLine2 && `, ${addr.addressLine2}`}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {addr.city}, {addr.state} - {addr.pincode}
+                              </p>
+                              <p className="text-sm text-gray-600">Phone: {addr.phone}</p>
+                              {addr.isDefault && (
+                                <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {selectedAddressId === addr._id && (
+                              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setShowNewAddressForm(true)}
+                        className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-green-600 hover:border-green-500 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Add New Address
+                      </button>
+                    </div>
+                  )}
 
-              <input
-                type="tel"
-                name="phone"
-                placeholder="Phone Number *"
-                value={address.phone}
-                onChange={handleAddressChange}
-                maxLength={10}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-                required
-              />
+                  {/* New Address Form */}
+                  {(showNewAddressForm || savedAddresses.length === 0) && (
+                    <div className="space-y-3">
+                      {savedAddresses.length > 0 && (
+                        <button
+                          onClick={() => setShowNewAddressForm(false)}
+                          className="text-sm text-green-600 hover:underline mb-2"
+                        >
+                          ← Back to saved addresses
+                        </button>
+                      )}
+                      
+                      <input
+                        type="text"
+                        name="fullName"
+                        placeholder="Full Name *"
+                        value={address.fullName}
+                        onChange={handleAddressChange}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                        required
+                      />
 
-              <textarea
-                name="addressLine1"
-                placeholder="House No., Building Name *"
-                value={address.addressLine1}
-                onChange={handleAddressChange}
-                rows={2}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm sm:text-base"
-                required
-              />
+                      <input
+                        type="tel"
+                        name="phone"
+                        placeholder="Phone Number *"
+                        value={address.phone}
+                        onChange={handleAddressChange}
+                        maxLength={11}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                        required
+                      />
 
-              <input
-                type="text"
-                name="addressLine2"
-                placeholder="Road Name, Area, Colony (Optional)"
-                value={address.addressLine2}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-              />
+                      <textarea
+                        name="addressLine1"
+                        placeholder="House No., Building Name *"
+                        value={address.addressLine1}
+                        onChange={handleAddressChange}
+                        rows={2}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm sm:text-base"
+                        required
+                      />
 
-              <input
-                type="text"
-                name="landmark"
-                placeholder="Landmark (Optional)"
-                value={address.landmark}
-                onChange={handleAddressChange}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-              />
+                      <input
+                        type="text"
+                        name="addressLine2"
+                        placeholder="Road Name, Area, Colony (Optional)"
+                        value={address.addressLine2}
+                        onChange={handleAddressChange}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                      />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  name="city"
-                  placeholder="City *"
-                  value={address.city}
-                  onChange={handleAddressChange}
-                  className="px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-                  required
-                />
-                <input
-                  type="text"
-                  name="state"
-                  placeholder="State *"
-                  value={address.state}
-                  onChange={handleAddressChange}
-                  className="px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-                  required
-                />
-              </div>
+                      <input
+                        type="text"
+                        name="landmark"
+                        placeholder="Landmark (Optional)"
+                        value={address.landmark}
+                        onChange={handleAddressChange}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                      />
 
-              <input
-                type="text"
-                name="pincode"
-                placeholder="Pincode *"
-                value={address.pincode}
-                onChange={handleAddressChange}
-                maxLength={6}
-                pattern="[0-9]{6}"
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
-                required
-              />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          name="city"
+                          placeholder="City *"
+                          value={address.city}
+                          onChange={handleAddressChange}
+                          className="px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                          required
+                        />
+                        <input
+                          type="text"
+                          name="state"
+                          placeholder="State *"
+                          value={address.state}
+                          onChange={handleAddressChange}
+                          className="px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                          required
+                        />
+                      </div>
+
+                      <input
+                        type="text"
+                        name="pincode"
+                        placeholder="Pincode *"
+                        value={address.pincode}
+                        onChange={handleAddressChange}
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                        required
+                      />
+                    </div>
+                  )}
+                </>
+              )}
 
               <textarea
                 placeholder="Order notes (Optional)"
@@ -348,8 +490,52 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
             <div className="space-y-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-green-600" />
-                Order Summary
+                Order Summary & Payment
               </h3>
+
+              {/* Payment Method Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Payment Method</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('razorpay')}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      paymentMethod === 'razorpay'
+                        ? 'border-green-600 bg-green-50'
+                        : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <CreditCard className={`w-6 h-6 mx-auto mb-2 ${
+                      paymentMethod === 'razorpay' ? 'text-green-600' : 'text-gray-400'
+                    }`} />
+                    <p className="text-sm font-medium text-center">Online Payment</p>
+                    <p className="text-xs text-gray-500 text-center mt-1">UPI, Card, Net Banking</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cod')}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      paymentMethod === 'cod'
+                        ? 'border-green-600 bg-green-50'
+                        : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <svg 
+                      className={`w-6 h-6 mx-auto mb-2 ${
+                        paymentMethod === 'cod' ? 'text-green-600' : 'text-gray-400'
+                      }`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <p className="text-sm font-medium text-center">Cash on Delivery</p>
+                    <p className="text-xs text-gray-500 text-center mt-1">Pay when delivered</p>
+                  </button>
+                </div>
+              </div>
 
               {/* Price Breakdown */}
               <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
@@ -364,7 +550,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Platform Fee (3%)</span>
+                  <span>Platform Fee (2%)</span>
                   <span>₹{pricing.platformFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -433,7 +619,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    Place Order - ₹{pricing.total.toFixed(2)}
+                    {paymentMethod === 'cod' ? 'Place Order (COD)' : `Pay ₹${pricing.total.toFixed(2)}`}
                   </>
                 )}
               </button>
