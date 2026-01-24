@@ -5,6 +5,9 @@ node_modules/
 # Ignore all Markdown files
 *.md
 
+# Ignore local server jsconfig (use jsconfig.example.json in repo)
+server/jsconfig.json
+
 # But do NOT ignore these specific ones
 !README.md
 !FOOD_VS_ADVERTISEMENT_SYSTEM.md
