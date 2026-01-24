@@ -149,6 +149,17 @@ export const API_ENDPOINTS = {
     cancel: (id) => `${BASE_URL}/orders/${id}/cancel`,
   },
   
+  // Cart endpoints
+  cart: {
+    get: `${BASE_URL}/cart`,
+    add: `${BASE_URL}/cart/add`,
+    update: (itemId) => `${BASE_URL}/cart/update/${itemId}`,
+    remove: (itemId) => `${BASE_URL}/cart/remove/${itemId}`,
+    clear: `${BASE_URL}/cart/clear`,
+    validate: `${BASE_URL}/cart/validate`,
+    checkout: `${BASE_URL}/cart/checkout`,
+  },
+  
   // Payment endpoints
   payment: {
     createOrder: `${BASE_URL}/payment/create-order`,

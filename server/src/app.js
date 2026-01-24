@@ -10,6 +10,7 @@ import userPostRoutes from './routes/userPost.route.js';
 import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
 import adminRoutes from './routes/admin.route.js';
+import cartRoutes from './routes/cart.route.js';
 import cors from 'cors';
 const app = express() 
 
@@ -45,6 +46,7 @@ app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders',orderRoutes);
+app.use('/api/cart',cartRoutes);
 app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);

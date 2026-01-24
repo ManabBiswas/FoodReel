@@ -175,7 +175,7 @@ const getPartnerOrders = async (req, res) => {
         const { status, limit = 20, page = 1 } = req.query;
 
         // Build filter
-        const filter = { foodPartner: req.foodPartner._id };
+        const filter = { 'items.foodPartner': req.foodPartner._id };
         if (status && ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
             filter.status = status;
         }
@@ -268,15 +268,17 @@ const getOrderStatistics = async (req, res) => {
     try {
         const partnerId = req.foodPartner._id;
 
+        // Get statistics for orders with this partner's items
         const stats = await orderModel.aggregate([
             {
-                $match: { foodPartner: partnerId }
+                // Match orders that have items from this partner
+                $match: { 'items.foodPartner': partnerId }
             },
             {
                 $group: {
                     _id: "$status",
                     count: { $sum: 1 },
-                    totalRevenue: { $sum: "$totalAmount" }
+                    totalRevenue: { $sum: "$pricing.totalAmount" }
                 }
             }
         ]);
@@ -288,7 +290,7 @@ const getOrderStatistics = async (req, res) => {
         const todayStats = await orderModel.aggregate([
             {
                 $match: {
-                    foodPartner: partnerId,
+                    'items.foodPartner': partnerId,
                     createdAt: { $gte: today }
                 }
             },
@@ -296,7 +298,7 @@ const getOrderStatistics = async (req, res) => {
                 $group: {
                     _id: null,
                     todayOrders: { $sum: 1 },
-                    todayRevenue: { $sum: "$totalAmount" }
+                    todayRevenue: { $sum: "$pricing.totalAmount" }
                 }
             }
         ]);

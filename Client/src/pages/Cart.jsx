@@ -24,7 +24,20 @@ const Cart = () => {
   }
 
   const handleCheckout = () => {
-    navigate('/checkout')
+    // Pass cart items as orderData to checkout
+    const orderData = {
+      items: cartItems.map(item => ({
+        foodId: item._id,
+        _id: item._id,
+        name: item.name || item.title,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image || item.video || item.foodImageUrl || item.mediaUrl,
+        description: item.description
+      })),
+      totalPrice: getTotalPrice()
+    }
+    navigate('/checkout', { state: { orderData } })
   }
 
   if (cartItems.length === 0) {
