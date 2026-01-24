@@ -153,9 +153,6 @@ const UserProfile = () => {
                     ) : (
                       <User className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-gray-600" />
                     )}
-                    <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                      <Camera className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-                    </div>
                   </div>
                 </div>
               </div>
