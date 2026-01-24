@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { showSuccess, showError } from '../utils/toast'
-import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle, Plus, Minus } from 'lucide-react'
+import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle, Plus, Minus, ShoppingCart } from 'lucide-react'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
+import { useCart } from '../hooks/useCart'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
+  const { addToCart } = useCart()
   const [step, setStep] = useState(1) // 1: Address, 2: Payment
   const [loading, setLoading] = useState(false)
   const [loadingAddresses, setLoadingAddresses] = useState(false)
@@ -52,13 +54,11 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       const response = await axios.get(API_ENDPOINTS.user.address, axiosConfig)
       if (response.data.addresses && response.data.addresses.length > 0) {
         setSavedAddresses(response.data.addresses)
-        // Auto-select default address if available
         const defaultAddr = response.data.addresses.find(addr => addr.isDefault)
         if (defaultAddr) {
           setSelectedAddressId(defaultAddr._id)
           populateAddressForm(defaultAddr)
         } else {
-          // Select first address
           setSelectedAddressId(response.data.addresses[0]._id)
           populateAddressForm(response.data.addresses[0])
         }
@@ -98,8 +98,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   useEffect(() => {
     if (food && food.price) {
       const basePrice = Math.round(food.price * quant * 100) / 100
-      const deliveryFee = 0 // default deliveryDistance=0 in backend calculatePricing
-      const platformFee = Math.round(basePrice * 0.02 * 100) / 100 // 2% platform fee
+      const deliveryFee = 0
+      const platformFee = Math.round(basePrice * 0.02 * 100) / 100
       const subtotal = basePrice + deliveryFee + platformFee
       const gst = Math.round(subtotal * 0.05 * 100) / 100
       const total = Math.round((subtotal + gst) * 100) / 100
@@ -129,11 +129,15 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     }
   }
 
+  const handleAddToCart = () => {
+    addToCart(food, quant)
+    onClose()
+  }
+
   const handlePlaceOrder = async () => {
     try {
       setLoading(true)
 
-      // Step 1: Create the order first
       const orderResponse = await axios.post(
         API_ENDPOINTS.order.create,
         {
@@ -158,7 +162,6 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
 
       const orderId = orderResponse.data.order._id
 
-      // If COD, navigate directly to confirmation
       if (paymentMethod === 'cod') {
         showSuccess('Order placed successfully!')
         onClose()
@@ -166,18 +169,13 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
         return
       }
 
-      // Step 2: For Razorpay - Create payment order with the order ID
       const paymentResponse = await axios.post(
         API_ENDPOINTS.payment.createOrder,
-        {
-          orderId: orderId
-        },
+        { orderId: orderId },
         axiosConfig
       )
 
       if (paymentResponse.data.success) {
-        // Step 3: Open Razorpay
-        // Convert amount to paise (1 rupee = 100 paise)
         const amountInPaise = Math.round(paymentResponse.data.amount * 100)
         
         const options = {
@@ -188,19 +186,13 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           description: food.title || food.name,
           order_id: paymentResponse.data.razorpayOrderId,
           handler: async function (razorpayResponse) {
-            // Verify payment
-            await verifyPayment(
-              orderId,
-              razorpayResponse
-            )
+            await verifyPayment(orderId, razorpayResponse)
           },
           prefill: {
             name: address.fullName,
             contact: address.phone
           },
-          theme: {
-            color: '#16A34A'
-          },
+          theme: { color: '#16A34A' },
           modal: {
             ondismiss: function() {
               setLoading(false)
@@ -232,10 +224,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       )
 
       if (response.data.success) {
-        // Show success and navigate
         showSuccess('Order placed successfully!')
         onClose()
-        // Navigate to order confirmation page
         navigate('/order/confirmation', { state: { orderId } })
       }
     } catch (error) {
@@ -331,7 +321,6 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                 </div>
               ) : (
                 <>
-                  {/* Saved Addresses */}
                   {savedAddresses.length > 0 && !showNewAddressForm && (
                     <div className="space-y-3">
                       {savedAddresses.map((addr) => (
@@ -377,7 +366,6 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                     </div>
                   )}
 
-                  {/* New Address Form */}
                   {(showNewAddressForm || savedAddresses.length === 0) && (
                     <div className="space-y-3">
                       {savedAddresses.length > 0 && (
@@ -597,13 +585,22 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
         {/* Footer */}
         <div className="border-t p-4 bg-white sticky bottom-0">
           {step === 1 ? (
-            <button
-              onClick={handleContinueToPayment}
-              disabled={!isAddressValid()}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all text-sm sm:text-base"
-            >
-              Continue to Payment
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleContinueToPayment}
+                disabled={!isAddressValid()}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all text-sm sm:text-base"
+              >
+                Continue to Payment
+              </button>
+              <button
+                onClick={handleAddToCart}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Add to Cart
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
               <button

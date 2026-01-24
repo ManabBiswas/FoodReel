@@ -29,15 +29,11 @@ const OrderTracking = () => {
   const { orderId } = useParams()
   const navigate = useNavigate()
 
-  // Debug logging
-  console.log('OrderTracking - orderId from params:', orderId)
-
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [cancelLoading, setCancelLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Order status flow
   const statusFlow = [
     { key: 'pending', label: 'Order Placed', icon: Package, color: 'blue' },
     { key: 'confirmed', label: 'Confirmed', icon: CheckCircle, color: 'green' },
@@ -48,7 +44,6 @@ const OrderTracking = () => {
   ]
 
   const fetchOrderDetails = useCallback(async () => {
-    // Don't fetch if orderId is not available
     if (!orderId || orderId === 'undefined') {
       setError('Order ID not found')
       setLoading(false)
@@ -61,7 +56,7 @@ const OrderTracking = () => {
         API_ENDPOINTS.order.getById(orderId),
         axiosConfig
       )
-      setOrder(response.data)
+      setOrder(response.data.order)
       setError('')
     } catch (err) {
       console.error('Error fetching order:', err)
@@ -72,70 +67,34 @@ const OrderTracking = () => {
     }
   }, [orderId])
 
-  // Initial fetch
+  // Effect to fetch order details and set up polling
   useEffect(() => {
-    if (!orderId || orderId === 'undefined') {
-      setError('Order ID not found')
-      setLoading(false)
-      return
-    }
     fetchOrderDetails()
+
+    // Set up polling interval to refresh order status every 3 minutes
+    // But only if order is not already cancelled or delivered
+    const intervalId = setInterval(() => {
+      fetchOrderDetails()
+    }, 5*60*1000)
+
+    return () => clearInterval(intervalId)
   }, [orderId, fetchOrderDetails])
 
-  // Polling for real-time updates (every 30 seconds)
-  useEffect(() => {
-    if (!order || order.status === 'delivered' || order.status === 'cancelled') {
-      return // Stop polling if order is delivered or cancelled
-    }
-
-    const pollInterval = setInterval(() => {
-      fetchOrderDetails()
-    }, 30000) // Poll every 30 seconds
-
-    return () => clearInterval(pollInterval)
-  }, [order, fetchOrderDetails])
-
-  // Handle cancel order
-  const handleCancelOrder = async () => {
-    if (!window.confirm('Are you sure you want to cancel this order?')) {
-      return
-    }
-
-    setCancelLoading(true)
-    try {
-      await axios.put(
-        API_ENDPOINTS.order.cancel(orderId),
-        { reason: 'Cancelled by user' },
-        axiosConfig
-      )
-      showSuccess('Order cancelled successfully')
-      fetchOrderDetails() // Refresh order details
-    } catch (err) {
-      console.error('Error cancelling order:', err)
-      showError(err.response?.data?.message || 'Failed to cancel order')
-    } finally {
-      setCancelLoading(false)
-    }
-  }
-
-  // Get current status index
-  const getCurrentStatusIndex = () => {
-    if (!order) return -1
-    return statusFlow.findIndex(s => s.key === order.status)
-  }
-
-  // Check if order can be cancelled
-  const canCancelOrder = () => {
-    if (!order) return false
-    return ['pending', 'confirmed'].includes(order.status)
-  }
-
-  // Calculate estimated delivery time
+  // Calculate estimated delivery time based on food preparation time
   const getEstimatedDeliveryTime = () => {
     if (!order || !order.createdAt) return 'Calculating...'
     
+    // Get MAX preparation time from all food items (not sum)
+    let maxPrepTime = 20 // default
+    if (order.items && order.items.length > 0) {
+      const prepTimes = order.items.map(item => item.foodItem?.preparationTime || 20)
+      maxPrepTime = Math.max(...prepTimes)
+    }
+    
+    const deliveryBuffer = 30 // 30 minutes delivery time
+    
     const orderTime = new Date(order.createdAt)
-    const estimatedTime = new Date(orderTime.getTime() + 45 * 60000) // 45 minutes
+    const estimatedTime = new Date(orderTime.getTime() + (maxPrepTime + deliveryBuffer) * 60000)
     
     if (order.status === 'delivered') {
       return 'Delivered'
@@ -162,6 +121,54 @@ const OrderTracking = () => {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // Get current status index in the flow
+  const getCurrentStatusIndex = () => {
+    if (!order || !order.status) return 0
+    const index = statusFlow.findIndex(s => s.key === order.status)
+    return index >= 0 ? index : 0
+  }
+
+  // Check if order can be cancelled
+  const canCancelOrder = () => {
+    if (!order) return false
+    // Can cancel only if order status is 'pending' or 'confirmed'
+    // Cannot cancel if it's preparing, ready, out_for_delivery, or delivered
+    const isCancelled = order.cancellation?.isCancelled
+    const cancellableStatuses = ['pending', 'confirmed']
+    return !isCancelled && cancellableStatuses.includes(order.status)
+  }
+
+  // Handle order cancellation
+  const handleCancelOrder = async () => {
+    if (!orderId) return
+    
+    try {
+      setCancelLoading(true)
+      const response = await axios.post(
+        API_ENDPOINTS.order.cancel(orderId),
+        {},
+        axiosConfig
+      )
+      
+      if (response.data.success) {
+        showSuccess('Order cancelled successfully')
+        // Update order state to reflect cancellation
+        setOrder(prev => ({
+          ...prev,
+          cancellation: {
+            isCancelled: true,
+            reason: 'Customer requested'
+          }
+        }))
+      }
+    } catch (err) {
+      console.error('Error cancelling order:', err)
+      showError(err.response?.data?.message || 'Failed to cancel order')
+    } finally {
+      setCancelLoading(false)
+    }
   }
 
   if (loading) {
@@ -202,7 +209,7 @@ const OrderTracking = () => {
   }
 
   const currentStatusIndex = getCurrentStatusIndex()
-  const isCancelled = order.status === 'cancelled'
+  const isCancelled = order.cancellation?.isCancelled || false
   const isDelivered = order.status === 'delivered'
 
   return (
@@ -310,28 +317,73 @@ const OrderTracking = () => {
 
               {/* Order Items */}
               <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Order Items</h2>
-                <div className="space-y-3">
-                  {order.items?.map((item, index) => (
-                    <div key={index} className="flex gap-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
-                        <img
-                          src={item.foodId?.mediaUrl || '/placeholder-food.png'}
-                          alt={item.foodId?.name || 'Food item'}
-                          className="w-full h-full object-cover"
-                        />
+                <h2 className="text-xl font-bold text-gray-800 mb-4">
+                  Order Items ({order.items?.length || 0})
+                </h2>
+                <div className="space-y-4">
+                  {order.items?.map((item, index) => {
+                    const foodItem = item.foodItem
+                    const isVideo = foodItem?.type === 'video'
+                    const mediaUrl = isVideo ? foodItem?.video : foodItem?.image
+                    const itemTotal = (item.priceAtOrder * item.quantity).toFixed(2)
+                    const prepTime = foodItem?.preparationTime || 20
+                    
+                    return (
+                      <div key={index} className="flex gap-4 p-4 bg-gradient-to-r from-gray-50 to-orange-50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0 relative">
+                          <img
+                            src={mediaUrl || '/placeholder-food.png'}
+                            alt={foodItem?.name || 'Food item'}
+                            className="w-full h-full object-cover"
+                          />
+                          {isVideo && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-all cursor-pointer">
+                              <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-lg">
+                                <svg className="w-6 h-6 text-orange-600 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                  <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-800 text-lg">
+                            {foodItem?.name || foodItem?.title || 'Food Item'}
+                          </h3>
+                          {foodItem?.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                              {foodItem.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3 mt-2">
+                            <div className="flex items-center gap-1 text-sm">
+                              <span className="text-gray-600">Quantity:</span>
+                              <span className="font-semibold text-gray-800">{item.quantity}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Clock className="w-4 h-4 text-orange-600" />
+                              <span className="text-gray-600">{prepTime} mins prep</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm">
+                              <span className="text-gray-600">Price:</span>
+                              <span className="font-semibold text-gray-800">₹{item.priceAtOrder}</span>
+                            </div>
+                          </div>
+                          {item.foodPartner && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Partner: {item.foodPartner.businessName || 'N/A'}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end justify-between">
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-orange-600">₹{itemTotal}</p>
+                            <p className="text-xs text-gray-500">Total</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800">
-                          {item.foodId?.name || 'Unknown Item'}
-                        </h3>
-                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                        <p className="text-orange-600 font-semibold mt-1">
-                          ₹{item.price}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -394,15 +446,19 @@ const OrderTracking = () => {
                 <div className="space-y-2 mb-4 pb-4 border-b">
                   <div className="flex justify-between text-gray-600">
                     <span>Item Total</span>
-                    <span>₹{order.pricing?.itemTotal || order.totalAmount}</span>
+                    <span>₹{order.pricing?.itemPrice?.toFixed(2) || '0.00'}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Delivery Fee</span>
-                    <span>{order.pricing?.deliveryFee === 0 ? 'FREE' : `₹${order.pricing?.deliveryFee || 40}`}</span>
+                    <span>{order.pricing?.deliveryFee === 0 ? 'FREE' : `₹${order.pricing?.deliveryFee?.toFixed(2) || '0.00'}`}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Platform Fee</span>
+                    <span>₹{order.pricing?.platformFee?.toFixed(2) || '0.00'}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>GST (5%)</span>
-                    <span>₹{order.pricing?.gst || 0}</span>
+                    <span>₹{order.pricing?.taxes?.gst?.toFixed(2) || '0.00'}</span>
                   </div>
                 </div>
 
@@ -410,7 +466,7 @@ const OrderTracking = () => {
                   <span>Total Amount</span>
                   <span className="text-orange-600 flex items-center">
                     <IndianRupee className="w-5 h-5" />
-                    {order.pricing?.grandTotal || order.totalAmount}
+                    {order.pricing?.totalAmount?.toFixed(2) || '0.00'}
                   </span>
                 </div>
 
@@ -421,7 +477,7 @@ const OrderTracking = () => {
                   </p>
                   <p className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
-                    Payment: {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Paid'}
+                    Payment: {order.paymentDetails?.method === 'cod' ? 'Cash on Delivery' : 'Online Payment '}
                   </p>
                 </div>
 

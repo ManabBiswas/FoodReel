@@ -42,4 +42,10 @@ router.get('/:orderId',
     orderController.getOrderById
 );
 
+// POST /api/orders/:orderId/cancel - Cancel order
+router.post('/:orderId/cancel',
+    isLoggedin,
+    orderController.cancelOrder
+);
+
 export default router;

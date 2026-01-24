@@ -109,37 +109,6 @@ async function updatePreferences(req, res) {
     }
 }
 
-// Update user address
-async function updateAddress(req, res) {
-    try {
-        const userId = req.user._id;
-        const { street, city, state, zipCode, country } = req.body;
-
-        const addressData = {};
-        if (street) addressData['address.street'] = street;
-        if (city) addressData['address.city'] = city;
-        if (state) addressData['address.state'] = state;
-        if (zipCode) addressData['address.zipCode'] = zipCode;
-        if (country) addressData['address.country'] = country;
-
-        const updatedUser = await userModel.findByIdAndUpdate(
-            userId,
-            { $set: addressData },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        res.status(200).json({
-            message: "Address updated successfully",
-            address: updatedUser.address
-        });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-}
 
 // Get user activity history
 async function getUserActivity(req, res) {
@@ -210,12 +179,199 @@ async function validatePassword(req, res) {
     }
 }
 
+// Get all user addresses
+async function getAddresses(req, res) {
+    try {
+        const userId = req.user._id;
+        const user = await userModel.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Return addresses array or empty array
+        const addresses = user.deliveryAddresses || [];
+        
+        res.status(200).json({
+            message: "Addresses retrieved successfully",
+            addresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+// Add new delivery address
+async function addAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode, isDefault } = req.body;
+
+        // Validate required fields
+        if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
+            return res.status(400).json({ 
+                error: "Required fields: fullName, phone, addressLine1, city, state, pincode" 
+            });
+        }
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Initialize addresses array if it doesn't exist
+        if (!user.deliveryAddresses) {
+            user.deliveryAddresses = [];
+        }
+
+        // If this is the first address or marked as default, set it as default
+        const makeDefault = isDefault || user.deliveryAddresses.length === 0;
+        
+        // If making this default, unset all other defaults
+        if (makeDefault) {
+            user.deliveryAddresses.forEach(addr => addr.isDefault = false);
+        }
+
+        // Add new address
+        user.deliveryAddresses.push({
+            fullName,
+            phone,
+            addressLine1,
+            addressLine2,
+            landmark,
+            city,
+            state,
+            pincode,
+            isDefault: makeDefault
+        });
+
+        await user.save();
+
+        res.status(201).json({
+            message: "Address added successfully",
+            addresses: user.deliveryAddresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+// Update delivery address
+async function updateAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode } = req.body;
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const address = user.deliveryAddresses.id(addressId);
+        if (!address) {
+            return res.status(404).json({ error: "Address not found" });
+        }
+
+        // Update fields if provided
+        if (fullName) address.fullName = fullName;
+        if (phone) address.phone = phone;
+        if (addressLine1) address.addressLine1 = addressLine1;
+        if (addressLine2 !== undefined) address.addressLine2 = addressLine2;
+        if (landmark !== undefined) address.landmark = landmark;
+        if (city) address.city = city;
+        if (state) address.state = state;
+        if (pincode) address.pincode = pincode;
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Address updated successfully",
+            addresses: user.deliveryAddresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+// Delete delivery address
+async function deleteAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const address = user.deliveryAddresses.id(addressId);
+        if (!address) {
+            return res.status(404).json({ error: "Address not found" });
+        }
+
+        // If deleting default address, make first remaining address default
+        const wasDefault = address.isDefault;
+        address.remove();
+
+        if (wasDefault && user.deliveryAddresses.length > 0) {
+            user.deliveryAddresses[0].isDefault = true;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Address deleted successfully",
+            addresses: user.deliveryAddresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+// Set default delivery address
+async function setDefaultAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const address = user.deliveryAddresses.id(addressId);
+        if (!address) {
+            return res.status(404).json({ error: "Address not found" });
+        }
+
+        // Unset all defaults
+        user.deliveryAddresses.forEach(addr => addr.isDefault = false);
+        
+        // Set this address as default
+        address.isDefault = true;
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Default address updated successfully",
+            addresses: user.deliveryAddresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
 export default {
     getUserStats,
     uploadProfilePicture,
     removeProfilePicture,
     updatePreferences,
+    getAddresses,
+    addAddress,
     updateAddress,
+    deleteAddress,
+    setDefaultAddress,
     getUserActivity,
     validatePassword
 };

@@ -91,6 +91,7 @@ export const API_ENDPOINTS = {
     reviews: `${BASE_URL}/user/reviews`,
     saved: `${BASE_URL}/user/saved`,
     address: `${BASE_URL}/user/address`,
+    addAddress: `${BASE_URL}/user/address`,
     addressById: (id) => `${BASE_URL}/user/address/${id}`,
     setDefaultAddress: (id) => `${BASE_URL}/user/address/${id}/default`,
     validatePassword: `${BASE_URL}/user/validate-password`,

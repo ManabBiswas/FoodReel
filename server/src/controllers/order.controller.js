@@ -343,6 +343,58 @@ const getOrderById = async (req, res) => {
     }
 };
 
+const cancelOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { reason } = req.body;
+
+        const order = await orderModel.findById(orderId);
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        // Verify user owns this order
+        if (order.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: "Unauthorized to cancel this order" });
+        }
+
+        // Check if already cancelled
+        if (order.cancellation?.isCancelled) {
+            return res.status(400).json({ error: "Order is already cancelled" });
+        }
+
+        // Check if order can be cancelled (only pending or confirmed)
+        if (!['pending', 'confirmed'].includes(order.status)) {
+            return res.status(400).json({ 
+                error: `Cannot cancel order in ${order.status} status. Orders can only be cancelled when pending or confirmed.` 
+            });
+        }
+
+        // Update cancellation info
+        order.cancellation = {
+            isCancelled: true,
+            cancelledBy: 'user',
+            cancelledAt: new Date(),
+            reason: reason || 'Customer requested cancellation',
+            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending'
+        };
+        order.status = 'cancelled';
+
+        await order.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Order cancelled successfully",
+            order
+        });
+
+    } catch (error) {
+        console.error("Error cancelling order:", error);
+        res.status(500).json({ error: 'Failed to cancel order', details: error.message });
+    }
+};
+
 
 
 
@@ -352,5 +404,6 @@ export default {
     getPartnerOrders,
     updateOrderStatus,
     getOrderById,
-    getOrderStatistics
+    getOrderStatistics,
+    cancelOrder
 };
