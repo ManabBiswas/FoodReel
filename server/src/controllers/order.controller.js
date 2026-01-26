@@ -10,7 +10,7 @@ const createOrder = async (req, res) => {
       deliveryAddress,
       specialInstructions,
       orderNotes,
-      orderSource = 'modal',
+      orderSource = 'cart',
       paymentMethod = 'cod'
     } = req.body;
 
