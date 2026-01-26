@@ -12,6 +12,7 @@ import reviewRoutes from './routes/review.route.js';
 import adminRoutes from './routes/admin.route.js';
 import cartRoutes from './routes/cart.route.js';
 import cors from 'cors';
+import helmet from "helmet";
 const app = express() 
 
 // CORS configuration for production and development
@@ -38,11 +39,12 @@ app.use(cors({
 }))
  
 app.use(express.json());
+app.use(helmet());
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
 app.use('/api/food',foodRoutes);
 app.use('/api/food', userPostRoutes);
-app.use('/api/posts', userPostRoutes);
+// app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders',orderRoutes);
