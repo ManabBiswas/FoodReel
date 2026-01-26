@@ -216,9 +216,9 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
         API_ENDPOINTS.payment.verify,
         {
           orderId,
-          razorpayOrderId: razorpayResponse.razorpay_order_id,
-          razorpayPaymentId: razorpayResponse.razorpay_payment_id,
-          razorpaySignature: razorpayResponse.razorpay_signature
+          razorpay_order_id: razorpayResponse.razorpay_order_id,
+          razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+          razorpay_signature: razorpayResponse.razorpay_signature
         },
         axiosConfig
       )
@@ -226,7 +226,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       if (response.data.success) {
         showSuccess('Order placed successfully!')
         onClose()
-        navigate('/order/confirmation', { state: { orderId } })
+        navigate(`/order/confirmation/${orderId}`, { state: { orderId } })
       }
     } catch (error) {
       console.error('Payment verification error:', error)

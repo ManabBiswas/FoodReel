@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useCart } from '../hooks/useCart'
 import { showSuccess, showError, showWarning } from '../utils/toast'
 import axios from 'axios'
 import {
@@ -23,6 +24,7 @@ import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 const Checkout = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { clearCart } = useCart()
   const orderData = location.state?.orderData
 
   const [currentStep, setCurrentStep] = useState(1)
@@ -152,6 +154,7 @@ const Checkout = () => {
 
             if (verifyResponse.data.success) {
               showSuccess('Payment successful! Order confirmed.')
+              await clearCart() // Clear cart after successful payment
               navigate(`/order/confirmation/${orderId}`, {
                 state: { orderId: orderId }
               })
@@ -255,6 +258,7 @@ const Checkout = () => {
 
       // For COD, navigate to confirmation page
       showSuccess('Order placed successfully!')
+      await clearCart() // Clear cart after successful order
       navigate(`/order/confirmation/${orderId}`, {
         state: { orderId: orderId }
       })
