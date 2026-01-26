@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   CheckCircle,
   Clock,
-  IndianRupee
+  IndianRupee,
+  Asterisk
 } from 'lucide-react'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 
@@ -115,35 +116,22 @@ const Checkout = () => {
   }
 
   // Handle Razorpay Payment
-  const handleRazorpayPayment = async () => {
+  const handleRazorpayPayment = async (orderId) => {
     try {
-      // Create payment order via backend
+      // Create payment order via backend using the orderId
       const paymentResponse = await axios.post(
         API_ENDPOINTS.payment.createOrder,
-        {
-          foodId: orderData.items[0]?.foodId || orderData.items[0]?._id,
-          deliveryAddress: {
-            fullName: deliveryInfo.fullName,
-            phone: deliveryInfo.phone,
-            addressLine1: deliveryInfo.address,
-            city: deliveryInfo.city,
-            state: deliveryInfo.state,
-            pincode: deliveryInfo.pincode,
-            landmark: deliveryInfo.landmark
-          },
-          quantity: orderData.items[0]?.quantity || 1
-        },
+        { orderId },
         axiosConfig
       )
 
-      // Handle both possible response structures
-      const paymentData = paymentResponse.data.data || paymentResponse.data
-      const { razorpayOrderId, amount, razorpayKeyId, orderId } = paymentData
+      // Handle response structure
+      const { razorpayOrderId, amount, keyId, order } = paymentResponse.data
 
       // Configure Razorpay options
       const options = {
-        key: razorpayKeyId,
-        amount: amount,
+        key: keyId,
+        amount: amount * 100, // Convert to paise
         currency: 'INR',
         name: 'FoodReel',
         description: 'Order Payment',
@@ -154,10 +142,10 @@ const Checkout = () => {
             const verifyResponse = await axios.post(
               API_ENDPOINTS.payment.verify,
               {
-                orderId: orderId,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature
+                orderId: order.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
               },
               axiosConfig
             )
@@ -220,46 +208,56 @@ const Checkout = () => {
 
     try {
       const orderPayload = {
-        items: orderData.items,
-        deliveryInfo,
+        items: orderData.items.map(item => ({
+          foodItemId: item.foodId,
+          quantity: item.quantity
+        })),
+        deliveryAddress: {
+          fullName: deliveryInfo.fullName,
+          phone: deliveryInfo.phone,
+          addressLine1: deliveryInfo.address,
+          addressLine2: deliveryInfo.landmark,
+          city: deliveryInfo.city,
+          state: deliveryInfo.state,
+          pincode: deliveryInfo.pincode
+        },
         paymentMethod,
-        pricing: {
-          itemTotal,
-          deliveryFee,
-          gst: parseFloat(gst),
-          grandTotal: parseFloat(grandTotal)
-        }
+        orderSource: 'cart'
       }
 
-      // If online payment, trigger Razorpay
-      if (paymentMethod === 'online') {
-        await handleRazorpayPayment()
-        return // Don't set loading to false here, Razorpay handlers will do it
-      }
-
-      // For COD, create order directly
+      // Create order first (for both COD and online payment)
       const response = await axios.post(
         API_ENDPOINTS.order.create,
         orderPayload,
         axiosConfig
       )
 
-      if (response.data) {
-        showSuccess('Order placed successfully!')
-        // Get orderId from response (could be response.data.orderId or response.data.order._id)
-        const orderId = response.data.orderId || response.data.order?._id
-        if (!orderId) {
-          console.error('No orderId in response:', response.data)
-          showError('Order created but tracking ID not found')
-          return
-        }
-        // Navigate to order confirmation page
-        navigate(`/order/confirmation/${orderId}`, {
-          state: { orderId: orderId }
-        })
-      } else {
+      if (!response.data) {
         showError('Failed to place order')
+        setLoading(false)
+        return
       }
+
+      // Get orderId from response
+      const orderId = response.data.orderId || response.data.order?._id
+      if (!orderId) {
+        console.error('No orderId in response:', response.data)
+        showError('Order created but tracking ID not found')
+        setLoading(false)
+        return
+      }
+
+      // If razorpay payment, initiate Razorpay
+      if (paymentMethod === 'razorpay') {
+        await handleRazorpayPayment(orderId)
+        return // Don't set loading to false here, Razorpay handlers will do it
+      }
+
+      // For COD, navigate to confirmation page
+      showSuccess('Order placed successfully!')
+      navigate(`/order/confirmation/${orderId}`, {
+        state: { orderId: orderId }
+      })
     } catch (error) {
       console.error('Order placement error:', error)
       showError(error.response?.data?.message || 'Failed to place order')
@@ -543,15 +541,15 @@ const Checkout = () => {
                 {/* Online Payment */}
                 <label className={`flex items-center gap-4 p-4 border-2 rounded-lg transition-all ${
                   !razorpayLoaded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                } ${paymentMethod === 'online'
+                } ${paymentMethod === 'razorpay'
                     ? 'border-orange-600 bg-orange-50'
                     : 'border-gray-200 hover:border-orange-300'
                   }`}>
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="online"
-                    checked={paymentMethod === 'online'}
+                    value="razorpay"
+                    checked={paymentMethod === 'razorpay'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     disabled={!razorpayLoaded}
                     className="w-5 h-5 text-orange-600"
@@ -565,7 +563,7 @@ const Checkout = () => {
                       {razorpayLoaded ? 'UPI, Cards, Net Banking' : 'Currently unavailable'}
                     </p>
                   </div>
-                  <CheckCircle className={`w-6 h-6 ${paymentMethod === 'online' ? 'text-orange-600' : 'text-gray-300'
+                  <CheckCircle className={`w-6 h-6 ${paymentMethod === 'razorpay' ? 'text-orange-600' : 'text-gray-300'
                     }`} />
                 </label>
               </div>
@@ -624,13 +622,13 @@ const Checkout = () => {
                 {deliveryFee === 0 && (
                   <p className="text-xs text-green-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" />
-                    Free delivery on orders above ₹500
+                    Free delivery on First 5 orders
                   </p>
                 )}
               </div>
 
               {/* Grand Total */}
-              <div className="flex justify-between items-center text-lg font-bold text-gray-800 mb-4">
+              <div className="flex justify-between items-center text-lg font-bold text-gray-800 mb-2">
                 <span>Total Amount</span>
                 <span className="text-orange-600 flex items-center">
                   <IndianRupee className="w-5 h-5" />
@@ -638,14 +636,13 @@ const Checkout = () => {
                 </span>
               </div>
 
-              {/* Delivery Time */}
-              <div className="bg-orange-50 rounded-lg p-3 mb-4">
-                <div className="flex items-center gap-2 text-orange-800">
-                  <Clock className="w-5 h-5" />
-                  <span className="text-sm font-medium">Estimated Delivery: 30-45 mins</span>
-                </div>
+             {/* Term and Conditions of platform charge */}
+              <div className='mb-2 flex flex-row-reverse'>
+                 
+                <p className="text-[8px] text-gray-500 flex items-center ">
+                 <Asterisk className="w-3 h-3 text-rose-800" /> Every order has 3% additional platform charge
+                </p>
               </div>
-
               {/* Place Order Button */}
               <button
                 onClick={handlePlaceOrder}

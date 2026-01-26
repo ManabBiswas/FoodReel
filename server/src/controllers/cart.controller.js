@@ -1,6 +1,7 @@
 import cartModel from '../models/cart.model.js';
 import foodModel from '../models/food.model.js';
 import orderModel from '../models/order.model.js';
+import userModel from '../models/user.Model.js';
 import paymentService from '../services/payment.service.js';
 
 // Get user's cart
@@ -44,6 +45,14 @@ const addToCart = async (req, res) => {
     try {
         const userId = req.user._id;
         const { foodItemId, quantity = 1, specialInstructions } = req.body;
+
+        const normalizedQty = Number.parseInt(quantity, 10);
+        if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Quantity must be a positive integer'
+            });
+        }
 
         if (!foodItemId) {
             return res.status(400).json({
@@ -117,13 +126,13 @@ const addToCart = async (req, res) => {
 
         if (existingItemIndex >= 0) {
             // Update quantity
-            cart.items[existingItemIndex].quantity += quantity;
+            cart.items[existingItemIndex].quantity += normalizedQty;
             cart.items[existingItemIndex].priceAtAdd = foodItem.price;
         } else {
             // Add new item
             cart.items.push({
                 foodItem: foodItem._id,
-                quantity,
+                quantity: normalizedQty,
                 priceAtAdd: foodItem.price,
                 foodPartner: foodItem.foodPartner._id,
                 specialInstructions,
@@ -170,7 +179,8 @@ const updateQuantity = async (req, res) => {
         const { itemId } = req.params;
         const { quantity } = req.body;
 
-        if (!quantity || quantity < 0) {
+        const normalizedQty = Number.parseInt(quantity, 10);
+        if (!Number.isFinite(normalizedQty) || normalizedQty < 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Valid quantity is required'
@@ -197,7 +207,7 @@ const updateQuantity = async (req, res) => {
             });
         }
 
-        if (quantity === 0) {
+        if (normalizedQty === 0) {
             // Remove item if quantity is 0
             cart.items.splice(itemIndex, 1);
             
@@ -207,7 +217,7 @@ const updateQuantity = async (req, res) => {
             }
         } else {
             // Update quantity
-            cart.items[itemIndex].quantity = quantity;
+            cart.items[itemIndex].quantity = normalizedQty;
         }
 
         await calculateCartTotals(cart);
@@ -351,54 +361,11 @@ const validateCart = async (req, res) => {
             });
         }
 
-        const issues = [];
+        const issues = auditCartIssues(cart);
 
-        // Check each item
-        for (let i = 0; i < cart.items.length; i++) {
-            const item = cart.items[i];
-            const foodItem = item.foodItem;
-
-            if (!foodItem) {
-                issues.push({
-                    itemId: item._id,
-                    type: 'NOT_FOUND',
-                    message: 'Item no longer exists'
-                });
-                continue;
-            }
-
-            // Check availability
-            if (!foodItem.isAvailable) {
-                issues.push({
-                    itemId: item._id,
-                    foodItemId: foodItem._id,
-                    name: foodItem.name,
-                    type: 'UNAVAILABLE',
-                    message: `${foodItem.name} is currently unavailable`
-                });
-            }
-
-            // Check price changes
-            if (foodItem.price !== item.priceAtAdd) {
-                issues.push({
-                    itemId: item._id,
-                    foodItemId: foodItem._id,
-                    name: foodItem.name,
-                    type: 'PRICE_CHANGE',
-                    oldPrice: item.priceAtAdd,
-                    newPrice: foodItem.price,
-                    message: `Price changed from ₹${item.priceAtAdd} to ₹${foodItem.price}`
-                });
-                
-                // Update price in cart
-                item.priceAtAdd = foodItem.price;
-            }
-        }
-
-        if (issues.length > 0) {
-            await calculateCartTotals(cart);
-            await cart.save();
-        }
+        // Keep totals in sync even when no issues
+        await calculateCartTotals(cart);
+        await cart.save();
 
         res.status(200).json({
             success: true,
@@ -442,13 +409,16 @@ const checkout = async (req, res) => {
             });
         }
 
-        // Validate cart before checkout
-        const validation = await validateCartInternal(cart);
-        if (!validation.valid) {
+        // Validate cart before checkout (handles price changes too)
+        const issues = auditCartIssues(cart);
+        await calculateCartTotals(cart);
+        await cart.save();
+
+        if (issues.length > 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Cart validation failed',
-                issues: validation.issues
+                issues
             });
         }
 
@@ -501,6 +471,12 @@ const checkout = async (req, res) => {
         };
 
         const newOrder = await orderModel.create(orderData);
+
+        // Track in user history
+        await userModel.findByIdAndUpdate(
+            userId,
+            { $push: { orderHistory: newOrder._id } }
+        );
 
         // Populate order
         await newOrder.populate([
@@ -563,8 +539,8 @@ async function calculateCartTotals(cart) {
     return cart.totals;
 }
 
-// Internal validation without HTTP response
-async function validateCartInternal(cart) {
+// Shared cart audit to surface availability/price issues and keep prices fresh
+function auditCartIssues(cart) {
     const issues = [];
 
     for (const item of cart.items) {
@@ -587,12 +563,23 @@ async function validateCartInternal(cart) {
                 message: `${foodItem.name} is currently unavailable`
             });
         }
+
+        if (typeof foodItem.price === 'number' && foodItem.price !== item.priceAtAdd) {
+            issues.push({
+                itemId: item._id,
+                foodItemId: foodItem._id,
+                name: foodItem.name,
+                type: 'PRICE_CHANGE',
+                oldPrice: item.priceAtAdd,
+                newPrice: foodItem.price,
+                message: `Price changed from ₹${item.priceAtAdd} to ₹${foodItem.price}`
+            });
+
+            item.priceAtAdd = foodItem.price;
+        }
     }
 
-    return {
-        valid: issues.length === 0,
-        issues
-    };
+    return issues;
 }
 
 export default {

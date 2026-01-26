@@ -12,7 +12,7 @@ import UserProfile from '../pages/User/UserProfile'
 import ProfileSettings from '../pages/User/ProfileSettings'
 import OrderHistory from '../pages/OrderHistory'
 import Checkout from '../pages/Checkout'
-import Cart from '../pages/Cart'
+import CartPage from '../pages/CartPage'
 import OrderConfirmation from '../pages/OrderConfirmation'
 import OrderTracking from '../pages/OrderTracking'
 import ErrorPage from '../pages/404'
@@ -86,7 +86,7 @@ const AppRoutes = () => {
         <Route path='/profile/settings' element={<ProtectedRoute requireAuth allowedType="user"><ProfileSettings /></ProtectedRoute>} />
         <Route path='/order/history' element={<ProtectedRoute requireAuth allowedType="user"><OrderHistory /></ProtectedRoute>} />
         <Route path='/checkout' element={<ProtectedRoute requireAuth allowedType="user"><Checkout /></ProtectedRoute>} />
-        <Route path='/cart' element={<ProtectedRoute requireAuth allowedType="user"><Cart /></ProtectedRoute>} />
+        <Route path='/cart' element={<ProtectedRoute requireAuth allowedType="user"><CartPage /></ProtectedRoute>} />
         <Route path='/order/confirmation/:orderId' element={<ProtectedRoute requireAuth allowedType="user"><OrderConfirmation /></ProtectedRoute>} />
         <Route path='/order/tracking/:orderId' element={<ProtectedRoute requireAuth allowedType="user"><OrderTracking /></ProtectedRoute>} />
 
