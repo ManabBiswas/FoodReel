@@ -130,7 +130,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   }
 
   const handleAddToCart = () => {
-    addToCart(food, quant)
+    addToCart(food, quant);
+    showSuccess('Order added to cart!')
     onClose()
   }
 
