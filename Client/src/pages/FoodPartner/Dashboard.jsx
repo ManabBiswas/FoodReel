@@ -1,89 +1,310 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { showSuccess, showError } from '../../utils/toast'
+import { showError, showSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
-import { 
-  Plus, 
-  ShoppingBag, 
-  Megaphone, 
-  TrendingUp, 
-  Users, 
-  Heart, 
+import {
+  Plus,
+  ShoppingBag,
+  Megaphone,
+  TrendingUp,
+  Users,
+  Heart,
   MessageCircle,
   IndianRupee,
-  Tag,
-  Eye,
-  Edit,
-  Trash2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Package,
+  Clock,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Filter,
+  Search,
+  Download,
+  TrendingDown
 } from 'lucide-react'
+
+// Stat Card Component
+const StatCard = ({ icon: Icon, title, value, subtitle, color = 'blue', trend }) => {
+  const colorClasses = {
+    blue: 'bg-blue-100 text-blue-600',
+    orange: 'bg-orange-100 text-orange-600',
+    green: 'bg-green-100 text-green-600',
+    purple: 'bg-purple-100 text-purple-600',
+    red: 'bg-red-100 text-red-600'
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`w-12 h-12 ${colorClasses[color]} rounded-lg flex items-center justify-center`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {trend >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            <span>{Math.abs(trend)}%</span>
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+        {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
+// Order Card Component
+const OrderCard = ({ order, onViewDetails }) => {
+  const getStatusConfig = (status) => {
+    const configs = {
+      pending: {
+        icon: Clock,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        borderColor: 'border-orange-200'
+      },
+      confirmed: {
+        icon: CheckCircle,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200'
+      },
+      completed: {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200'
+      },
+      cancelled: {
+        icon: XCircle,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200'
+      }
+    }
+    return configs[status] || configs.pending
+  }
+
+  const statusConfig = getStatusConfig(order.status)
+  const StatusIcon = statusConfig.icon
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-200 border border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+        {/* Order ID */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Order ID</p>
+          <p className="text-sm font-mono font-semibold text-gray-900 truncate">
+            #{order._id?.slice(-8).toUpperCase()}
+          </p>
+        </div>
+
+        {/* Date & Time */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Date</p>
+          <p className="text-sm text-gray-900">
+            {new Date(order.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            })}
+          </p>
+          <p className="text-xs text-gray-500">
+            {new Date(order.createdAt).toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+        </div>
+
+        {/* Items Count */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Items</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* Amount */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Amount</p>
+          <p className="text-lg font-bold text-green-600 flex items-center gap-1">
+            <IndianRupee className="w-4 h-4" />
+            {order.totalAmount?.toFixed(2) || '0.00'}
+          </p>
+        </div>
+
+        {/* Status */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</p>
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusConfig.bgColor} ${statusConfig.borderColor} border`}>
+            <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
+            <span className={`text-sm font-medium ${statusConfig.color} capitalize`}>
+              {order.status}
+            </span>
+          </div>
+        </div>
+
+        {/* Action */}
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => onViewDetails(order._id)}
+            className="w-full md:w-auto px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+          >
+            View Details
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Empty State Component
+const EmptyState = () => (
+  <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
+    <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
+      <Package className="w-10 h-10 text-gray-400" />
+    </div>
+    <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders yet</h3>
+    <p className="text-gray-600 max-w-md mx-auto">
+      Orders from customers will appear here. Make sure your food items are active and available.
+    </p>
+  </div>
+)
+
+// Filter Component
+const FilterBar = ({ statusFilter, setStatusFilter, searchTerm, setSearchTerm }) => {
+  const statuses = [
+    { value: 'all', label: 'All Orders' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' }
+  ]
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Search */}
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by Order ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Filter className="w-5 h-5 text-gray-400 flex-shrink-0" />
+          {statuses.map((status) => (
+            <button
+              key={status.value}
+              onClick={() => setStatusFilter(status.value)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
+                statusFilter === status.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const [posts, setPosts] = useState({ food: [], advertisement: [], all: [] })
+  const [orders, setOrders] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('all')
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [deleteLoading, setDeleteLoading] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const formatMedia = (post) => ({
-    ...post,
-    image: post.image || (post.type === 'image' ? post.file : null),
-    video: post.video || (post.type === 'video' ? post.file : null),
-    type: post.type || (post.video ? 'video' : 'image'),
-    likeCount: post.likeCount || post.likes?.length || 0,
-    commentCount: post.commentCount || post.comments?.length || 0,
-  })
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true)
+      if (isRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       setError('')
-      
-      const [authResponse, foodResponse, adResponse] = await Promise.all([
+
+      const [authResponse, foodResponse, adResponse, ordersResponse] = await Promise.all([
         axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig),
         axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
-        axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
+        axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig),
+        axios.get(API_ENDPOINTS.order.partner, axiosConfig).catch(() => ({ data: { data: [] } }))
       ])
 
-      const currentPartnerId = authResponse.data?.foodPartner?._id
+      const currentPartner = authResponse.data?.foodPartner
+      const currentPartnerId = currentPartner?._id
 
+      // Process food posts
       const groupedFoods = foodResponse.data?.foods || {}
       const foodPostsRaw = groupedFoods.all || groupedFoods.food || []
-      const foodPosts = foodPostsRaw.map((post) => formatMedia({ ...post, postType: 'food' }))
+      const foodPosts = foodPostsRaw.map((post) => ({
+        ...post,
+        likeCount: post.likeCount || post.likes?.length || 0,
+        commentCount: post.commentCount || post.comments?.length || 0,
+        savesCount: post.savesCount || post.saves?.length || 0
+      }))
 
+      // Process advertisements
       const advertisementsRaw = adResponse.data?.data || []
       const myAds = (currentPartnerId
-        ? advertisementsRaw.filter((ad) => ad.partnerId === currentPartnerId)
+        ? advertisementsRaw.filter(
+            (ad) => ad.partnerId?._id === currentPartnerId || ad.partnerId === currentPartnerId
+          )
         : advertisementsRaw
-      ).map((ad) => formatMedia({ ...ad, postType: 'advertisement' }))
+      ).map((ad) => ({
+        ...ad,
+        likeCount: ad.likeCount || ad.likes?.length || 0,
+        commentCount: ad.commentCount || ad.comments?.length || 0
+      }))
 
-      const allPosts = [...foodPosts, ...myAds].sort((a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-      )
+      // Process orders
+      const ordersData = ordersResponse.data?.data || []
+      setOrders(ordersData)
 
-      setPosts({
-        food: foodPosts,
-        advertisement: myAds,
-        all: allPosts
-      })
-
+      // Calculate statistics
       const stats = {
         food: {
           count: foodPosts.length,
           totalLikes: foodPosts.reduce((sum, post) => sum + post.likeCount, 0),
-          totalReviews: foodPosts.reduce((sum, post) => sum + (post.reviews?.length || post.commentCount || 0), 0),
-          totalSaves: foodPosts.reduce((sum, post) => sum + (post.saves?.length || post.savesCount || 0), 0)
+          totalReviews: foodPosts.reduce((sum, post) => sum + post.commentCount, 0),
+          totalSaves: foodPosts.reduce((sum, post) => sum + post.savesCount, 0)
         },
         advertisement: {
           count: myAds.length,
           totalLikes: myAds.reduce((sum, ad) => sum + ad.likeCount, 0),
-          totalComments: myAds.reduce((sum, ad) => sum + (ad.comments?.length || ad.commentCount || 0), 0),
-          totalViews: myAds.reduce((sum, ad) => sum + (ad.views || 0), 0)
+          totalComments: myAds.reduce((sum, ad) => sum + ad.commentCount, 0)
+        },
+        orders: {
+          total: ordersData.length,
+          pending: ordersData.filter((o) => o.status === 'pending').length,
+          confirmed: ordersData.filter((o) => o.status === 'confirmed').length,
+          completed: ordersData.filter((o) => o.status === 'completed').length,
+          cancelled: ordersData.filter((o) => o.status === 'cancelled').length,
+          revenue: ordersData
+            .filter((o) => o.status === 'completed')
+            .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+          totalRevenue: ordersData.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
         },
         total: {
           totalLikes: 0,
@@ -98,6 +319,9 @@ const Dashboard = () => {
 
       setStatistics(stats)
 
+      if (isRefresh) {
+        showSuccess('Dashboard refreshed successfully')
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       if (error.response?.status === 401) {
@@ -110,331 +334,212 @@ const Dashboard = () => {
       }
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [navigate])
 
   useEffect(() => {
     fetchDashboardData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchDashboardData])
 
-  const handleDeletePost = async (postId, postType) => {
-    // Use a custom confirmation dialog or just proceed with toast
-    const confirmDelete = window.confirm('Are you sure you want to delete this post?')
-    if (!confirmDelete) {
-      return
+  const handleRefresh = useCallback(() => {
+    fetchDashboardData(true)
+  }, [fetchDashboardData])
+
+  const handleViewDetails = useCallback(
+    (orderId) => {
+      navigate(`/order/${orderId}`)
+    },
+    [navigate]
+  )
+
+  // Filter and search orders
+  const filteredOrders = useMemo(() => {
+    let filtered = orders
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((order) => order.status === statusFilter)
     }
 
-    try {
-      setDeleteLoading(postId)
-      
-      const endpoint = postType === 'food' 
-        ? API_ENDPOINTS.food.delete(postId)
-        : API_ENDPOINTS.advertisement.delete(postId)
-      
-      await axios.delete(endpoint, axiosConfig)
-      
-      showSuccess(`${postType === 'food' ? 'Food' : 'Advertisement'} post deleted successfully`)
-      
-      // Refresh dashboard data
-      await fetchDashboardData()
-      
-    } catch (error) {
-      console.error('Error deleting post:', error)
-      showError(error.response?.data?.message || 'Failed to delete post')
-    } finally {
-      setDeleteLoading(null)
+    // Search by order ID
+    if (searchTerm) {
+      filtered = filtered.filter((order) =>
+        order._id.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     }
-  }
 
-  const handleEditPost = (postId, postType) => {
-    navigate(`/edit-${postType}/${postId}`)
-  }
-
-  const handleViewPost = (postId) => {
-    navigate(`/food/${postId}`)
-  }
+    // Sort by date (newest first)
+    return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  }, [orders, statusFilter, searchTerm])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-          <span className="ml-2 text-gray-600">Loading dashboard...</span>
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="text-center">
+            <Loader2 className="w-16 h-16 text-orange-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 text-lg">Loading your dashboard...</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  const currentPosts = activeTab === 'all' ? posts.all : posts[activeTab] || []
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Partner Dashboard</h1>
-              <p className="text-gray-600 mt-1">Manage your food items and advertisements</p>
+              <p className="text-gray-600 mt-1">Manage your orders and business performance</p>
             </div>
-            <div className="mt-4 sm:mt-0">
+            <div className="flex gap-3">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                aria-label="Refresh dashboard"
+              >
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
               <button
                 onClick={() => navigate('/CreateFood')}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm hover:shadow-md"
               >
                 <Plus className="w-5 h-5" />
-                Create New Post
+                <span className="hidden sm:inline">Create New Post</span>
+                <span className="sm:hidden">Create</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        {statistics && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Food Items</p>
-                  <p className="text-2xl font-bold text-gray-900">{statistics.food.count}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Heart className="w-4 h-4 mr-1 text-red-400" />
-                  {statistics.food.totalLikes} likes
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
-                  {statistics.food.totalReviews} reviews
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Megaphone className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Advertisements</p>
-                  <p className="text-2xl font-bold text-gray-900">{statistics.advertisement.count}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Heart className="w-4 h-4 mr-1 text-red-400" />
-                  {statistics.advertisement.totalLikes} likes
-                </div>
-                <div className="flex items-center text-gray-600">
-                  <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
-                  {statistics.advertisement.totalComments} comments
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Engagement</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {statistics.total.totalLikes + statistics.total.totalComments + statistics.total.totalSaves}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center text-sm text-gray-600">
-                <Users className="w-4 h-4 mr-1 text-indigo-400" />
-                Total reach across all posts
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6 flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-            {error}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-800 font-medium">Error loading dashboard</p>
+              <p className="text-red-700 text-sm mt-1">{error}</p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="text-red-600 hover:text-red-800 text-sm font-medium"
+            >
+              Retry
+            </button>
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              {[
-                { key: 'all', label: 'All Posts', count: posts.all?.length || 0 },
-                { key: 'food', label: 'Food Items', count: posts.food?.length || 0 },
-                { key: 'advertisement', label: 'Advertisements', count: posts.advertisement?.length || 0 }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.key
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.label} ({tab.count})
-                </button>
-              ))}
-            </nav>
+        {/* Business Statistics */}
+        {statistics && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <StatCard
+              icon={ShoppingBag}
+              title="Food Items"
+              value={statistics.food.count}
+              subtitle={`${statistics.food.totalLikes} likes · ${statistics.food.totalReviews} reviews`}
+              color="green"
+            />
+            <StatCard
+              icon={Megaphone}
+              title="Advertisements"
+              value={statistics.advertisement.count}
+              subtitle={`${statistics.advertisement.totalLikes} likes · ${statistics.advertisement.totalComments} comments`}
+              color="purple"
+            />
+            <StatCard
+              icon={TrendingUp}
+              title="Total Engagement"
+              value={statistics.total.totalLikes + statistics.total.totalComments + statistics.total.totalSaves}
+              subtitle="Total reach across all posts"
+              color="blue"
+            />
           </div>
+        )}
 
-          {/* Posts Content */}
-          <div className="p-6">
-            {currentPosts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentPosts.map((post) => {
-                  const postType = post.postType || (post.price ? 'food' : 'advertisement')
-                  const isDeleting = deleteLoading === post._id
-                  
-                  return (
-                    <div key={post._id} className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                      {/* Media */}
-                      <div className="relative aspect-video bg-gray-200">
-                        {post.video ? (
-                          <video
-                            src={ post.video}
-                            className="w-full h-full object-cover"
-                            muted
-                          />
-                        ) : post.image ? (
-                          <img
-                            src={post.image}
-                            alt={post.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            No media
-                          </div>
-                        )}
-                        
-                        {/* Post type badge */}
-                        <div className="absolute top-3 left-3">
-                          {postType === 'advertisement' ? (
-                            <div className="bg-purple-500 text-white px-2 py-1 rounded text-xs flex items-center">
-                              <Megaphone className="w-3 h-3 mr-1" />
-                              Ad
-                            </div>
-                          ) : (
-                            <div className="bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center">
-                              <ShoppingBag className="w-3 h-3 mr-1" />
-                              Food
-                            </div>
-                          )}
-                        </div>
-                      </div>
+        {/* Orders Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Orders Overview</h2>
 
-                      {/* Content */}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">{post.name}</h3>
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.description}</p>
+          {/* Order Statistics */}
+          {statistics && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <StatCard
+                icon={Package}
+                title="Total Orders"
+                value={statistics.orders.total}
+                color="blue"
+              />
+              <StatCard
+                icon={Clock}
+                title="Pending"
+                value={statistics.orders.pending}
+                color="orange"
+              />
+              <StatCard
+                icon={CheckCircle}
+                title="Confirmed"
+                value={statistics.orders.confirmed}
+                color="blue"
+              />
+              <StatCard
+                icon={CheckCircle}
+                title="Completed"
+                value={statistics.orders.completed}
+                color="green"
+              />
+              <StatCard
+                icon={IndianRupee}
+                title="Revenue"
+                value={`₹${statistics.orders.revenue.toFixed(2)}`}
+                subtitle={`Total: ₹${statistics.orders.totalRevenue.toFixed(2)}`}
+                color="green"
+              />
+            </div>
+          )}
 
-                        {/* Type-specific information */}
-                        {postType === 'food' && post.price && (
-                          <div className="space-y-1 mb-3">
-                            <div className="flex items-center text-green-600 text-sm font-medium">
-                              <IndianRupee className="w-4 h-4 mr-1" />
-                              {post.price}
-                            </div>
-                            {post.category && (
-                              <div className="text-gray-600 text-xs">
-                                <Tag className="w-3 h-3 inline mr-1" />
-                                {post.category}
-                              </div>
-                            )}
-                          </div>
-                        )}
+          {/* Filter Bar */}
+          <FilterBar
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+          />
 
-                        {/* Engagement stats */}
-                        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                          <div className="flex items-center gap-3">
-                            <span className="flex items-center">
-                              <Heart className="w-4 h-4 mr-1 text-red-400" />
-                              {post.likes?.length || 0}
-                            </span>
-                            <span className="flex items-center">
-                              <MessageCircle className="w-4 h-4 mr-1 text-blue-400" />
-                              {post.reviews?.length || post.comments?.length || 0}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {new Date(post.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleViewPost(post._id)}
-                            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View
-                          </button>
-                          <button 
-                            onClick={() => handleEditPost(post._id, postType)}
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-1 transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePost(post._id, postType)}
-                            disabled={isDeleting}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm flex items-center justify-center transition-colors disabled:opacity-50"
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          {/* Orders List */}
+          {filteredOrders.length === 0 ? (
+            orders.length === 0 ? (
+              <EmptyState />
             ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  {activeTab === 'food' ? (
-                    <ShoppingBag className="w-8 h-8 text-gray-400" />
-                  ) : activeTab === 'advertisement' ? (
-                    <Megaphone className="w-8 h-8 text-gray-400" />
-                  ) : (
-                    <Plus className="w-8 h-8 text-gray-400" />
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                  No {activeTab === 'all' ? 'posts' : activeTab === 'food' ? 'food items' : 'advertisements'} yet
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Create your first {activeTab === 'food' ? 'food item' : activeTab === 'advertisement' ? 'advertisement' : 'post'} to get started
-                </p>
+              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No orders match your filters</p>
                 <button
-                  onClick={() => navigate('/CreateFood')}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    setStatusFilter('all')
+                    setSearchTerm('')
+                  }}
+                  className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Create Post
+                  Clear filters
                 </button>
               </div>
-            )}
-          </div>
+            )
+          ) : (
+            <div className="space-y-4">
+              {filteredOrders.map((order) => (
+                <OrderCard key={order._id} order={order} onViewDetails={handleViewDetails} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -81,7 +81,7 @@ const AppRoutes = () => {
 
         {/* User Protected Routes */}
         <Route path='/create-post' element={<ProtectedRoute requireAuth allowedType="user"><CreatePost /></ProtectedRoute>} />
-        <Route path='/reels' element={<ProtectedRoute requireAuth allowedType="user"><Reel /></ProtectedRoute>} />
+        <Route path='/reels' element={<ProtectedRoute requireAuth ><Reel /></ProtectedRoute>} />
         <Route path='/profile' element={<ProtectedRoute requireAuth allowedType="user"><UserProfile /></ProtectedRoute>} />
         <Route path='/profile/settings' element={<ProtectedRoute requireAuth allowedType="user"><ProfileSettings /></ProtectedRoute>} />
         <Route path='/order/history' element={<ProtectedRoute requireAuth allowedType="user"><OrderHistory /></ProtectedRoute>} />
