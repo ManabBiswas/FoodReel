@@ -123,6 +123,8 @@ class PaymentService {
     }
 
     calculatePricing(itemPrice, quantity = 1, deliveryDistance = 0, discount = 0) {
+        // Formula: Final Price = (ItemPrice + DeliveryFee + [PlatformFee: 3%]) + [GST: 5%] - Discount
+        
         const basePrice = Math.round(itemPrice * quantity * 100) / 100;
 
         let deliveryFee = 0;

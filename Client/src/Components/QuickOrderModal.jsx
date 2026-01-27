@@ -99,7 +99,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     if (food && food.price) {
       const basePrice = Math.round(food.price * quant * 100) / 100
       const deliveryFee = 0
-      const platformFee = Math.round(basePrice * 0.02 * 100) / 100
+      const platformFee = Math.round(basePrice * 0.03 * 100) / 100
       const subtotal = basePrice + deliveryFee + platformFee
       const gst = Math.round(subtotal * 0.05 * 100) / 100
       const total = Math.round((subtotal + gst) * 100) / 100
@@ -539,7 +539,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Platform Fee (2%)</span>
+                  <span>Platform Fee (3%)</span>
                   <span>₹{pricing.platformFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">

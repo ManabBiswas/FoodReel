@@ -44,7 +44,7 @@ app.use(cookieParser());
 app.use('/api/auth',authRoutes);
 app.use('/api/food',foodRoutes);
 app.use('/api/food', userPostRoutes);
-// app.use('/api/posts', userPostRoutes);
+app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders',orderRoutes);

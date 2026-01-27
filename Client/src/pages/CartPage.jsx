@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { showError, showSuccess, showWarning } from '../utils/toast'
@@ -24,12 +24,7 @@ const CartPage = () => {
   const [cartIssues, setCartIssues] = useState([])
   const [appliedRestaurant, setAppliedRestaurant] = useState(null)
 
-  // Validate cart on load
-  useEffect(() => {
-    handleValidateCart()
-  }, [cart])
-
-  const handleValidateCart = async () => {
+  const handleValidateCart = useCallback(async () => {
     setValidating(true)
     const result = await validateCart()
     if (result.cart?.activeRestaurant) {
@@ -44,7 +39,12 @@ const CartPage = () => {
       setCartIssues([])
     }
     setValidating(false)
-  }
+  }, [validateCart])
+
+  // Validate cart on load
+  useEffect(() => {
+    handleValidateCart()
+  }, [cart, handleValidateCart])
 
   const handleUpdateQuantity = async (itemId, newQty) => {
     if (newQty < 0) return

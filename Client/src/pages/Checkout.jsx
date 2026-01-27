@@ -65,9 +65,12 @@ const Checkout = () => {
 
   // Calculate totals
   const itemTotal = orderData?.totalPrice || 0
-  const deliveryFee = itemTotal > 500 ? 0 : 40
-  const gst = (itemTotal * 0.05).toFixed(2)
-  const grandTotal = (parseFloat(itemTotal) + deliveryFee + parseFloat(gst)).toFixed(2)
+  // const deliveryFee = itemTotal > 500 ? 0 : 40
+  const deliveryFee = 0
+  const platformFee = Math.round(itemTotal * 0.03 * 100) / 100
+  const subtotal = itemTotal + deliveryFee + platformFee
+  const gst = Math.round(subtotal * 0.05 * 100) / 100
+  const grandTotal = (subtotal + parseFloat(gst)).toFixed(2)
 
   // Handle input change
   const handleInputChange = (e) => {
@@ -618,6 +621,10 @@ const Checkout = () => {
                   <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : ''}>
                     {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
                   </span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Platform Fee (3%)</span>
+                  <span>₹{platformFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>GST (5%)</span>
