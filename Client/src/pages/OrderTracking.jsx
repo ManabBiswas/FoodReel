@@ -133,10 +133,10 @@ const OrderTracking = () => {
   // Check if order can be cancelled
   const canCancelOrder = () => {
     if (!order) return false
-    // Can cancel only if order status is 'pending' or 'confirmed'
-    // Cannot cancel if it's preparing, ready, out_for_delivery, or delivered
-    const isCancelled = order.cancellation?.isCancelled
-    const cancellableStatuses = ['pending', 'confirmed']
+    // Can cancel only if order status is 'pending', 'confirmed', or 'preparing'
+    // Cannot cancel if it's ready, out_for_delivery, or delivered
+    const isCancelled = order.cancellation?.isCancelled || order.status === 'cancelled'
+    const cancellableStatuses = ['pending', 'confirmed', 'preparing']
     return !isCancelled && cancellableStatuses.includes(order.status)
   }
 
@@ -148,24 +148,18 @@ const OrderTracking = () => {
       setCancelLoading(true)
       const response = await axios.post(
         API_ENDPOINTS.order.cancel(orderId),
-        {},
+        { reason: 'Customer requested cancellation' },
         axiosConfig
       )
       
       if (response.data.success) {
         showSuccess('Order cancelled successfully')
-        // Update order state to reflect cancellation
-        setOrder(prev => ({
-          ...prev,
-          cancellation: {
-            isCancelled: true,
-            reason: 'Customer requested'
-          }
-        }))
+        // Refresh order details to get updated data
+        await fetchOrderDetails()
       }
     } catch (err) {
       console.error('Error cancelling order:', err)
-      showError(err.response?.data?.message || 'Failed to cancel order')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to cancel order')
     } finally {
       setCancelLoading(false)
     }

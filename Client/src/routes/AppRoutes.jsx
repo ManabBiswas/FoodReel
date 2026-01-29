@@ -8,6 +8,7 @@ import PartnerLogin from '../pages/FoodPartner/PartnerLogin'
 import PartnerProfile from '../pages/FoodPartner/PartnerProfile'
 import CreateFood from '../pages/FoodPartner/CreateFood'
 import Dashboard from '../pages/FoodPartner/Dashboard'
+import OrderDetail from '../pages/FoodPartner/OrderDetail'
 import UserProfile from '../pages/User/UserProfile'
 import ProfileSettings from '../pages/User/ProfileSettings'
 import OrderHistory from '../pages/OrderHistory'
@@ -92,6 +93,7 @@ const AppRoutes = () => {
 
         {/* Partner Protected Routes */}
         <Route path='/partner-dashboard' element={<ProtectedRoute requireAuth allowedType="partner"><Dashboard /></ProtectedRoute>} />
+        <Route path='/order/:orderId' element={<ProtectedRoute requireAuth allowedType="partner"><OrderDetail /></ProtectedRoute>} />
         <Route path='/CreateFood' element={<ProtectedRoute requireAuth allowedType="partner"><CreateFood /></ProtectedRoute>} />
         <Route path='/partner-profile' element={<ProtectedRoute requireAuth allowedType="partner"><PartnerProfile /></ProtectedRoute>} />
         <Route path='/partner-profile/settings' element={<ProtectedRoute requireAuth allowedType="partner"><ProfileSettings /></ProtectedRoute>} />
