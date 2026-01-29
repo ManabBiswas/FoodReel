@@ -36,6 +36,12 @@ router.put('/partner/:orderId/status',
     orderController.updateOrderStatus
 );
 
+// POST /api/orders/partner/:orderId/cancel - Partner cancel order
+router.post('/partner/:orderId/cancel',
+    isFoodPartnerLoggedin,
+    orderController.partnerCancelOrder
+);
+
 // GET /api/orders/:orderId - Get order details 
 router.get('/:orderId',
     isLoggedin,

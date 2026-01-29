@@ -221,17 +221,52 @@ const updateOrderStatus = async (req, res) => {
             return res.status(400).json({ error: "Valid status is required" });
         }
 
+        // Find order that contains items from this food partner
         const order = await orderModel.findOne({
             _id: orderId,
-            foodPartner: req.foodPartner._id
+            'items.foodPartner': req.foodPartner._id
         });
 
         if (!order) {
-            return res.status(404).json({ error: "Order not found" });
+            return res.status(404).json({ error: "Order not found or you don't have permission to update it" });
+        }
+
+        // Check if order is cancelled - prevent any status changes
+        if (order.cancellation?.isCancelled || order.status === 'cancelled') {
+            return res.status(400).json({ 
+                error: "Cannot update status of a cancelled order",
+                message: "This order has been cancelled and cannot be modified"
+            });
+        }
+
+        // Prevent invalid status transitions
+        const validTransitions = {
+            'pending': ['confirmed', 'cancelled'],
+            'confirmed': ['preparing', 'cancelled'],
+            'preparing': ['ready'],
+            'ready': ['delivered'],
+            'delivered': [],
+            'cancelled': []
+        };
+
+        if (!validTransitions[order.status]?.includes(status)) {
+            return res.status(400).json({ 
+                error: `Cannot change status from ${order.status} to ${status}`,
+                validTransitions: validTransitions[order.status]
+            });
         }
 
         // Update status
         order.status = status;
+
+        // Add timestamp for specific statuses
+        if (status === 'confirmed') {
+            order.statusTimestamps = order.statusTimestamps || {};
+            order.statusTimestamps.confirmedAt = new Date();
+        } else if (status === 'delivered') {
+            order.statusTimestamps = order.statusTimestamps || {};
+            order.statusTimestamps.deliveredAt = new Date();
+        }
 
         // Add status note
         if (note) {
@@ -350,26 +385,34 @@ const cancelOrder = async (req, res) => {
         const { orderId } = req.params;
         const { reason } = req.body;
 
-        const order = await orderModel.findById(orderId);
+        const order = await orderModel.findById(orderId)
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name price')
+            .populate('items.foodPartner', 'companyName email');
 
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
         }
 
         // Verify user owns this order
-        if (order.user.toString() !== req.user._id.toString()) {
+        if (order.user._id.toString() !== req.user._id.toString()) {
             return res.status(403).json({ error: "Unauthorized to cancel this order" });
         }
 
         // Check if already cancelled
-        if (order.cancellation?.isCancelled) {
-            return res.status(400).json({ error: "Order is already cancelled" });
+        if (order.cancellation?.isCancelled || order.status === 'cancelled') {
+            return res.status(400).json({ 
+                error: "Order is already cancelled",
+                cancelledAt: order.cancellation?.cancelledAt,
+                cancelledBy: order.cancellation?.cancelledBy
+            });
         }
 
-        // Check if order can be cancelled (only pending or confirmed)
-        if (!['pending', 'confirmed'].includes(order.status)) {
+        // Check if order can be cancelled (only pending, confirmed, or preparing)
+        if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
             return res.status(400).json({ 
-                error: `Cannot cancel order in ${order.status} status. Orders can only be cancelled when pending or confirmed.` 
+                error: `Cannot cancel order in ${order.status} status`,
+                message: `Orders can only be cancelled when pending, confirmed, or preparing. Current status: ${order.status}` 
             });
         }
 
@@ -379,16 +422,26 @@ const cancelOrder = async (req, res) => {
             cancelledBy: 'user',
             cancelledAt: new Date(),
             reason: reason || 'Customer requested cancellation',
-            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending'
+            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending',
+            refundAmount: order.paymentDetails.status === 'completed' ? order.pricing.totalAmount : 0
         };
         order.status = 'cancelled';
+
+        // Add cancellation note
+        order.orderNotes.push({
+            note: `Order cancelled by customer. Reason: ${reason || 'Customer requested cancellation'}`,
+            addedBy: 'user'
+        });
 
         await order.save();
 
         res.status(200).json({
             success: true,
             message: "Order cancelled successfully",
-            order
+            order,
+            refundInfo: order.cancellation.refundStatus !== 'not_applicable' 
+                ? { status: order.cancellation.refundStatus, amount: order.cancellation.refundAmount }
+                : null
         });
 
     } catch (error) {
@@ -397,7 +450,74 @@ const cancelOrder = async (req, res) => {
     }
 };
 
+const partnerCancelOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { reason } = req.body;
 
+        // Find order that contains items from this food partner
+        const order = await orderModel.findOne({
+            _id: orderId,
+            'items.foodPartner': req.foodPartner._id
+        })
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name price')
+            .populate('items.foodPartner', 'companyName email');
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found or you don't have permission to cancel it" });
+        }
+
+        // Check if already cancelled
+        if (order.cancellation?.isCancelled || order.status === 'cancelled') {
+            return res.status(400).json({ 
+                error: "Order is already cancelled",
+                cancelledAt: order.cancellation?.cancelledAt,
+                cancelledBy: order.cancellation?.cancelledBy
+            });
+        }
+
+        // Partners can only cancel pending or confirmed orders
+        if (!['pending', 'confirmed'].includes(order.status)) {
+            return res.status(400).json({ 
+                error: `Cannot cancel order in ${order.status} status`,
+                message: `Partners can only cancel orders when pending or confirmed. Current status: ${order.status}` 
+            });
+        }
+
+        // Update cancellation info
+        order.cancellation = {
+            isCancelled: true,
+            cancelledBy: 'partner',
+            cancelledAt: new Date(),
+            reason: reason || 'Cancelled by food partner',
+            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending',
+            refundAmount: order.paymentDetails.status === 'completed' ? order.pricing.totalAmount : 0
+        };
+        order.status = 'cancelled';
+
+        // Add cancellation note
+        order.orderNotes.push({
+            note: `Order cancelled by partner. Reason: ${reason || 'Cancelled by food partner'}`,
+            addedBy: 'partner'
+        });
+
+        await order.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Order cancelled successfully by partner",
+            order,
+            refundInfo: order.cancellation.refundStatus !== 'not_applicable' 
+                ? { status: order.cancellation.refundStatus, amount: order.cancellation.refundAmount }
+                : null
+        });
+
+    } catch (error) {
+        console.error("Error cancelling order (partner):", error);
+        res.status(500).json({ error: 'Failed to cancel order', details: error.message });
+    }
+};
 
 
 export default {
@@ -407,5 +527,6 @@ export default {
     updateOrderStatus,
     getOrderById,
     getOrderStatistics,
-    cancelOrder
+    cancelOrder,
+    partnerCancelOrder
 };

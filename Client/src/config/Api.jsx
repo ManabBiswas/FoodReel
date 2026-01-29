@@ -144,6 +144,7 @@ export const API_ENDPOINTS = {
     getAll: `${BASE_URL}/orders`,
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
+    partnerCancel: (id) => `${BASE_URL}/orders/partner/${id}/cancel`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
     getById: (id) => `${BASE_URL}/orders/${id}`,
     cancel: (id) => `${BASE_URL}/orders/${id}/cancel`,
