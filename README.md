@@ -55,6 +55,7 @@ This README provides a high‑level overview, project structure, setup & run ins
 - 👥 Follow food partners and other users
 - ⭐ Leave detailed reviews with ratings
 - 🛒 Seamless food ordering experience
+- 🎟️ Book tickets for upcoming food fests
 - 📍 Manage multiple delivery addresses
 - 💳 Secure payments via Razorpay
 - 📱 Share your own food experiences
@@ -499,12 +500,12 @@ Notes:
 - [ ] Add "My Orders" link in Navbar
 - [ ] Test complete order flow end-to-end
 
-*📋 See [BACKEND_UPDATE_CHECKLIST.md](docs/checklists/BACKEND_UPDATE_CHECKLIST.md) and [FRONTEND_UPDATE_CHECKLIST.md](docs/checklists/FRONTEND_UPDATE_CHECKLIST.md) for detailed implementation guides.*
 
 ### 🔄 Medium Priority (Enhancements)
 
 - Add comment persistence and real-time updates (WebSockets)
 - Add pagination/feed endpoints and infinite scroll
+- Add upcoming food fest ticket booking system
 - Implement download receipt functionality
 - Add order tracking timeline UI
 - Add server-side search and filtering
