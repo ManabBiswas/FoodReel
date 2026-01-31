@@ -3,6 +3,10 @@ import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
+import BackToTop from '../Components/BackToTop'
+import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../hooks/useCart'
+import { showSuccess, showError } from '../utils/toast'
 import { 
   Play, 
   Heart, 
@@ -14,14 +18,52 @@ import {
   Clock, 
   Megaphone,
   Tag,
-  Calendar
+  Calendar,
+  ChefHat,
+  TrendingUp,
+  Star,
+  ArrowRight,
+  Sparkles,
+  ShoppingCart
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const Home = () => {
   const [featuredFoods, setFeaturedFoods] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { user, partner, isAuthenticated } = useAuth()
+  const { addToCart } = useCart()
+  const navigate = useNavigate()
+  const [addingToCart, setAddingToCart] = useState(null)
+
+  // Handle add to cart
+  const handleAddToCart = async (food) => {
+    if (!isAuthenticated) {
+      showError('Please login to add items to cart')
+      navigate('/login')
+      return
+    }
+    
+    if (partner) {
+      showError('Partners cannot order food')
+      return
+    }
+
+    setAddingToCart(food.id)
+    try {
+      const result = await addToCart(food.id)
+      if (result.success) {
+        showSuccess(`${food.name} added to cart!`)
+      } else {
+        showError(result.error || 'Failed to add to cart')
+      }
+    } catch {
+      showError('Something went wrong')
+    } finally {
+      setAddingToCart(null)
+    }
+  }
 
   // Fetch food reels from API
   useEffect(() => {
@@ -74,13 +116,23 @@ const Home = () => {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-yellow-400 via-red-400 to-red-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
+      <section className="relative bg-gradient-to-br from-yellow-400 via-red-400 to-red-500 text-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+          <div className="text-center relative z-10">
+            {/* Welcome message for logged-in users */}
+            {isAuthenticated && (
+              <div className="mb-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                <Sparkles className="w-4 h-4 text-yellow-200" />
+                <span className="text-sm font-medium">
+                  Welcome back, {user?.name || partner?.companyName || 'Food Lover'}!
+                </span>
+              </div>
+            )}
+            
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Discover Food Through 
               <span className="block text-yellow-200">Short Videos</span>
@@ -89,30 +141,106 @@ const Home = () => {
               Watch mouth-watering food reels and order directly from talented chefs and restaurants
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/reels" ><button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer">
-                Watch Food Reels
-              </button></Link>
-              <Link to="/partner-register" >
-              <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer">
-                Join as Partner
-              </button></Link>
+              <Link to="/reels">
+                <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer flex items-center gap-2 mx-auto">
+                  <Play className="w-5 h-5" />
+                  Watch Food Reels
+                </button>
+              </Link>
+              {/* {!partner && (
+                <Link to={isAuthenticated ? "/cart" : "/login"}>
+                  <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer flex items-center gap-2 mx-auto">
+                    <ShoppingCart className="w-5 h-5" />
+                    {isAuthenticated ? 'View Cart' : 'Login to Order'}
+                  </button>
+                </Link>
+              )} */}
+              {!isAuthenticated && (
+                <Link to="/partner-register">
+                  <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer flex items-center gap-2 mx-auto">
+                    <ChefHat className="w-5 h-5" />
+                    Join as Partner
+                  </button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
         
         {/* Decorative shapes */}
-        <div className="absolute top-20 left-10 opacity-20">
+        <div className="absolute top-20 left-10 opacity-20 hidden md:block">
           <div className="w-20 h-20 bg-yellow-300 rounded-full animate-bounce"></div>
         </div>
-        <div className="absolute bottom-20 right-10 opacity-20">
+        <div className="absolute bottom-20 right-10 opacity-20 hidden md:block">
           <div className="w-16 h-16 bg-red-300 rounded-full animate-pulse"></div>
         </div>
+        <div className="absolute top-1/2 left-1/4 opacity-10 hidden lg:block">
+          <div className="w-32 h-32 bg-white rounded-full"></div>
+        </div>
       </section>
+
+      {/* Quick Stats Section */}
+      {isAuthenticated && user && (
+        <section className="py-8 bg-white border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Link to="/reels" className="bg-gradient-to-br from-red-50 to-orange-50 p-4 rounded-xl hover:shadow-md transition">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <Video className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Explore</p>
+                    <p className="font-semibold text-gray-900">Food Reels</p>
+                  </div>
+                </div>
+              </Link>
+              <Link to="/order/history" className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl hover:shadow-md transition">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <ShoppingBag className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Track</p>
+                    <p className="font-semibold text-gray-900">My Orders</p>
+                  </div>
+                </div>
+              </Link>
+              <Link to="/cart" className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl hover:shadow-md transition">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <ShoppingCart className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">View</p>
+                    <p className="font-semibold text-gray-900">My Cart</p>
+                  </div>
+                </div>
+              </Link>
+              <Link to="/profile" className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl hover:shadow-md transition">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Star className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">View</p>
+                    <p className="font-semibold text-gray-900">My Profile</p>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Food Reels */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-red-100 text-red-600 px-4 py-1 rounded-full text-sm font-medium mb-4">
+              <TrendingUp className="w-4 h-4" />
+              Trending Now
+            </div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Trending Food Reels
             </h2>
@@ -146,7 +274,8 @@ const Home = () => {
           {!loading && !error && (
             <>
               {featuredFoods.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {featuredFoods.map((food) => (
                     <div key={food.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
                       <div className="relative">
@@ -286,21 +415,42 @@ const Home = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-500">by {food.partner}</span>
                           {food.postType === 'food' ? (
-                            <button className="bg-green-500 text-white px-4 py-2 rounded-full text-sm hover:bg-green-600 transition cursor-pointer flex items-center">
-                              <ShoppingBag className="w-4 h-4 mr-1" />
-                              Order Now
+                            <button 
+                              onClick={() => handleAddToCart(food)}
+                              disabled={addingToCart === food.id || partner}
+                              className="bg-green-500 text-white px-4 py-2 rounded-full text-sm hover:bg-green-600 transition cursor-pointer flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {addingToCart === food.id ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <ShoppingBag className="w-4 h-4 mr-1" />
+                              )}
+                              {addingToCart === food.id ? 'Adding...' : 'Add to Cart'}
                             </button>
                           ) : (
-                            <button className="bg-purple-500 text-white px-4 py-2 rounded-full text-sm hover:bg-purple-600 transition cursor-pointer flex items-center">
-                              <Megaphone className="w-4 h-4 mr-1" />
-                              View Offer
-                            </button>
+                            <Link to="/reels">
+                              <button className="bg-purple-500 text-white px-4 py-2 rounded-full text-sm hover:bg-purple-600 transition cursor-pointer flex items-center">
+                                <Megaphone className="w-4 h-4 mr-1" />
+                                View Offer
+                              </button>
+                            </Link>
                           )}
                         </div>
                       </div>
                     </div>
                   ))}
-                </div>
+                  </div>
+                  
+                  {/* View All Button */}
+                  <div className="text-center mt-10">
+                    <Link to="/reels">
+                      <button className="bg-gradient-to-r from-red-500 to-yellow-500 text-white px-8 py-3 rounded-full font-semibold text-lg hover:shadow-lg transition flex items-center gap-2 mx-auto hover:cursor-pointer">
+                        View All Reels
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </Link>
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -308,9 +458,12 @@ const Home = () => {
                   </div>
                   <h3 className="text-xl font-semibold text-gray-600 mb-2">No Food Reels Yet</h3>
                   <p className="text-gray-500 mb-4">Be the first to discover amazing food content!</p>
-                  <button className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 transition">
-                    Become a Partner
-                  </button>
+                  <Link to="/partner-register">
+                    <button className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 transition flex items-center gap-2 mx-auto">
+                      <ChefHat className="w-4 h-4" />
+                      Become a Partner
+                    </button>
+                  </Link>
                 </div>
               )}
             </>
@@ -365,20 +518,36 @@ const Home = () => {
             Join thousands of food lovers discovering amazing dishes every day
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to='/reels' >
-            <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer">
-              Start Watching
-            </button>
+            <Link to='/reels'>
+              <button className="bg-white text-red-500 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition cursor-pointer flex items-center gap-2 mx-auto">
+                <Play className="w-5 h-5" />
+                Start Watching
+              </button>
             </Link>
-            <Link to='/partner-register' ><button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer">
-              Become a Partner
-            </button>
-            </Link>
+            {!isAuthenticated && (
+              <Link to='/partner-register'>
+                <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer flex items-center gap-2 mx-auto">
+                  <ChefHat className="w-5 h-5" />
+                  Become a Partner
+                </button>
+              </Link>
+            )}
+            {isAuthenticated && !partner && (
+              <Link to='/cart'>
+                <button className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-red-500 transition cursor-pointer flex items-center gap-2 mx-auto">
+                  <ShoppingCart className="w-5 h-5" />
+                  Go to Cart
+                </button>
+              </Link>
+            )}
           </div>
         </div>
       </section>
 
       <Footer />
+      
+      <BackToTop />
+
     </div>
   )
 }
