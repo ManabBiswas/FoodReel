@@ -135,7 +135,7 @@ const OrderCard = ({ order, onViewDetails }) => {
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Amount</p>
           <p className="text-lg font-bold text-green-600 flex items-center gap-1">
             <IndianRupee className="w-4 h-4" />
-            {order.totalAmount?.toFixed(2) || '0.00'}
+            {(order.pricing?.totalAmount || order.totalAmount || 0).toFixed(2)}
           </p>
         </div>
 
@@ -302,9 +302,9 @@ const Dashboard = () => {
           completed: ordersData.filter((o) => o.status === 'completed').length,
           cancelled: ordersData.filter((o) => o.status === 'cancelled').length,
           revenue: ordersData
-            .filter((o) => o.status === 'completed')
-            .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
-          totalRevenue: ordersData.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+            .filter((o) => o.status === 'completed' || o.status === 'delivered')
+            .reduce((sum, o) => sum + (o.pricing?.totalAmount || o.totalAmount || 0), 0),
+          totalRevenue: ordersData.reduce((sum, o) => sum + (o.pricing?.totalAmount || o.totalAmount || 0), 0)
         },
         total: {
           totalLikes: 0,
