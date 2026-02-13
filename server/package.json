@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1",
     "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
     "razorpay": "^2.9.6",
     "react-toastify": "^11.0.5",
     "uuid": "^13.0.0"
