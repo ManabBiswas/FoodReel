@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { welcomeEmail } from "../templates/emails/welcome.email.js";
 
 const getEmailConfig = () => {
     const service = process.env.EMAIL_SERVICE || "gmail";
@@ -39,4 +40,9 @@ export const sendEmail = async (email, subject, message, html) => {
     } catch (error) {
         throw new Error(`Email failed: ${error.message}`);
     }
+};
+
+export const sendWelcomeEmail = async (userEmail, userName) => {
+    const { subject, html, text } = welcomeEmail(userName, userEmail);
+    await sendEmail(userEmail, subject, text, html);
 };
