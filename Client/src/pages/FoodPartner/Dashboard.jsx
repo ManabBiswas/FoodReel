@@ -28,6 +28,9 @@ import {
 
 // Stat Card Component
 const StatCard = ({ icon: Icon, title, value, subtitle, color = 'blue', trend }) => {
+  if (!Icon) {
+    return null;
+  }
   const colorClasses = {
     blue: 'bg-blue-100 text-blue-600',
     orange: 'bg-orange-100 text-orange-600',

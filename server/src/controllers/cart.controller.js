@@ -26,6 +26,9 @@ const getCart = async (req, res) => {
             cart = await cartModel.create({ user: userId, items: [] });
         }
 
+        // Calculate totals before returning
+        await calculateCartTotals(cart);
+
         res.status(200).json({
             success: true,
             cart

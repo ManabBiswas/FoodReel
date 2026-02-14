@@ -1,8 +1,7 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-
-export const CartContext = createContext()
+import { CartContext } from './CartContextBase'
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null)

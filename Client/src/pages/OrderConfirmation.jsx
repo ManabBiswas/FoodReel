@@ -38,6 +38,7 @@ const OrderConfirmation = () => {
         axiosConfig
       )
       setOrder(response.data.order)
+
     } catch (err) {
       console.error('Error fetching order:', err)
       setError('Failed to load order details')

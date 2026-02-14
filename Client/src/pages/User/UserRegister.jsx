@@ -102,16 +102,21 @@ const UserRegister = () => {
       submitData.append('password', formData.password)
       submitData.append('mobile', formData.mobile)
 
-      const response = await axios.post(
+      await axios.post(
         API_ENDPOINTS.auth.userRegister,
         submitData,
         axiosConfig
       )
 
-      console.log('Registration successful:', response.data)
+      // Send welcome email
+      await axios.post(API_ENDPOINTS.emails.welcome, {
+        email: formData.email,
+        name: formData.firstName
+      });
+      // console.log('Registration successful:', response.data)
 
       showSuccess('Registration successful! Logging you in...')
-      
+
       // Automatically log in the user with their credentials
       const loginResult = await loginUser({
         email: formData.email,

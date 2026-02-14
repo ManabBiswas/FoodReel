@@ -91,7 +91,7 @@ const OrderTracking = () => {
       maxPrepTime = Math.max(...prepTimes)
     }
     
-    const deliveryBuffer = 30 // 30 minutes delivery time
+    const deliveryBuffer = 50 // 30 minutes delivery time
     
     const orderTime = new Date(order.createdAt)
     const estimatedTime = new Date(orderTime.getTime() + (maxPrepTime + deliveryBuffer) * 60000)
@@ -365,7 +365,7 @@ const OrderTracking = () => {
                           </div>
                           {item.foodPartner && (
                             <p className="text-xs text-gray-500 mt-2">
-                              Partner: {item.foodPartner.businessName || 'N/A'}
+                              Partner: {item.foodPartner.companyName || 'N/A'}
                             </p>
                           )}
                         </div>

@@ -14,6 +14,8 @@ import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
 import cors from 'cors';
 import helmet from "helmet";
+// for local test
+import emailService from './services/email.service.js';
 
 const app = express() 
 
@@ -56,6 +58,23 @@ app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
 app.use('/api/emails',emailRoutes);
+
+app.get('/api/test-email', async (req, res) => {
+  try {
+    await emailService.sendPasswordResetEmail(
+      // reciver email
+      // username
+      "manabbiswas108@gmail.com",
+      'manab biswas',
+      'google.com'
+      // 'dasdhiraj813@gmailcom',
+      // "This is a test email",
+    );
+    res.json({ message: "Email sent successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 export default app;
