@@ -201,8 +201,22 @@ export const API_ENDPOINTS = {
   // Contact endpoint
   contact: {
     send: `${BASE_URL}/contact`,
-  }
+  },
+
+  // emails endpoint
+  emails: {
+    send: `${BASE_URL}/emails/send`,
+    welcome: `${BASE_URL}/emails/welcome`,
+    passwordReset: `${BASE_URL}/emails/password-reset`,
+    orderConfirmation: `${BASE_URL}/emails/order-confirmation`,
+    orderCancelled: `${BASE_URL}/emails/order-cancelled`,
+    orderShipped: `${BASE_URL}/emails/order-shipped`,
+    partnerApproved: `${BASE_URL}/emails/partner-approved`,
+    partnerRejected: `${BASE_URL}/emails/partner-rejected`,
+    contactResponse: `${BASE_URL}/emails/contact-response`,
+  },
 };
+
 
 // Axios default configuration
 export const axiosConfig = {
