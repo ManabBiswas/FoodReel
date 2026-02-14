@@ -11,8 +11,10 @@ import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
 import adminRoutes from './routes/admin.route.js';
 import cartRoutes from './routes/cart.route.js';
+import emailRoutes from './routes/email.route.js';
 import cors from 'cors';
 import helmet from "helmet";
+
 const app = express() 
 
 // CORS configuration for production and development
@@ -53,6 +55,7 @@ app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
+app.use('/api/emails',emailRoutes);
 
 
 export default app;
