@@ -119,7 +119,7 @@ const sendContactResponseController = async (req, res) => {
     }
 };
 
-export {
+export default {
     sendEmailController,
     sendWelcomeEmailController,
     sendOrderConfirmationController,

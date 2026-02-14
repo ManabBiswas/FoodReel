@@ -53,7 +53,7 @@ export const sendEmail = async (email, subject, message, html) => {
     }
 };
 
-export const sendWelcomeEmail = async (userEmail, userName) => {
+const sendWelcomeEmail = async (userEmail, userName) => {
     const { subject, html, text } = emailTemplates.welcomeEmail(userName, userEmail);
     await sendEmail(userEmail, subject, text, html);
 };
