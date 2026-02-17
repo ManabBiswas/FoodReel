@@ -18,12 +18,14 @@ import {
   IndianRupee,
   Calendar,
   User,
-  CreditCard
+  CreditCard,
+  Download
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-import { showSuccess, showError } from '../utils/toast'
+import { showSuccess, showError, showInfo } from '../utils/toast'
+import { generateReceipt } from '../utils/receiptGenerator'
 
 const OrderTracking = () => {
   const { orderId } = useParams()
@@ -162,6 +164,23 @@ const OrderTracking = () => {
       showError(err.response?.data?.error || err.response?.data?.message || 'Failed to cancel order')
     } finally {
       setCancelLoading(false)
+    }
+  }
+
+  // Handle download receipt
+  const handleDownloadReceipt = () => {
+    if (!order) {
+      showError('Order details not available')
+      return
+    }
+    
+    try {
+      showInfo('Generating receipt...')
+      generateReceipt(order)
+      showSuccess('Receipt downloaded successfully!')
+    } catch (error) {
+      console.error('Receipt generation error:', error)
+      showError('Failed to generate receipt. Please try again.')
     }
   }
 
@@ -497,8 +516,14 @@ const OrderTracking = () => {
                     </button>
                   )}
 
-                  <button
-                    onClick={() => navigate('/contact-us')}
+                  <button                    onClick={handleDownloadReceipt}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    Download Receipt
+                  </button>
+
+                  <button                    onClick={() => navigate('/contact-us')}
                     className="w-full border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     <MessageCircle className="w-5 h-5" />

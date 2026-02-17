@@ -20,6 +20,7 @@ import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showInfo } from '../utils/toast'
+import { generateReceipt } from '../utils/receiptGenerator'
 
 const OrderConfirmation = () => {
   const navigate = useNavigate()
@@ -64,8 +65,22 @@ const OrderConfirmation = () => {
   }
 
   const handleDownloadReceipt = () => {
-    showInfo('Downloading receipt...')
+    if (!order) {
+      showError('Order details not available')
+      return
+    }
+    
+    try {
+      showInfo('Generating receipt...')
+      generateReceipt(order)
+      showSuccess('Receipt downloaded successfully!')
+    } catch (error) {
+      console.error('Receipt generation error:', error)
+      showError('Failed to generate receipt. Please try again.')
+    }
   }
+
+
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleString('en-IN', {
