@@ -7,3 +7,15 @@ export const rateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const globalRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100, // 100 requests per 15 minutes
+  message: 'Too many requests, please try again later'
+});
+
+export const authRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5, // 5 login attempts per 10 minutes
+  message: 'Too many login attempts, please try again later'
+});
