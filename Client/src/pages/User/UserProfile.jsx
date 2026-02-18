@@ -130,8 +130,8 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto bg-white min-h-screen">
         <Navbar />
+      <div className="mx-auto bg-white min-h-screen px-4 sm:px-6 lg:px-8">
 
         {/* Error Message */}
         {error && (
@@ -165,8 +165,8 @@ const UserProfile = () => {
                   <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-gray-900 truncate">
                     {user.firstName} {user.lastName}
                   </h2>
-                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-2.5 h-2.5 text-white" />
+                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1.5">
+                    <Shield className="w-3 h-3 text-white" />
                   </div>
                 </div>
 
