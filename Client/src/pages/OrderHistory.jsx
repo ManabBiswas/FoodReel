@@ -200,13 +200,13 @@ const OrderHistory = () => {
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() => navigate(`/order/tracking/${order._id}`)}
-                          className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1"
+                          className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1 cursor-pointer"
                         >
                           Track Order <Truck className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => navigate(`/order/confirmation/${order._id}`, { state: { orderId: order._id } })}
-                          className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center gap-1"
+                          className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center gap-1 cursor-pointer"
                         >
                           Details <ChevronRight className="w-4 h-4" />
                         </button>

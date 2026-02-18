@@ -393,27 +393,27 @@ const OrderConfirmation = () => {
               <div className="space-y-2">
                 <button
                   onClick={() => navigate(`/order/tracking/${order.id || order._id}`)}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-medium flex items-center justify-center gap-2"
+                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-medium flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Truck className="w-5 h-5" />
                   Track Order
                 </button>
                 <button
                   onClick={handleDownloadReceipt}
-                  className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg hover:bg-gray-200 transition font-medium flex items-center justify-center gap-2"
+                  className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg hover:bg-gray-200 transition font-medium flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   Download Receipt
                 </button>
                 <button
                   onClick={() => navigate('/order/history')}
-                  className="w-full bg-gray-50 border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-100 transition font-medium"
+                  className="w-full bg-gray-50 border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-100 transition font-medium cursor-pointer"
                 >
                   View All Orders
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="w-full border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-50 transition font-medium"
+                  className="w-full border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-50 transition font-medium cursor-pointer"
                 >
                   Continue Shopping
                 </button>

@@ -234,7 +234,7 @@ const OrderTracking = () => {
           <div className="mb-8">
             <button
               onClick={() => navigate('/order/history')}
-              className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors mb-4"
+              className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors mb-4 cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Back to Orders</span>
@@ -500,7 +500,7 @@ const OrderTracking = () => {
                     <button
                       onClick={handleCancelOrder}
                       disabled={cancelLoading}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {cancelLoading ? (
                         <>
@@ -516,15 +516,15 @@ const OrderTracking = () => {
                     </button>
                   )}
 
-                  <button                    onClick={handleDownloadReceipt}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  <button onClick={handleDownloadReceipt}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Download className="w-5 h-5" />
                     Download Receipt
                   </button>
 
-                  <button                    onClick={() => navigate('/contact-us')}
-                    className="w-full border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  <button onClick={() => navigate('/contact-us')}
+                    className="w-full border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <MessageCircle className="w-5 h-5" />
                     Contact Support
