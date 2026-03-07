@@ -54,4 +54,9 @@ router.post('/:orderId/cancel',
     orderController.cancelOrder
 );
 
+// DEV-ONLY: POST /api/orders/dev/:orderId/status - Update order status and send email (for testing after DB changes)
+router.post('/dev/:orderId/status',
+    orderController.devUpdateOrderStatusAndEmail
+);
+
 export default router;

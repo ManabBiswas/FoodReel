@@ -5,12 +5,10 @@ import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
-import { useCurrentUser } from '../hooks/useAuth'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
   const { addToCart } = useCart()
-  const currentUser = useCurrentUser()
   const [step, setStep] = useState(1) // 1: Address, 2: Payment
   const [loading, setLoading] = useState(false)
   const [loadingAddresses, setLoadingAddresses] = useState(false)
@@ -164,42 +162,6 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       }
 
       const orderId = orderResponse.data.order._id
-
-      // Send order confirmation email
-      try {
-        const deliveryAddressStr = `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}`
-        const userEmail = currentUser?.email || address.email
-        const userName = currentUser?.firstName || currentUser?.name || address.fullName
-        
-        if (userEmail) {
-          await axios.post(
-            API_ENDPOINTS.emails.orderConfirmation,
-            {
-              email: userEmail,
-              userName: userName,
-              orderDetails: {
-                orderId: orderId,
-                items: [{
-                  name: food.name || food.title,
-                  quantity: quant,
-                  price: food.price
-                }],
-                itemTotal: pricing.itemPrice,
-                deliveryFee: pricing.deliveryFee,
-                platformFee: pricing.platformFee,
-                gst: pricing.gst,
-                grandTotal: pricing.total,
-                deliveryAddress: deliveryAddressStr,
-                estimatedTime: '30 - 45 minutes'
-              }
-            },
-            axiosConfig
-          )
-        }
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError)
-        // Don't block order flow if email fails
-      }
 
       if (paymentMethod === 'cod') {
         showSuccess('Order placed successfully!')

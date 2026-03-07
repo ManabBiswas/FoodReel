@@ -108,13 +108,6 @@ const UserRegister = () => {
         axiosConfig
       )
 
-      // Send welcome email
-      await axios.post(API_ENDPOINTS.emails.welcome, {
-        email: formData.email,
-        name: formData.firstName
-      });
-      // console.log('Registration successful:', response.data)
-
       showSuccess('Registration successful! Logging you in...')
 
       // Automatically log in the user with their credentials

@@ -24,14 +24,7 @@ const createTransporter = () => {
     return transporter;
 };
 
-// Initialize transporter on startup
-if (!transporter) {
-    try {
-        createTransporter();
-    } catch (error) {
-        console.error('Failed to initialize email transporter:', error.message);
-    }
-}
+// Transporter is created lazily on first send — no startup init needed
 
 export const sendEmail = async (email, subject, message, html) => {
     try {

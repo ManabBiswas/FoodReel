@@ -2,6 +2,7 @@ import userModel from "../models/user.Model.js";
 import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import emailService from "../services/email.service.js";
 
 async function register(req, res) {
     try {
@@ -57,6 +58,11 @@ async function register(req, res) {
                 profileImage: user.profileImage ? `data:image/jpeg;base64,${user.profileImage.toString('base64')}` : null
             }
         });
+
+        // Send welcome email (fire-and-forget)
+        emailService.sendWelcomeEmail(user.email, user.firstName)
+            .catch(err => console.error('Failed to send welcome email:', err.message));
+
         console.log("User created successfully", user);
     } catch (error) {
         console.error('Registration error:', error);

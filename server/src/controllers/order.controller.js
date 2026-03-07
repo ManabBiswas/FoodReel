@@ -2,6 +2,7 @@ import orderModel from "../models/order.model.js";
 import foodModel from "../models/food.model.js";
 import userModel from "../models/user.Model.js";
 import paymentService from "../services/payment.service.js";
+import emailService from "../services/email.service.js";
 
 const createOrder = async (req, res) => {
   try {
@@ -118,6 +119,34 @@ const createOrder = async (req, res) => {
       order: newOrder,
       orderId: newOrder._id
     });
+
+    // Send order confirmation email (fire-and-forget)
+    if (newOrder.user?.email) {
+      const p = newOrder.pricing || {};
+      const addr = newOrder.deliveryAddress || {};
+      const orderDetails = {
+        orderId: newOrder._id,
+        items: newOrder.items.map(item => ({
+          name: item.foodItem?.name || 'Food Item',
+          quantity: item.quantity,
+          price: item.priceAtOrder
+        })),
+        itemTotal: p.itemPrice || 0,
+        deliveryFee: p.deliveryFee || 0,
+        platformFee: p.platformFee || 0,
+        gst: p.taxes?.gst || 0,
+        grandTotal: p.totalAmount || 0,
+        deliveryAddress: `${addr.addressLine1 || ''}, ${addr.city || ''}, ${addr.state || ''} - ${addr.pincode || ''}`,
+        estimatedTime: newOrder.estimatedDeliveryTime
+          ? new Date(newOrder.estimatedDeliveryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+          : '30 - 45 minutes'
+      };
+      emailService.sendOrderConfirmationEmail(
+        newOrder.user.email,
+        newOrder.user.firstName,
+        orderDetails
+      ).catch(err => console.error('Failed to send order confirmation email:', err.message));
+    }
 
   } catch (error) {
     console.error("Error creating order:", error);
@@ -289,6 +318,24 @@ const updateOrderStatus = async (req, res) => {
             { path: 'items.foodPartner', select: 'companyName email mobile' }
         ]);
 
+        // Send email notification when order is ready (fire-and-forget)
+        if (status === 'ready' && order.user?.email) {
+          const partnerName = order.items[0]?.foodPartner?.companyName || 'FoodReel Partner';
+          const orderDetails = {
+            orderId: order._id,
+            partnerName,
+            estimatedDelivery: order.estimatedDeliveryTime
+              ? new Date(order.estimatedDeliveryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+              : 'Soon',
+            trackingUrl: `${process.env.FRONTEND_URL}/order/tracking/${order._id}`
+          };
+          emailService.sendOrderShippedEmail(
+            order.user.email,
+            order.user.firstName,
+            orderDetails
+          ).catch(err => console.error('Failed to send order ready email:', err.message));
+        }
+
         res.status(200).json({
             message: "Order status updated successfully",
             order
@@ -444,6 +491,28 @@ const cancelOrder = async (req, res) => {
                 : null
         });
 
+        // Send order cancelled email (fire-and-forget)
+        if (order.user?.email) {
+          const orderDetails = {
+            orderId: order._id,
+            items: order.items.map(item => ({
+              name: item.foodItem?.name || 'Food Item',
+              quantity: item.quantity,
+              price: item.priceAtOrder
+            })),
+            totalAmount: order.pricing?.grandTotal || order.pricing?.totalAmount,
+            reason: reason || 'Customer requested cancellation',
+            cancelledBy: 'user',
+            refundStatus: order.cancellation.refundStatus,
+            refundAmount: order.cancellation.refundAmount
+          };
+          emailService.sendOrderCancelledEmail(
+            order.user.email,
+            order.user.firstName,
+            orderDetails
+          ).catch(err => console.error('Failed to send order cancelled email:', err.message));
+        }
+
     } catch (error) {
         console.error("Error cancelling order:", error);
         res.status(500).json({ error: 'Failed to cancel order', details: error.message });
@@ -513,12 +582,95 @@ const partnerCancelOrder = async (req, res) => {
                 : null
         });
 
+        // Send order cancelled email (fire-and-forget)
+        if (order.user?.email) {
+          const orderDetails = {
+            orderId: order._id,
+            items: order.items.map(item => ({
+              name: item.foodItem?.name || 'Food Item',
+              quantity: item.quantity,
+              price: item.priceAtOrder
+            })),
+            totalAmount: order.pricing?.grandTotal || order.pricing?.totalAmount,
+            reason: reason || 'Cancelled by food partner',
+            cancelledBy: 'partner',
+            refundStatus: order.cancellation.refundStatus,
+            refundAmount: order.cancellation.refundAmount
+          };
+          emailService.sendOrderCancelledEmail(
+            order.user.email,
+            order.user.firstName,
+            orderDetails
+          ).catch(err => console.error('Failed to send order cancelled email:', err.message));
+        }
+
     } catch (error) {
         console.error("Error cancelling order (partner):", error);
         res.status(500).json({ error: 'Failed to cancel order', details: error.message });
     }
 };
 
+// DEV-ONLY: Manually update order status and send email (for testing after direct DB changes)
+const devUpdateOrderStatusAndEmail = async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'This endpoint is only available in development mode' });
+  }
+  
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: "Valid status required: pending, confirmed, preparing, ready, delivered, or cancelled" });
+    }
+
+    const order = await orderModel.findById(orderId)
+      .populate('user', 'firstName lastName email')
+      .populate('items.foodPartner', 'companyName');
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Update status
+    order.status = status;
+    await order.save();
+
+    // Send email if transitioning to 'ready'
+    if (status === 'ready' && order.user?.email) {
+      const partnerName = order.items[0]?.foodPartner?.companyName || 'FoodReel Partner';
+      const orderDetails = {
+        orderId: order._id,
+        partnerName,
+        estimatedDelivery: order.estimatedDeliveryTime
+          ? new Date(order.estimatedDeliveryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+          : 'Soon',
+        trackingUrl: `${process.env.FRONTEND_URL}/order/tracking/${order._id}`
+      };
+      
+      emailService.sendOrderShippedEmail(
+        order.user.email,
+        order.user.firstName,
+        orderDetails
+      )
+        .then(() => console.log(`✅ Ready email sent to ${order.user.email}`))
+        .catch(err => console.error('❌ Failed to send ready email:', err.message));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Order status updated to ${status} and email sent if applicable`,
+      order: {
+        id: order._id,
+        status: order.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Dev update order status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 export default {
     createOrder,
@@ -528,5 +680,6 @@ export default {
     getOrderById,
     getOrderStatistics,
     cancelOrder,
-    partnerCancelOrder
+    partnerCancelOrder,
+    devUpdateOrderStatusAndEmail
 };

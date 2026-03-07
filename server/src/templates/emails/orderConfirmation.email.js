@@ -85,6 +85,6 @@ export const orderConfirmationTemplate = (userName, orderDetails) => {
     return {
         subject: `Order Confirmed - #${orderId}`,
         html: emailLayout(content, 'Order Confirmation'),
-        text: `Your order #${orderId} has been confirmed. Item Total: ₹${itemTotal}, Delivery: ₹${deliveryFee}, Platform Fee: ₹${platformFee}, GST: ₹${gst}, Grand Total: ₹${grandTotal}. Track at ${process.env.FRONTEND_URL}/orders/${orderId}`
+        text: `Your order #${orderId} has been confirmed. Item Total: ₹${itemTotal}, Delivery: ₹${deliveryFee}, Platform Fee: ₹${platformFee}, GST: ₹${gst}, Grand Total: ₹${grandTotal}. Track at ${process.env.FRONTEND_URL}/order/tracking${orderId}`
     };
 };

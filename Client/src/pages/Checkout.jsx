@@ -253,32 +253,6 @@ const Checkout = () => {
         return
       }
 
-      // Send order confirmation email
-      try {
-        await axios.post(
-          API_ENDPOINTS.emails.orderConfirmation,
-          {
-            email: deliveryInfo.email,
-            userName: deliveryInfo.fullName,
-            orderDetails: {
-              orderId: orderId,
-              items: orderData.items,
-              itemTotal: itemTotal,
-              deliveryFee: deliveryFee,
-              platformFee: platformFee,
-              gst: gst,
-              grandTotal: grandTotal,
-              deliveryAddress: `${deliveryInfo.address}, ${deliveryInfo.city}, ${deliveryInfo.state} - ${deliveryInfo.pincode}`,
-              paymentMethod
-            }
-          },
-          axiosConfig
-        )
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError)
-        // Don't block order flow if email fails
-      }
-
       // If razorpay payment, initiate Razorpay
       if (paymentMethod === 'razorpay') {
         await handleRazorpayPayment(orderId)

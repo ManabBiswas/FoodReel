@@ -7,6 +7,7 @@ import reviewModel from "../models/review.model.js";
 import advertisementModel from "../models/advertisement.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import emailService from "../services/email.service.js";
 
 // AUTH CONTROLLERS
 async function login(req, res) {
@@ -292,6 +293,22 @@ async function togglePartnerVerification(req, res) {
                 verified: partner.verified
             }
         });
+
+        // Send partner approved/rejected email (fire-and-forget)
+        if (partner.verified) {
+            emailService.sendPartnerApprovedEmail(
+                partner.email,
+                partner.companyName,
+                partner.companyName
+            ).catch(err => console.error('Failed to send partner approved email:', err.message));
+        } else {
+            emailService.sendPartnerRejectedEmail(
+                partner.email,
+                partner.companyName,
+                partner.companyName,
+                'Your verification has been revoked by admin'
+            ).catch(err => console.error('Failed to send partner rejected email:', err.message));
+        }
     } catch (error) {
         console.error('Toggle partner verification error:', error);
         res.status(500).json({ error: "Failed to update partner verification" });
