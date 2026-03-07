@@ -3,6 +3,7 @@ import foodModel from "../models/food.model.js";
 import reviewModel from "../models/review.model.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import emailService from '../services/email.service.js';
 
 async function register(req,res) {
     try{

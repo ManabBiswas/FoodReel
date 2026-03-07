@@ -14,6 +14,8 @@ import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
 import cors from 'cors';
 import helmet from "helmet";
+import { globalRateLimiter } from './middlewares/rateLimiter.js';
+import { sanitizeInput } from './middlewares/sanitization.js';
 // for local test
 import emailService from './services/email.service.js';
 
@@ -42,8 +44,11 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }))
  
+app.use(globalRateLimiter);  // Global rate limiter
+
 app.use(express.json());
 app.use(helmet());
+app.use(sanitizeInput);
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
 app.use('/api/food',foodRoutes);
@@ -76,5 +81,18 @@ app.get('/api/test-email', async (req, res) => {
   }
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
 
 export default app;
