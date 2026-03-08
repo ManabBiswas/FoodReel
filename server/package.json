@@ -26,11 +26,13 @@
     "helmet": "^8.1.0",
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.18.1",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",
     "razorpay": "^2.9.6",
     "uuid": "^13.0.0",
+    "xss": "^1.0.15",
     "xss-clean": "^0.1.4"
   }
 }

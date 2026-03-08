@@ -92,7 +92,7 @@ const PartnerRegister = () => {
         longitude: location.longitude
       }
 
-      const response = await axios.post(API_ENDPOINTS.FOOD_PARTNER_REGISTER, submitData, axiosConfig)
+      const response = await axios.post(API_ENDPOINTS.auth.partnerRegister, submitData, axiosConfig)
       
       if (response.data.isAuthenticated) {
           showInfo('Already logged in! Redirecting to dashboard...')
