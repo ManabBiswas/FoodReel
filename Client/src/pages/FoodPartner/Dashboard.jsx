@@ -62,7 +62,7 @@ const StatCard = ({ icon: Icon, title, value, subtitle, color = 'blue', trend })
 }
 
 // Order Card Component
-const OrderCard = ({ order, onViewDetails }) => {
+const OrderCard = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updating }) => {
   const getStatusConfig = (status) => {
     const configs = {
       pending: {
@@ -76,6 +76,24 @@ const OrderCard = ({ order, onViewDetails }) => {
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
         borderColor: 'border-blue-200'
+      },
+      preparing: {
+        icon: Clock,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50',
+        borderColor: 'border-purple-200'
+      },
+      ready: {
+        icon: CheckCircle,
+        color: 'text-teal-600',
+        bgColor: 'bg-teal-50',
+        borderColor: 'border-teal-200'
+      },
+      delivered: {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200'
       },
       completed: {
         icon: CheckCircle,
@@ -154,13 +172,49 @@ const OrderCard = ({ order, onViewDetails }) => {
         </div>
 
         {/* Action */}
-        <div className="flex items-center justify-end">
+        <div className="flex flex-col gap-2 items-end">
           <button
             onClick={() => onViewDetails(order._id)}
-            className="w-full md:w-auto px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+            className="w-full px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             View Details
           </button>
+          {order.status === 'pending' && (
+            <button
+              onClick={() => onStatusUpdate(order._id, 'confirmed')}
+              disabled={updating}
+              className="w-full px-3 py-1.5 text-sm font-semibold bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+            >
+              {updating ? '...' : 'Confirm'}
+            </button>
+          )}
+          {order.status === 'confirmed' && (
+            <button
+              onClick={() => onStatusUpdate(order._id, 'preparing')}
+              disabled={updating}
+              className="w-full px-3 py-1.5 text-sm font-semibold bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50"
+            >
+              {updating ? '...' : 'Start Preparing'}
+            </button>
+          )}
+          {order.status === 'preparing' && (
+            <button
+              onClick={() => onStatusUpdate(order._id, 'ready')}
+              disabled={updating}
+              className="w-full px-3 py-1.5 text-sm font-semibold bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50"
+            >
+              {updating ? '...' : 'Mark Ready'}
+            </button>
+          )}
+          {['pending', 'confirmed', 'preparing'].includes(order.status) && (
+            <button
+              onClick={() => onCancelOrder(order._id)}
+              disabled={updating}
+              className="w-full px-3 py-1.5 text-sm font-semibold bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+            >
+              {updating ? '...' : 'Cancel'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -186,6 +240,9 @@ const FilterBar = ({ statusFilter, setStatusFilter, searchTerm, setSearchTerm })
     { value: 'all', label: 'All Orders' },
     { value: 'pending', label: 'Pending' },
     { value: 'confirmed', label: 'Confirmed' },
+    { value: 'preparing', label: 'Preparing' },
+    { value: 'ready', label: 'Ready' },
+    { value: 'delivered', label: 'Delivered' },
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' }
   ]
@@ -238,6 +295,7 @@ const Dashboard = () => {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [updatingOrder, setUpdatingOrder] = useState(null)
 
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
     try {
@@ -348,6 +406,32 @@ const Dashboard = () => {
   const handleRefresh = useCallback(() => {
     fetchDashboardData(true)
   }, [fetchDashboardData])
+
+  const handleStatusUpdate = useCallback(async (orderId, newStatus) => {
+    try {
+      setUpdatingOrder(orderId)
+      await axios.put(API_ENDPOINTS.order.updateStatus(orderId), { status: newStatus }, axiosConfig)
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)))
+      showSuccess(`Order marked as ${newStatus}`)
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to update order status')
+    } finally {
+      setUpdatingOrder(null)
+    }
+  }, [])
+
+  const handleCancelOrder = useCallback(async (orderId) => {
+    try {
+      setUpdatingOrder(orderId)
+      await axios.post(API_ENDPOINTS.order.partnerCancel(orderId), {}, axiosConfig)
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: 'cancelled' } : o)))
+      showSuccess('Order cancelled')
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to cancel order')
+    } finally {
+      setUpdatingOrder(null)
+    }
+  }, [])
 
   const handleViewDetails = useCallback(
     (orderId) => {
@@ -539,7 +623,14 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-4">
               {filteredOrders.map((order) => (
-                <OrderCard key={order._id} order={order} onViewDetails={handleViewDetails} />
+                <OrderCard
+                  key={order._id}
+                  order={order}
+                  onViewDetails={handleViewDetails}
+                  onStatusUpdate={handleStatusUpdate}
+                  onCancelOrder={handleCancelOrder}
+                  updating={updatingOrder === order._id}
+                />
               ))}
             </div>
           )}

@@ -16,7 +16,7 @@ const FoodPartnersReviews = () => {
   const fetchReviews = async () => {
     try {
       setLoading(true)
-      const response = await axios.get(API_ENDPOINTS.FOOD_PARTNER_REVIEWS, axiosConfig)
+      const response = await axios.get(API_ENDPOINTS.auth.partnerReviews, axiosConfig)
       
       setReviews(response.data.reviews || [])
       setReviewStats({

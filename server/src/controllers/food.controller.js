@@ -677,6 +677,69 @@ const addReview = async (req, res) => {
     }
 };
 
+// DELETE /api/food/:id - Delete a food item (partner only)
+const deleteFood = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const partnerId = req.foodPartner._id;
+
+        // Find food by ID and verify it belongs to this partner
+        const food = await foodModel.findOne({ _id: id, foodPartner: partnerId });
+        if (!food) {
+            return res.status(404).json({
+                error: 'Food item not found or you do not have permission to delete it'
+            });
+        }
+
+        // Delete the food item
+        await foodModel.findByIdAndDelete(id);
+
+        res.status(200).json({
+            message: 'Food item deleted successfully',
+            deletedFoodId: id
+        });
+    } catch (error) {
+        console.error('Error deleting food:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// PUT /api/food/:id - Update a food item (partner only)
+const updateFood = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const partnerId = req.foodPartner._id;
+        const { name, description, price, cuisine, ingredients, preparationTime, isAvailable } = req.body;
+
+        // Find food by ID and verify it belongs to this partner
+        const food = await foodModel.findOne({ _id: id, foodPartner: partnerId });
+        if (!food) {
+            return res.status(404).json({
+                error: 'Food item not found or you do not have permission to update it'
+            });
+        }
+
+        // Update allowed fields
+        if (name) food.name = name;
+        if (description) food.description = description;
+        if (price) food.price = price;
+        if (cuisine) food.cuisine = cuisine;
+        if (ingredients) food.ingredients = ingredients;
+        if (preparationTime) food.preparationTime = preparationTime;
+        if (typeof isAvailable === 'boolean') food.isAvailable = isAvailable;
+
+        await food.save();
+
+        res.status(200).json({
+            message: 'Food item updated successfully',
+            food
+        });
+    } catch (error) {
+        console.error('Error updating food:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export default { 
     createFood, 
     getFoodItems, 
@@ -688,5 +751,7 @@ export default {
     toggleLike,
     toggleSave,
     getReviews,
-    addReview
+    addReview,
+    deleteFood,
+    updateFood
 };

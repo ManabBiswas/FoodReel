@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { 
   LayoutDashboard, 
   Users, 
@@ -12,59 +14,84 @@ import {
   AlertCircle,
   CheckCircle,
   Menu,
-  X
+  X,
+  IndianRupee,
+  RefreshCw
 } from 'lucide-react'
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dashboardStats, setDashboardStats] = useState(null)
+  const [recentOrders, setRecentOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const handleLogout = () => {
-    // TODO: Add actual logout logic
-    console.log('Admin logged out')
+  const fetchDashboard = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const [statsRes, ordersRes] = await Promise.all([
+        axios.get(API_ENDPOINTS.admin.dashboard, axiosConfig),
+        axios.get(`${API_ENDPOINTS.admin.orders}?limit=5&page=1`, axiosConfig)
+      ])
+      setDashboardStats(statsRes.data.stats)
+      setRecentOrders(ordersRes.data.orders || [])
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate('/admin-login')
+      } else {
+        setError('Failed to load dashboard data')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [navigate])
+
+  useEffect(() => {
+    fetchDashboard()
+  }, [fetchDashboard])
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(API_ENDPOINTS.auth.adminLogout, {}, axiosConfig)
+    } catch {
+      // clear cookie even if request fails
+    }
     navigate('/admin-login')
   }
 
-  // Mock stats data
-  const stats = [
+  const stats = dashboardStats ? [
     { 
       title: 'Total Users', 
-      value: '1,234', 
-      change: '+12%', 
+      value: dashboardStats.totalUsers?.toLocaleString() ?? '—', 
+      change: '+users', 
       icon: Users, 
       color: 'bg-blue-500' 
     },
     { 
       title: 'Food Partners', 
-      value: '87', 
-      change: '+5%', 
+      value: dashboardStats.totalPartners?.toLocaleString() ?? '—', 
+      change: '+partners', 
       icon: Store, 
       color: 'bg-green-500' 
     },
     { 
-      title: 'Total Posts', 
-      value: '2,456', 
-      change: '+18%', 
-      icon: FileText, 
+      title: 'Total Orders', 
+      value: dashboardStats.totalOrders?.toLocaleString() ?? '—', 
+      change: '+orders', 
+      icon: ShoppingBag, 
       color: 'bg-purple-500' 
     },
     { 
-      title: 'Active Orders', 
-      value: '45', 
-      change: '-3%', 
-      icon: ShoppingBag, 
+      title: 'Food Items', 
+      value: dashboardStats.totalFoodItems?.toLocaleString() ?? '—', 
+      change: '+items', 
+      icon: FileText, 
       color: 'bg-orange-500' 
     }
-  ]
-
-  // Mock recent activity
-  const recentActivity = [
-    { id: 1, type: 'success', message: 'New user registered: john@example.com', time: '5 min ago' },
-    { id: 2, type: 'warning', message: 'Partner verification pending: Pizza Palace', time: '15 min ago' },
-    { id: 3, type: 'success', message: 'New post published by @foodlover', time: '1 hour ago' },
-    { id: 4, type: 'warning', message: 'Reported content needs review', time: '2 hours ago' }
-  ]
+  ] : []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 font-sans antialiased">
@@ -168,57 +195,118 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <main className="lg:mr-72 p-4 sm:p-8">
         {/* Header */}
-        <div className="mb-8 mt-16 lg:mt-0">
-          <h2 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Dashboard Overview</h2>
-          <p className="text-gray-500 mt-2 font-medium text-base">Welcome back, Admin 👋</p>
+        <div className="mb-8 mt-16 lg:mt-0 flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Dashboard Overview</h2>
+            <p className="text-gray-500 mt-2 font-medium text-base">Welcome back, Admin 👋</p>
+          </div>
+          <button
+            onClick={fetchDashboard}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-red-700 text-sm font-medium">{error}</p>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} p-3 rounded-lg shadow-md`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-sm font-semibold px-2 py-1 rounded-full ${
-                  stat.change.startsWith('+') 
-                    ? 'bg-green-100 text-green-600' 
-                    : 'bg-red-100 text-red-600'
-                }`}>
-                  {stat.change}
-                </span>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 animate-pulse">
+                <div className="h-12 bg-gray-200 rounded-lg mb-4" />
+                <div className="h-4 bg-gray-200 rounded mb-2 w-24" />
+                <div className="h-8 bg-gray-200 rounded w-16" />
               </div>
-              <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">{stat.title}</h3>
-              <p className="text-3xl font-black tracking-tight bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">{stat.value}</p>
-            </div>
-          ))}
+            ))
+          ) : (
+            stats.map((stat, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow p-6 border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`${stat.color} p-3 rounded-lg shadow-md`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">{stat.title}</h3>
+                <p className="text-3xl font-black tracking-tight bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">{stat.value}</p>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Recent Activity */}
+        {/* Revenue Card */}
+        {dashboardStats && (
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl shadow-lg p-6 mb-8 text-white">
+            <div className="flex items-center gap-3 mb-2">
+              <IndianRupee className="w-6 h-6" />
+              <h3 className="text-lg font-bold">Total Revenue</h3>
+            </div>
+            <p className="text-4xl font-black">
+              ₹{(dashboardStats.totalRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        )}
+
+        {/* Recent Orders */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-800 tracking-tight">Recent Activity</h3>
-            <button className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold tracking-wide transition-colors">
+            <h3 className="text-xl font-bold text-gray-800 tracking-tight">Recent Orders</h3>
+            <button
+              onClick={() => navigate('/admin/orders')}
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold tracking-wide transition-colors"
+            >
               View All
             </button>
           </div>
 
-          <div className="space-y-3">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg hover:shadow-md transition-shadow">
-                {activity.type === 'success' ? (
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-800 text-sm font-medium leading-relaxed">{activity.message}</p>
-                  <p className="text-xs text-gray-400 mt-1 font-medium">{activity.time}</p>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : recentOrders.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-8">No orders yet</p>
+          ) : (
+            <div className="space-y-3">
+              {recentOrders.map((order) => (
+                <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:shadow-sm transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-gray-800 text-sm font-semibold">
+                        Order #{order._id?.slice(-8).toUpperCase()}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(order.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-green-600">
+                      ₹{(order.pricing?.totalAmount || order.totalAmount || 0).toFixed(2)}
+                    </p>
+                    <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${
+                      order.status === 'completed' ? 'bg-green-100 text-green-600' :
+                      order.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                      'bg-blue-100 text-blue-600'
+                    }`}>
+                      {order.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}

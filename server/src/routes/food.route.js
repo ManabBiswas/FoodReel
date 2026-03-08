@@ -109,4 +109,18 @@ router.post('/:id/review',
     foodController.addReview
 );
 
+// DELETE /api/food/:id - Delete a food item (partner only)
+router.delete('/:id',
+    isFoodPartnerLoggedin,
+    foodController.deleteFood
+);
+
+// PUT /api/food/:id - Update a food item (partner only)
+router.put('/:id',
+    isFoodPartnerLoggedin,
+    upload.single('file'),
+    handleMulterError,
+    foodController.updateFood
+);
+
 export default router
