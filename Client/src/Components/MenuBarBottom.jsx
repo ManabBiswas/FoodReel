@@ -1,18 +1,18 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Video, Plus, Handshake, User } from 'lucide-react'
+import { Film } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
-import { CgProfile } from "react-icons/cg";
-import { FaPlus } from "react-icons/fa6";
-import { GrHomeRounded } from "react-icons/gr";
-import { MdOutlineHandshake } from "react-icons/md";
-import { Film } from 'lucide-react';
+import { useUserType } from '../hooks/useAuth'
+import { CgProfile } from 'react-icons/cg'
+import { FaPlus } from 'react-icons/fa6'
+import { GrHomeRounded } from 'react-icons/gr'
+import { MdOutlineHandshake } from 'react-icons/md'
 
 const MenuBarBottom = () => {
   const location = useLocation()
   const { isAuthenticated } = useAuth()
-  // const isUser = isAuthenticated && location.pathname === '/profile'
-  const isPartner = isAuthenticated && location.pathname === '/partner-profile'
+  // Read user type from global auth context — never from the URL
+  const { isPartner } = useUserType()
 
   const menuItems = [
     {
@@ -27,23 +27,20 @@ const MenuBarBottom = () => {
     },
     {
       path: isAuthenticated
-        ? (isPartner ? '/create-food' : '/create-post')
-        : (isPartner ? '/partner-login' : '/login'),
+        ? (isPartner ? '/CreateFood' : '/create-post')
+        : '/login',
       label: 'Create',
       icon: <FaPlus className="h-4 w-4 text-amber-50" />
     },
-
     {
       path: isAuthenticated
         ? (isPartner ? '/partner-profile' : '/profile')
-        : (isPartner ? '/partner-login' : '/login'),
-      label: isPartner ? 'Partner Profile' : 'Profile',
+        : '/login',
+      label: isPartner ? 'Partner' : 'Profile',
       icon: isPartner
         ? <MdOutlineHandshake className="h-4 w-4 text-amber-50" />
         : <CgProfile className="h-4 w-4 text-amber-50" />
     }
-
-
   ]
 
   return (
