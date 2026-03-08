@@ -114,14 +114,28 @@ async function logout(req, res) {
 async function check(req, res) {
     try {
         // If middleware passes, user is authenticated
-        const foodPartner = req.foodPartner;
+        const foodPartner = await foodPartnerModel.findById(req.foodPartner._id).select('-password');
+        
+        if (!foodPartner) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Partner not found"
+            });
+        }
+
         res.status(200).json({
             isAuthenticated: true,
             foodPartner: {
                 _id: foodPartner._id,
                 companyName: foodPartner.companyName,
                 email: foodPartner.email,
-                mobile: foodPartner.mobile
+                mobile: foodPartner.mobile,
+                address: foodPartner.address,
+                bio: foodPartner.bio || "",
+                profileImage: foodPartner.profileImage || null,
+                verified: foodPartner.verified || false,
+                followers: foodPartner.followersCount || 0,
+                following: foodPartner.followingCount || 0
             }
         });
     } catch (error) {
@@ -169,7 +183,7 @@ async function getProfile(req, res) {
             tags: item.tags || []
         }));
 
-        console.log('Formatted food items:', formattedFoodItems);
+        // console.log('Formatted food items:', formattedFoodItems);
 
         res.status(200).json({
             partner: {

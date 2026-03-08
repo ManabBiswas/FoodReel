@@ -55,13 +55,13 @@ export const createAdvertisement = async (req, res) => {
       return res.status(400).json({ error: "Valid until date must be in the future" });
     }
 
-    console.log("Food Partner:", req.foodPartner);
-    console.log("Request Body:", req.body);
-    console.log("File Info:", {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
+    // console.log("Food Partner:", req.foodPartner);
+    // console.log("Request Body:", req.body);
+    // console.log("File Info:", {
+    //   originalname: req.file.originalname,
+    //   mimetype: req.file.mimetype,
+    //   size: req.file.size
+    // });
 
     // Upload file to storage
     const fileUploadResult = await storageService.uploadImage(req.file.buffer, uuid());
@@ -126,15 +126,17 @@ export const createAdvertisement = async (req, res) => {
   }
 }
 
-// Get all advertisements
+// Get all advertisements for current partner
 export const getAllAdvertisements = async (req, res) => {
   try {
-    const advertisements = await Advertisement.find()
+    const partnerId = req.foodPartner._id
+    const advertisements = await Advertisement.find({ partnerId })
       .populate('partnerId', 'name email')
       .sort({ createdAt: -1 })
     
     res.status(200).json({
       message: "Advertisements retrieved successfully",
+      count: advertisements.length,
       data: advertisements
     })
   } catch (error) {

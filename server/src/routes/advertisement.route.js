@@ -52,9 +52,9 @@ router.post('/',
     advertisementController.createAdvertisement
 )
 
-// Get all advertisements (optional)
+// Get all advertisements for current partner
 // GET /api/advertisement
-router.get('/', advertisementController.getAllAdvertisements)
+router.get('/', isFoodPartnerLoggedin, advertisementController.getAllAdvertisements)
 
 // Get advertisement by ID (optional)
 // GET /api/advertisement/:id

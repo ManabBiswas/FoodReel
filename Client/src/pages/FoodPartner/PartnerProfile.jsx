@@ -1,100 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { usePartnerData } from '../../Contexts/PartnerDataContext'
 import Navbar from '../../Components/Navbar'
-import { useNavigate } from 'react-router-dom'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
-import { Building2, MapPin, Phone, Mail, Users, UtensilsCrossed, Heart, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, User, Loader2, Megaphone, ShoppingBag } from 'lucide-react'
+import { Building2, MapPin, Phone, Mail, Loader2, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, UtensilsCrossed, Heart, Megaphone, ShoppingBag } from 'lucide-react'
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
-  const [errors, setErrors] = useState('')
+  const { partnerProfile, posts, loading, error, refresh } = usePartnerData()
+  
   const [activeTab, setActiveTab] = useState('posts')
-  const [postFilter, setPostFilter] = useState('all') // 'all', 'food', 'advertisement'
+  const [postFilter, setPostFilter] = useState('all')
   const [isEditingBio, setIsEditingBio] = useState(false)
-  const [bioText, setBioText] = useState("")
-  const [partnerData, setPartnerData] = useState(null)
-  const [postItems, setPostItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [bioText, setBioText] = useState('')
   const [bioLoading, setBioLoading] = useState(false)
   const [selectedFood, setSelectedFood] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Fetch partner profile data
-  const fetchProfileData = useCallback(async () => {
-    try {
-      setLoading(true)
-      setErrors('')
-      const [profileResponse, foodResponse, adResponse] = await Promise.all([
-        axios.get(API_ENDPOINTS.auth.partnerProfile, axiosConfig),
-        axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
-        axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
-      ])
-
-      // console.log('Profile response:', profileResponse.data)
-      // console.log('Food posts:', foodResponse.data)
-      // console.log('Advertisement posts:', adResponse.data)
-
-      // Extract food posts from the response structure
-      const foodPostsData = foodResponse.data?.foods?.all || foodResponse.data?.foods?.food || []
-      const adPostsData = adResponse.data?.data || []
-
-      // Combine food and advertisement posts
-      const foodPosts = foodPostsData.map(post => ({
-        ...post,
-        postType: 'food',
-        image: post.image || post.file,
-        video: post.video || post.file
-      }))
-
-      const adPosts = adPostsData.map(post => ({
-        ...post,
-        postType: 'advertisement',
-        image: post.type === 'image' ? post.file : null,
-        video: post.type === 'video' ? post.file : null
-      }))
-
-      // Combine and sort by creation date (newest first)
-      const allPosts = [...foodPosts, ...adPosts].sort((a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-      )
-
-      setPartnerData(profileResponse.data.partner)
-      setPostItems(allPosts)
-      setBioText(profileResponse.data.partner.bio)
-    } catch (error) {
-      console.error('Error fetching profile data:', error)
-      // Check if it's an authentication error (401 or 403)
-      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-        // Redirect to partner login
-        navigate('/partner-login')
-        return
-      }
-
-      setErrors('Error loading profile data', error)
-    } finally {
-      setLoading(false)
+  // Initialize bio text when profile loads
+  React.useEffect(() => {
+    if (partnerProfile?.bio) {
+      setBioText(partnerProfile.bio)
     }
-  }, [navigate])
-
-  useEffect(() => {
-    fetchProfileData()
-  }, [fetchProfileData])
+  }, [partnerProfile])
 
   // Handle bio editing
   const handleSaveBio = async () => {
     try {
       setBioLoading(true)
-      await axios.put(API_ENDPOINTS.auth.partnerBio,
+      await axios.put(
+        API_ENDPOINTS.auth.partnerBio,
         { bio: bioText },
         axiosConfig
       )
-
-      setPartnerData(prev => ({ ...prev, bio: bioText }))
       setIsEditingBio(false)
       showSuccess('Bio updated successfully!')
+      refresh() // Refresh partner data context
     } catch (error) {
       console.error('Error updating bio:', error)
       showError('Error updating bio')
@@ -109,13 +54,12 @@ const PartnerProfile = () => {
     } catch (err) {
       console.warn('Logout request failed:', err)
     } finally {
-      // Ensure client navigates to login page
       navigate('/partner-login')
     }
   }
 
   const handleCancelBio = () => {
-    setBioText(partnerData?.bio || "")
+    setBioText(partnerProfile?.bio || '')
     setIsEditingBio(false)
   }
 
@@ -129,15 +73,23 @@ const PartnerProfile = () => {
     setSelectedFood(null)
   }
 
-  // Filter posts based on selected filter
-  const getFilteredPosts = () => {
-    if (postFilter === 'all') return postItems
-    return postItems.filter(item => item.postType === postFilter)
-  }
+  // Get all posts from context (food + advertisement combined & sorted)
+  const allPosts = React.useMemo(() => {
+    if (!posts) return []
+    const combined = [...(posts.food || []), ...(posts.advertisement || [])]
+    return combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  }, [posts])
 
-  const filteredPosts = getFilteredPosts()
-  const foodPostsCount = postItems.filter(item => item.postType === 'food').length
-  const adPostsCount = postItems.filter(item => item.postType === 'advertisement').length
+  // Filter posts based on selected filter
+  const filteredPosts = React.useMemo(() => {
+    if (postFilter === 'all') return allPosts
+    if (postFilter === 'food') return allPosts.filter(item => item.postType === 'food')
+    if (postFilter === 'advertisement') return allPosts.filter(item => item.postType === 'advertisement')
+    return allPosts
+  }, [allPosts, postFilter])
+
+  const foodPostsCount = posts?.food?.length ?? 0
+  const adPostsCount = posts?.advertisement?.length ?? 0
 
   if (loading) {
     return (
@@ -145,8 +97,27 @@ const PartnerProfile = () => {
         <Navbar />
         <div className="max-w-5xl mx-auto bg-white min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+            <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-4" />
             <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!partnerProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-5xl mx-auto bg-white min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">{error || 'Failed to load profile'}</p>
+            <button
+              onClick={refresh}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -157,9 +128,9 @@ const PartnerProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-5xl mx-auto bg-white min-h-screen">
-        {errors && (
-          <div className="mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-700 ">
-            {errors}
+        {error && (
+          <div className="mx-4 sm:mx-6 lg:mx-8 pt-4 mb-2 p-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-700">
+            {error}
           </div>
         )}
 
@@ -168,7 +139,7 @@ const PartnerProfile = () => {
           <div className="flex flex-row gap-6 mb-6">
             {/* Profile Picture */}
             <div className="flex justify-center sm:justify-start">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-pink-500 to-orange-500 p-0.5 flex-shrink-0">
+              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 p-0.5 flex-shrink-0">
                 <div className="w-full h-full rounded-full bg-white p-1">
                   <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
                     <Building2 className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-gray-600" />
@@ -182,8 +153,8 @@ const PartnerProfile = () => {
               {/* Company Name and Actions Row */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
                 <div className="flex items-center justify-center sm:justify-start gap-2">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-gray-900">{partnerData.companyName}</h2>
-                  {partnerData.verified && (
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{partnerProfile.companyName}</h2>
+                  {partnerProfile.verified && (
                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-3 h-3 text-white" />
                     </div>
@@ -192,15 +163,15 @@ const PartnerProfile = () => {
                 <div className="flex justify-center sm:justify-start gap-2">
                   <button
                     onClick={() => setIsEditingBio(!isEditingBio)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                   >
-                    <Settings className="w-4 h-4 cursor-pointer" />
-                    {isEditingBio ? 'Cancel Edit' : 'Edit Profile'}
+                    <Settings className="w-4 h-4" />
+                    {isEditingBio ? 'Cancel' : 'Edit Profile'}
                   </button>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
                     <Plus className="w-4 h-4" />
                   </button>
-                  <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                  <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
@@ -208,18 +179,17 @@ const PartnerProfile = () => {
             </div>
           </div>
 
-
-          <div className="">
-            {/* Bio Section */}
+          {/* Bio Section */}
+          <div className="mb-4">
             {isEditingBio ? (
-              <div className="mb-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Bio Description
                 </label>
                 <textarea
                   value={bioText}
                   onChange={(e) => setBioText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
                   rows={4}
                   placeholder="Tell customers about your restaurant..."
                   maxLength={300}
@@ -238,7 +208,7 @@ const PartnerProfile = () => {
                     <button
                       onClick={handleSaveBio}
                       disabled={bioLoading}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white text-sm rounded transition-colors flex items-center gap-1"
+                      className="px-3 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
                     >
                       {bioLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                       Save
@@ -248,41 +218,41 @@ const PartnerProfile = () => {
               </div>
             ) : (
               <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-line mb-3">
-                {bioText}
+                {bioText || 'No bio yet. Add one to tell customers about your restaurant!'}
               </div>
             )}
           </div>
-          <div>
-            {/* Contact Info */}
-            <div className="space-y-1 text-xs text-gray-600">
-              <div className="flex sm:justify-start gap-2">
-                <Mail className="w-3 h-3" />
-                <span>{partnerData.email}</span>
-              </div>
-              <div className="flex  sm:justify-start gap-2">
-                <Phone className="w-3 h-3" />
-                <span>{partnerData.phone}</span>
-              </div>
-              <div className="flex sm:justify-start gap-2">
-                <MapPin className="w-3 h-3" />
-                <span className="text-left">{partnerData.address}</span>
-              </div>
+
+          {/* Contact Info */}
+          <div className="space-y-1 text-xs text-gray-600">
+            <div className="flex gap-2">
+              <Mail className="w-3 h-3 flex-shrink-0" />
+              <span>{partnerProfile.email}</span>
+            </div>
+            <div className="flex gap-2">
+              <Phone className="w-3 h-3 flex-shrink-0" />
+              <span>{partnerProfile.phone}</span>
+            </div>
+            <div className="flex gap-2">
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              <span>{partnerProfile.address}</span>
             </div>
           </div>
-        </div>
-        {/* Stats */}
-        <div className="flex justify-center sm:justify-start gap-6 mb-4 text-sm">
-          <div>
-            <span className="font-semibold text-gray-900">{postItems.length}</span>
-            <span className="text-gray-600 ml-1">posts</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">{partnerData.followers.toLocaleString()}</span>
-            <span className="text-gray-600 ml-1">followers</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">{partnerData.following}</span>
-            <span className="text-gray-600 ml-1">following</span>
+
+          {/* Stats */}
+          <div className="flex justify-start gap-6 mt-4 text-sm">
+            <div>
+              <span className="font-semibold text-gray-900">{allPosts.length}</span>
+              <span className="text-gray-600 ml-1">posts</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">{partnerProfile.followers?.toLocaleString() || 0}</span>
+              <span className="text-gray-600 ml-1">followers</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">{partnerProfile.following || 0}</span>
+              <span className="text-gray-600 ml-1">following</span>
+            </div>
           </div>
         </div>
 
@@ -293,7 +263,7 @@ const PartnerProfile = () => {
               <button
                 onClick={() => setActiveTab('posts')}
                 className={`flex items-center justify-center gap-1 px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors ${activeTab === 'posts'
-                  ? 'text-gray-900 border-t-2 border-gray-900'
+                  ? 'text-gray-900 border-t-2 border-orange-500'
                   : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
@@ -303,7 +273,7 @@ const PartnerProfile = () => {
               <button
                 onClick={() => setActiveTab('reviews')}
                 className={`flex items-center justify-center gap-1 px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors ${activeTab === 'reviews'
-                  ? 'text-gray-900 border-t-2 border-gray-900'
+                  ? 'text-gray-900 border-t-2 border-orange-500'
                   : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
@@ -313,7 +283,7 @@ const PartnerProfile = () => {
               <button
                 onClick={() => setActiveTab('tagged')}
                 className={`flex items-center justify-center gap-1 px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors ${activeTab === 'tagged'
-                  ? 'text-gray-900 border-t-2 border-gray-900'
+                  ? 'text-gray-900 border-t-2 border-orange-500'
                   : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
@@ -329,35 +299,35 @@ const PartnerProfile = () => {
           {activeTab === 'posts' && (
             <>
               {/* Post Filter Buttons */}
-              <div className="px-4 sm:px-6 lg:px-8 mb-4">
-                <div className="flex justify-center gap-2">
+              <div className="px-4 sm:px-6 lg:px-8 py-6">
+                <div className="flex justify-center gap-2 flex-wrap">
                   <button
                     onClick={() => setPostFilter('all')}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'all'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-orange-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    All Posts ({postItems.length})
+                    All Posts ({allPosts.length})
                   </button>
                   <button
                     onClick={() => setPostFilter('food')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'food'
-                      ? 'bg-green-500 text-white'
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${postFilter === 'food'
+                      ? 'bg-emerald-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    <ShoppingBag className="w-4 h-4 inline mr-1" />
+                    <ShoppingBag className="w-4 h-4" />
                     Food ({foodPostsCount})
                   </button>
                   <button
                     onClick={() => setPostFilter('advertisement')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${postFilter === 'advertisement'
-                      ? 'bg-purple-500 text-white'
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${postFilter === 'advertisement'
+                      ? 'bg-violet-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    <Megaphone className="w-4 h-4 inline mr-1" />
+                    <Megaphone className="w-4 h-4" />
                     Ads ({adPostsCount})
                   </button>
                 </div>
@@ -583,7 +553,7 @@ const PartnerProfile = () => {
         food={selectedFood}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        partnerData={partnerData}
+        partnerData={partnerProfile}
       />
     </div>
   )

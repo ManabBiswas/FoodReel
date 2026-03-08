@@ -63,7 +63,7 @@ async function register(req, res) {
         emailService.sendWelcomeEmail(user.email, user.firstName)
             .catch(err => console.error('Failed to send welcome email:', err.message));
 
-        console.log("User created successfully", user);
+        // console.log("User created successfully", user);
     } catch (error) {
         console.error('Registration error:', error);
         res.status(400).json({ error: error.message });

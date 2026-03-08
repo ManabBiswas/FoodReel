@@ -71,17 +71,18 @@ const createFood = async (req, res) => {
             return res.status(400).json({ error: "Please upload a valid image file" });
         }
         
-        console.log("Food Partner:", req.foodPartner);
-        console.log("Request Body:", req.body);
-        console.log("File Info:", {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size
-        });
+        // console.log("Food Partner:", req.foodPartner);
+        // console.log("Request Body:", req.body);
+        // console.log("File Info:", {
+    //         originalname: req.file.originalname,
+    //         mimetype: req.file.mimetype,
+    //         size: req.file.size
+    //     }
+    // );
         
         // Upload file to storage
         const fileUploadResult = await storageService.uploadImage(req.file.buffer, uuid());
-        console.log("File upload result:", fileUploadResult);
+        // console.log("File upload result:", fileUploadResult);
         
         // Parse tags from string to array
         let parsedTags = [];
@@ -182,8 +183,8 @@ const getFoodItems = async (req, res) => {
     try {
         const { postType, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
         
-        // Build filter for partner's posts
-        const filter = { foodPartner: req.foodPartner._id, isActive: true };
+        // Build filter for partner's posts (no isActive filter for partner's own posts)
+        const filter = { foodPartner: req.foodPartner._id };
         if (postType && ['food', 'advertisement'].includes(postType)) {
             filter.postType = postType;
         }
