@@ -52,7 +52,11 @@ router.post('/',
     advertisementController.createAdvertisement
 )
 
-// Get all advertisements for current partner
+// Get all active advertisements for reels (PUBLIC - no authentication required)
+// GET /api/advertisement/public/all
+router.get('/public/all', advertisementController.getAdvertisementsAll)
+
+// Get current partner's own advertisements (PROTECTED)
 // GET /api/advertisement
 router.get('/', isFoodPartnerLoggedin, advertisementController.getAllAdvertisements)
 
