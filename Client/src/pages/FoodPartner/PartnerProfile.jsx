@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
-import { usePartnerData } from '../../Contexts/PartnerDataContext'
+import { usePartnerData } from '../../hooks/usePartnerData'
 import Navbar from '../../Components/Navbar'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
@@ -74,6 +74,7 @@ const PartnerProfile = () => {
   }
 
   // Get all posts from context (food + advertisement combined & sorted)
+  // posts are come from context
   const allPosts = React.useMemo(() => {
     if (!posts) return []
     const combined = [...(posts.food || []), ...(posts.advertisement || [])]

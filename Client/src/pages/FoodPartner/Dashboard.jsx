@@ -8,11 +8,13 @@ import {
 import { showError, showSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
+import { usePartnerData } from '../../hooks/usePartnerData'
 import {
   Plus, ShoppingBag, Megaphone, TrendingUp, TrendingDown,
   IndianRupee, AlertCircle, Package, Clock, ChefHat,
   CheckCircle, XCircle, RefreshCw, Search,
-  List, Heart, MessageCircle, Activity, BarChart2
+  List, Heart, MessageCircle, Activity, BarChart2,
+  Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react'
 
 /* ─── helpers ────────────────────────────────────────────── */
@@ -209,60 +211,55 @@ const EmptyState = ({ filtered }) => (
 ═══════════════════════════════════════════════════════════ */
 const Dashboard = () => {
   const navigate = useNavigate()
+  const { partnerProfile, posts, loading, refreshing, refresh } = usePartnerData()
 
-  const [orders, setOrders]               = useState([])
-  const [statistics, setStatistics]       = useState(null)
-  const [partnerProfile, setPartnerProfile] = useState(null)
-  const [loading, setLoading]             = useState(true)
-  const [refreshing, setRefreshing]       = useState(false)
-  const [error, setError]                 = useState('')
-  const [statusFilter, setStatusFilter]   = useState('all')
-  const [searchTerm, setSearchTerm]       = useState('')
+  const [orders, setOrders] = useState([])
+  const [statistics, setStatistics] = useState(null)
+  const [orderLoading, setOrderLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [updatingOrder, setUpdatingOrder] = useState(null)
-  const [activeTab, setActiveTab]         = useState('overview')
+  const [activeTab, setActiveTab] = useState('overview')
 
-  /* ── fetch data ─────────────────────────────────────────── */
-  const fetchDashboardData = useCallback(async (isRefresh = false) => {
+  // Reviews state
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [respondingTo, setRespondingTo] = useState(null)
+  const [responseText, setResponseText] = useState('')
+
+  // Content management state
+  const [contentFilter, setContentFilter] = useState('all') // all, food, advertisement
+  const [deletingId, setDeletingId] = useState(null)
+
+  /**
+   * Fetch only orders from backend
+   * Partner profile and posts come from context
+   */
+  const fetchOrders = useCallback(async () => {
     try {
-      isRefresh ? setRefreshing(true) : setLoading(true)
+      setOrderLoading(true)
       setError('')
 
-      const [authRes, foodRes, ordersRes] = await Promise.all([
-        axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig),
-        axios.get(API_ENDPOINTS.food.myPosts, axiosConfig),
-        axios.get(API_ENDPOINTS.order.partner, axiosConfig).catch(() => ({ data: { orders: [] } }))
-      ])
-
-      setPartnerProfile(authRes.data?.foodPartner)
-
-      const grouped = foodRes.data?.foods || {}
-      const foodPosts = (grouped.food || []).map((p) => ({
-        ...p,
-        likeCount: p.likeCount || p.likes?.length || 0,
-        commentCount: p.commentCount || p.comments?.length || 0,
-        savesCount: p.savesCount || p.saves?.length || 0
-      }))
-      const myAds = (grouped.advertisement || []).map((a) => ({
-        ...a,
-        likeCount: a.likeCount || a.likes?.length || 0,
-        commentCount: a.commentCount || a.comments?.length || 0
-      }))
-
+      const ordersRes = await axios.get(API_ENDPOINTS.order.partner, axiosConfig)
       const ordersData = ordersRes.data?.orders || []
       setOrders(ordersData)
 
       const completed = (o) => ['completed', 'delivered'].includes(o.status)
+      const foodPosts = posts?.food || []
+      const adPosts = posts?.advertisement || []
+
       setStatistics({
         food: {
           count: foodPosts.length,
-          totalLikes: foodPosts.reduce((s, p) => s + p.likeCount, 0),
-          totalReviews: foodPosts.reduce((s, p) => s + p.commentCount, 0),
-          totalSaves: foodPosts.reduce((s, p) => s + p.savesCount, 0)
+          totalLikes: foodPosts.reduce((s, p) => s + (p.likeCount || p.likes?.length || 0), 0),
+          totalReviews: foodPosts.reduce((s, p) => s + (p.commentCount || p.comments?.length || 0), 0),
+          totalSaves: foodPosts.reduce((s, p) => s + (p.savesCount || p.saves?.length || 0), 0)
         },
         advertisement: {
-          count: myAds.length,
-          totalLikes: myAds.reduce((s, a) => s + a.likeCount, 0),
-          totalComments: myAds.reduce((s, a) => s + a.commentCount, 0)
+          count: adPosts.length,
+          totalLikes: adPosts.reduce((s, a) => s + (a.likeCount || a.likes?.length || 0), 0),
+          totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
         },
         orders: {
           total: ordersData.length,
@@ -276,28 +273,31 @@ const Dashboard = () => {
           totalRevenue: ordersData.reduce((s, o) => s + (o.pricing?.totalAmount || o.totalAmount || 0), 0)
         }
       })
-
-      if (isRefresh) showSuccess('Dashboard refreshed')
     } catch (err) {
-      console.error('Dashboard fetch error:', err)
+      console.error('Orders fetch error:', err)
       if (err.response?.status === 401) {
         showError('Session expired. Please login again.')
         setTimeout(() => navigate('/partner-login'), 2000)
       } else {
-        const msg = err.response?.data?.message || 'Failed to load dashboard data'
+        const msg = err.response?.data?.message || 'Failed to load orders'
         setError(msg)
         showError(msg)
       }
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setOrderLoading(false)
     }
-  }, [navigate])
+  }, [posts, navigate])
 
-  useEffect(() => { fetchDashboardData() }, [fetchDashboardData])
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   /* ── order action handlers ──────────────────────────────── */
-  const handleRefresh = useCallback(() => fetchDashboardData(true), [fetchDashboardData])
+  const handleRefresh = useCallback(async () => {
+    refresh()
+    await fetchOrders()
+    showSuccess('Dashboard refreshed')
+  }, [refresh, fetchOrders])
 
   const handleStatusUpdate = useCallback(async (orderId, newStatus) => {
     try {
@@ -325,6 +325,57 @@ const Dashboard = () => {
     (orderId) => navigate(`/order/confirmation/${orderId}`),
     [navigate]
   )
+
+  /* ── Reviews handlers ───────────────────────────────────── */
+  const fetchReviews = useCallback(async () => {
+    if (!partnerProfile?._id) return
+    try {
+      setReviewsLoading(true)
+      const res = await axios.get(API_ENDPOINTS.reviews.byPartner(partnerProfile._id), axiosConfig)
+      setReviews(res.data?.reviews || res.data?.data || [])
+    } catch (err) {
+      console.error('Reviews fetch error:', err)
+    } finally { setReviewsLoading(false) }
+  }, [partnerProfile])
+
+  useEffect(() => { if (activeTab === 'reviews') fetchReviews() }, [activeTab, fetchReviews])
+
+  const handleRespondToReview = useCallback(async (reviewId) => {
+    if (!responseText.trim()) return
+    try {
+      await axios.post(API_ENDPOINTS.reviews.respond(reviewId), { response: responseText.trim() }, axiosConfig)
+      setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, partnerResponse: responseText.trim() } : r))
+      setRespondingTo(null)
+      setResponseText('')
+      showSuccess('Response posted')
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to respond')
+    }
+  }, [responseText])
+
+  /* ── Content management handlers ────────────────────────── */
+  const allContent = useMemo(() => {
+    const food = (posts?.food || []).map(p => ({ ...p, _type: 'food' }))
+    const ads = (posts?.advertisement || []).map(p => ({ ...p, _type: 'advertisement' }))
+    if (contentFilter === 'food') return food
+    if (contentFilter === 'advertisement') return ads
+    return [...food, ...ads].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  }, [posts, contentFilter])
+
+  const handleDeletePost = useCallback(async (id, type) => {
+    try {
+      setDeletingId(id)
+      if (type === 'advertisement') {
+        await axios.delete(API_ENDPOINTS.advertisement.delete(id), axiosConfig)
+      } else {
+        await axios.delete(API_ENDPOINTS.food.delete(id), axiosConfig)
+      }
+      showSuccess('Post deleted')
+      refresh() // refresh context data
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to delete')
+    } finally { setDeletingId(null) }
+  }, [refresh])
 
   /* ── derived / chart data ───────────────────────────────── */
   const filteredOrders = useMemo(() => {
@@ -377,7 +428,7 @@ const Dashboard = () => {
   const statusPieData = useMemo(() => ordersBarData, [ordersBarData])
 
   /* ── loading skeleton ───────────────────────────────────── */
-  if (loading) {
+  if (loading || orderLoading) {
     return (
       <div className="min-h-screen bg-[#F8F9FB]">
         <Navbar />
@@ -398,6 +449,8 @@ const Dashboard = () => {
   const TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart2 },
     { id: 'orders',   label: `Orders${statistics ? ` (${statistics.orders.total})` : ''}`, icon: List },
+    { id: 'content',  label: 'My Content', icon: FileText },
+    { id: 'reviews',  label: 'Reviews', icon: Star },
   ]
 
   return (
@@ -715,6 +768,201 @@ const Dashboard = () => {
                     onCancelOrder={handleCancelOrder}
                     updating={updatingOrder === order._id}
                   />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════
+            CONTENT TAB
+        ════════════════════════════════════════════════ */}
+        {activeTab === 'content' && (
+          <div>
+            {/* Filter pills */}
+            <div className="flex gap-2 mb-6">
+              {[
+                { id: 'all', label: 'All Posts' },
+                { id: 'food', label: `Food (${posts?.food?.length || 0})` },
+                { id: 'advertisement', label: `Ads (${posts?.advertisement?.length || 0})` },
+              ].map(f => (
+                <button key={f.id} onClick={() => setContentFilter(f.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${contentFilter === f.id ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                  {f.label}
+                </button>
+              ))}
+              <button onClick={() => navigate('/CreateFood')} className="ml-auto px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm hover:shadow-md flex items-center gap-2">
+                <Plus className="w-4 h-4" /> New Post
+              </button>
+            </div>
+
+            {allContent.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                <FileText className="w-12 h-12 text-gray-300 mb-3" />
+                <h3 className="text-lg font-semibold text-gray-600">No content yet</h3>
+                <p className="text-sm text-gray-400 mt-1">Create your first food post or advertisement</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allContent.map(item => (
+                  <div key={item._id} className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-sm transition-all">
+                    {/* Thumbnail */}
+                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                      {item.video ? (
+                        <video src={item.video} className="w-full h-full object-cover" muted />
+                      ) : item.image ? (
+                        <img src={item.image} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><FileText className="w-6 h-6 text-gray-300" /></div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{item.name || item.title || 'Untitled'}</p>
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          item._type === 'food' ? 'bg-emerald-100 text-emerald-600' : 'bg-violet-100 text-violet-600'
+                        }`}>{item._type === 'food' ? 'Food' : 'Ad'}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{item.description || 'No description'}</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                        {item.price && <span className="font-semibold text-gray-600">₹{item.price}</span>}
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {item.likeCount || item.likes?.length || 0}</span>
+                        <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {item.commentCount || item.comments?.length || 0}</span>
+                        {item.createdAt && <span>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => navigate(`/CreateFood?edit=${item._id}&type=${item._type}`)}
+                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition" title="Edit">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePost(item._id, item._type)}
+                        disabled={deletingId === item._id}
+                        className="p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition disabled:opacity-50"
+                        title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════
+            REVIEWS TAB
+        ════════════════════════════════════════════════ */}
+        {activeTab === 'reviews' && (
+          <div>
+            {reviewsLoading ? (
+              <div className="flex justify-center py-20">
+                <RefreshCw className="w-8 h-8 text-orange-400 animate-spin" />
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                <Star className="w-12 h-12 text-gray-300 mb-3" />
+                <h3 className="text-lg font-semibold text-gray-600">No reviews yet</h3>
+                <p className="text-sm text-gray-400 mt-1">Customer reviews will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="bg-white rounded-xl border border-gray-100 p-5 mb-2">
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <p className="text-3xl font-black text-gray-900">
+                        {(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1)}
+                      </p>
+                      <div className="flex gap-0.5 justify-center mt-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`w-4 h-4 ${i < Math.round(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{reviews.length} reviews</p>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      {[5, 4, 3, 2, 1].map(star => {
+                        const count = reviews.filter(r => r.rating === star).length
+                        const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-xs">
+                            <span className="w-3 text-gray-500">{star}</span>
+                            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                            <div className="flex-1 bg-gray-100 rounded-full h-2">
+                              <div className="bg-amber-400 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-6 text-gray-400 text-right">{count}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Review cards */}
+                {reviews.map(review => (
+                  <div key={review._id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-sm transition">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-orange-600 font-bold text-sm">
+                          {(review.user?.firstName || review.user?.name || 'U')[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold text-gray-800">
+                            {review.user?.firstName || review.user?.name || 'Customer'}
+                          </p>
+                          <div className="flex gap-0.5">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className={`w-3.5 h-3.5 ${i < (review.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-300 ml-auto">{new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                        {review.title && <p className="text-sm font-medium text-gray-700 mb-0.5">{review.title}</p>}
+                        {review.comment && <p className="text-sm text-gray-600">{review.comment}</p>}
+
+                        {/* Partner response */}
+                        {review.partnerResponse ? (
+                          <div className="mt-3 bg-orange-50 rounded-lg p-3 border border-orange-100">
+                            <p className="text-xs font-semibold text-orange-600 mb-1">Your Response</p>
+                            <p className="text-sm text-gray-700">{review.partnerResponse}</p>
+                          </div>
+                        ) : (
+                          <div className="mt-3">
+                            {respondingTo === review._id ? (
+                              <div className="flex gap-2">
+                                <input type="text" placeholder="Write your response…" value={responseText}
+                                  onChange={e => setResponseText(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && handleRespondToReview(review._id)}
+                                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-300" />
+                                <button onClick={() => handleRespondToReview(review._id)}
+                                  className="px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition flex items-center gap-1">
+                                  <Send className="w-3.5 h-3.5" /> Send
+                                </button>
+                                <button onClick={() => { setRespondingTo(null); setResponseText('') }}
+                                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => { setRespondingTo(review._id); setResponseText('') }}
+                                className="text-xs font-semibold text-orange-500 hover:text-orange-700 flex items-center gap-1 mt-1">
+                                <MessageCircle className="w-3.5 h-3.5" /> Respond
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
