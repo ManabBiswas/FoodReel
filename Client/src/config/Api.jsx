@@ -133,6 +133,7 @@ export const API_ENDPOINTS = {
   advertisement: {
     create: `${BASE_URL}/advertisement`,
     getAll: `${BASE_URL}/advertisement`,
+    getPublic: `${BASE_URL}/advertisement/public/all`,
     byId: (id) => `${BASE_URL}/advertisement/${id}`,
     update: (id) => `${BASE_URL}/advertisement/${id}`,
     delete: (id) => `${BASE_URL}/advertisement/${id}`,

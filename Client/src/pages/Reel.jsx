@@ -61,8 +61,8 @@ const Reel = () => {
         const userPostsResponse = await axios.get(API_ENDPOINTS.userPost.getAll, axiosConfig)
         console.log('User Posts API Response:', userPostsResponse.data)
         
-        // Fetch advertisements
-        const adsResponse = await axios.get(API_ENDPOINTS.advertisement.getAll, axiosConfig)
+        // Fetch advertisements (public endpoint - no auth required)
+        const adsResponse = await axios.get(API_ENDPOINTS.advertisement.getPublic)
         console.log('Ads API Response:', adsResponse.data)
         
         let mappedPosts = []
