@@ -119,7 +119,7 @@ async function getDashboardStats(req, res) {
         const totalAds = await foodModel.countDocuments({ postType: 'advertisement' });
         
         const revenueData = await orderModel.aggregate([
-            { $group: { _id: null, totalRevenue: { $sum: "$pricing.grandTotal" } } }
+            { $group: { _id: null, totalRevenue: { $sum: "$pricing.totalAmount" } } }
         ]);
         
         res.status(200).json({
@@ -584,8 +584,8 @@ async function getAllOrders(req, res) {
         
         const orders = await orderModel.find(query)
             .populate('user', 'name email')
-            .populate('foodPartner', 'companyName')
-            .limit(limit)
+            .populate('items.foodPartner', 'companyName')
+            .limit(parseInt(limit))
             .skip(skip)
             .sort({ createdAt: -1 });
         
@@ -609,7 +609,7 @@ async function getOrderDetails(req, res) {
     try {
         const order = await orderModel.findById(req.params.orderId)
             .populate('user', 'name email phone')
-            .populate('foodPartner', 'companyName email');
+            .populate('items.foodPartner', 'companyName email');
         
         if (!order) {
             return res.status(404).json({ error: "Order not found" });
@@ -629,7 +629,7 @@ async function getRevenueAnalytics(req, res) {
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
-                    revenue: { $sum: "$pricing.grandTotal" },
+                    revenue: { $sum: "$pricing.totalAmount" },
                     orders: { $sum: 1 }
                 }
             },

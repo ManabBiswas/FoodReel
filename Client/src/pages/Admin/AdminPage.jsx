@@ -8,7 +8,7 @@ const AdminPage = () => {
   const { isAuthenticated, isAdmin, loginAdmin } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    code: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
@@ -39,7 +39,7 @@ const AdminPage = () => {
     // Basic validation
     const newErrors = {}
     if (!formData.email) newErrors.email = 'Email is required'
-    if (!formData.password) newErrors.password = 'Password is required'
+    if (!formData.code) newErrors.code = 'Access code is required'
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -118,23 +118,23 @@ const AdminPage = () => {
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
 
-            {/* Password Field */}
+            {/* Access Code Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+              <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+                Access Code
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={formData.password}
+                  id="code"
+                  name="code"
+                  value={formData.code}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-10 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-xs ${
-                    errors.password ? 'border-red-500' : 'border-gray-300'
+                    errors.code ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your password"
+                  placeholder="Enter your access code"
                 />
                 <button
                   type="button"
@@ -144,7 +144,7 @@ const AdminPage = () => {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+              {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
             </div>
 
             {/* Submit Button */}
