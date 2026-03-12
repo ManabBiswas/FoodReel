@@ -55,15 +55,12 @@ const Reel = () => {
         
         // Fetch food posts (partner posts)
         const postsResponse = await axios.get(API_ENDPOINTS.food.getAll, axiosConfig)
-        console.log('Food Posts API Response:', postsResponse.data)
         
         // Fetch user posts
         const userPostsResponse = await axios.get(API_ENDPOINTS.userPost.getAll, axiosConfig)
-        console.log('User Posts API Response:', userPostsResponse.data)
         
         // Fetch advertisements (public endpoint - no auth required)
         const adsResponse = await axios.get(API_ENDPOINTS.advertisement.getPublic)
-        console.log('Ads API Response:', adsResponse.data)
         
         let mappedPosts = []
         let mappedUserPosts = []
@@ -151,7 +148,6 @@ const Reel = () => {
         
         // Combine posts and ads
         const combined = insertAdsIntoPosts(allPosts, mappedAds)
-        console.log('Combined content with ads:', combined)
         setCombinedContent(combined)
         
       } catch (error) {
@@ -241,7 +237,6 @@ const Reel = () => {
       setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }))
       
       const response = await axios.post(endpoint, {}, axiosConfig)
-      console.log('Like response:', response.data)
       
       // Update combinedContent with new likeCount AND likes array
       setCombinedContent(prev => prev.map(item => {
@@ -511,7 +506,6 @@ const Reel = () => {
           const profileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
           userProfile = profileResponse.data.user || profileResponse.data
         } catch {
-          console.log('User not logged in, skipping interaction checks')
           return
         }
 
@@ -585,14 +579,14 @@ const Reel = () => {
           }
         }
         
-        console.log('Initialized states:', {
-          totalPostsChecked: Object.keys(likedChecks).length,
-          actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
-          totalSavedChecked: Object.keys(savedChecks).length,
-          actuallySaved: Object.entries(savedChecks).filter(([, isSaved]) => isSaved).length,
-          totalUsersChecked: Object.keys(followingChecks).length,
-          actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
-        })
+        // console.log('Initialized states:', {
+        //   totalPostsChecked: Object.keys(likedChecks).length,
+        //   actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
+        //   totalSavedChecked: Object.keys(savedChecks).length,
+        //   actuallySaved: Object.entries(savedChecks).filter(([, isSaved]) => isSaved).length,
+        //   totalUsersChecked: Object.keys(followingChecks).length,
+        //   actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
+        // })
         
         setFollowingStatus(followingChecks)
         setLikedPosts(likedChecks)
