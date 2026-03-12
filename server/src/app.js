@@ -9,6 +9,7 @@ import paymentRoutes from './routes/payment.route.js';
 import userPostRoutes from './routes/userPost.route.js';
 import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
+import commentRoutes from './routes/comment.route.js';
 import adminRoutes from './routes/admin.route.js';
 import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
@@ -16,8 +17,6 @@ import cors from 'cors';
 import helmet from "helmet";
 import { globalRateLimiter } from './middlewares/rateLimiter.js';
 import { sanitizeInput } from './middlewares/sanitization.js';
-// for local test
-import emailService from './services/email.service.js';
 
 const app = express() 
 
@@ -56,6 +55,8 @@ app.use('/api/food', userPostRoutes);
 app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/comment-likes', commentRoutes);
 app.use('/api/orders',orderRoutes);
 app.use('/api/cart',cartRoutes);
 app.use('/api/advertisement',advertisementRoutes);
@@ -63,23 +64,6 @@ app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
 app.use('/api/emails',emailRoutes);
-
-app.get('/api/test-email', async (req, res) => {
-  try {
-    await emailService.sendPasswordResetEmail(
-      // reciver email
-      // username
-      "manabbiswas108@gmail.com",
-      'manab biswas',
-      'google.com'
-      // 'dasdhiraj813@gmailcom',
-      // "This is a test email",
-    );
-    res.json({ message: "Email sent successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // 404 handler
 app.use((req, res) => {

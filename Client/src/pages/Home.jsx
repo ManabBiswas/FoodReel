@@ -75,8 +75,6 @@ const Home = () => {
           params: { limit: 5 }
         })
         
-        console.log('Food reels response:', response.data)
-        
         // Format the food data for display
         const formattedFoods = response.data.foods?.map(food => ({
           id: food._id,
