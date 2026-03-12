@@ -89,7 +89,7 @@ const UserPosts = () => {
 
   const handleSave = (postId) => {
     // Handle save functionality
-    console.log('Saved post:', postId)
+    console.log('Post saved:', postId)
   }
 
   return (

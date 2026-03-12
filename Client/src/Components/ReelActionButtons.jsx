@@ -11,6 +11,7 @@ const ReelActionButtons = ({
     onLike,
     onSave,
     onReview,
+    onComment,
     onShopToggle,
     onToggleMute,
     formatCount
@@ -40,6 +41,10 @@ const ReelActionButtons = ({
     const handleReview = useCallback(() => {
         handleAuthenticatedAction(() => onReview(item));
     }, [handleAuthenticatedAction, onReview, item]);
+
+    const handleComment = useCallback(() => {
+        handleAuthenticatedAction(() => onComment(item));
+    }, [handleAuthenticatedAction, onComment, item]);
 
     const handleSave = useCallback(() => {
         handleAuthenticatedAction(() => onSave(item._id));
@@ -76,16 +81,34 @@ const ReelActionButtons = ({
     </span>
   </button>
 
-  {/* Review Button */}
-  <button
-    onClick={handleReview}
-    className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
-    aria-label="Review post"
-  >
-    <div className={buttonContainer}>
-      <Star className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white group-hover:fill-yellow-400 group-hover:text-yellow-400 transition-all" />
-    </div>
-  </button>
+  {/* Review Button - Only for tagged food posts */}
+  {item.foodId && (
+    <button
+      onClick={handleReview}
+      className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+      aria-label="Review post"
+    >
+      <div className={buttonContainer}>
+        <Star className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white group-hover:fill-yellow-400 group-hover:text-yellow-400 transition-all" />
+      </div>
+    </button>
+  )}
+
+  {/* Comment Button - Only for regular user posts without food tag */}
+  {!item.foodId && item.postSource === 'user' && (
+    <button
+      onClick={handleComment}
+      className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
+      aria-label="Comment on post"
+    >
+      <div className={buttonContainer}>
+        <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white group-hover:fill-blue-400 group-hover:text-blue-400 transition-all" />
+      </div>
+      <span className={textSize}>
+        {formatCount(item.comments || 0)}
+      </span>
+    </button>
+  )}
 
   {/* Save Button */}
   <button

@@ -19,6 +19,7 @@ const ReelArea = ({
   onSave,
   onShare,
   onReview,
+  onComment,
   onFollow,
   onShopToggle,
   onToggleMute,
@@ -72,6 +73,7 @@ const ReelArea = ({
             onSave={onSave}
             onShare={onShare}
             onReview={onReview}
+            onComment={onComment}
             onShopToggle={onShopToggle}
             onToggleMute={onToggleMute}
             formatCount={formatCount}

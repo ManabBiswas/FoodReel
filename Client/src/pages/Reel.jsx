@@ -5,6 +5,7 @@ import { showSuccess, showError, showWarning, showInfo } from '../utils/toast'
 import { ChefHat } from 'lucide-react'
 import ReelArea from '../Components/ReelArea'
 import ReelReviewModal from '../Components/ReelReviewModal'
+import CommentModal from '../Components/CommentModal'
 import QuickOrderModal from '../Components/QuickOrderModal'
 import MenuBarBottom from '../Components/MenuBarBottom'
 import "./../App.css"
@@ -25,6 +26,8 @@ const Reel = () => {
   const [likedPosts, setLikedPosts] = useState({})
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [currentReviewItem, setCurrentReviewItem] = useState(null)
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const [currentCommentItem, setCurrentCommentItem] = useState(null)
   const [userHasReviewed, setUserHasReviewed] = useState(false)
   const [reviewData, setReviewData] = useState({
     rating: 0,
@@ -435,6 +438,16 @@ const Reel = () => {
     })
   }, [])
 
+  const openCommentModal = useCallback((item) => {
+    setCurrentCommentItem(item)
+    setShowCommentModal(true)
+  }, [])
+
+  const closeCommentModal = useCallback(() => {
+    setShowCommentModal(false)
+    setCurrentCommentItem(null)
+  }, [])
+
   const handleSubmitReview = async () => {
     if (userHasReviewed) {
       showWarning('You have already reviewed this item')
@@ -454,14 +467,25 @@ const Reel = () => {
     setSubmittingReview(true)
     
     try {
+      // Build review payload - include foodPartnerId only if available
       const reviewPayload = {
-        foodPartnerId: currentReviewItem.postSource === 'partner' 
-          ? currentReviewItem.partnerId._id 
-          : currentReviewItem.taggedPartner?._id,
-        foodItemId: currentReviewItem.foodId,
         rating: reviewData.rating,
         comment: reviewData.comment,
         ratings: reviewData.ratings
+      }
+
+      // Add foodPartnerId if available (partner posts typically have this)
+      const foodPartnerId = currentReviewItem.postSource === 'partner' 
+        ? currentReviewItem.partnerId?._id 
+        : currentReviewItem.taggedPartner?._id
+
+      if (foodPartnerId) {
+        reviewPayload.foodPartnerId = foodPartnerId
+      }
+
+      // Add foodItemId if available (partner posts and tagged user posts have this)
+      if (currentReviewItem.foodId) {
+        reviewPayload.foodItemId = currentReviewItem.foodId
       }
 
       await axios.post(
@@ -741,6 +765,7 @@ const Reel = () => {
             onSave={handleSave}
             onShare={handleShare}
             onReview={openReviewModal}
+            onComment={openCommentModal}
             onFollow={handleFollow}
             onShopToggle={handleShopToggle}
             onToggleMute={toggleMute}
@@ -789,6 +814,17 @@ const Reel = () => {
           setReviewData(prev => ({ ...prev, comment: e.target.value }))
         }
         onTabChange={setShowReviewsList}
+      />
+
+      {/* Comment Modal for User Posts */}
+      <CommentModal
+        isOpen={showCommentModal}
+        post={currentCommentItem}
+        onClose={closeCommentModal}
+        onCommentAdded={() => {
+          // Refresh the post view if needed
+          // Could refetch the post to update comment count
+        }}
       />
 
       {/* Bottom Menu Bar */}

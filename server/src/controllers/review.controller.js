@@ -19,11 +19,11 @@ export const createReview = async (req, res) => {
             ratings // Detailed ratings object
         } = req.body;
 
-        // Validate required fields
-        if (!foodPartnerId || !rating || !comment) {
+        // Validate required fields (except foodPartnerId which might be derived)
+        if (!rating || !comment) {
             return res.status(400).json({
                 success: false,
-                message: "Food partner ID, rating, and comment are required"
+                message: "Rating and comment are required"
             });
         }
 
@@ -35,14 +35,33 @@ export const createReview = async (req, res) => {
             });
         }
 
-        // Check if user has already reviewed this combination
-        const existingReview = await reviewModel.findOne({
-            user: userId,
-            foodPartner: foodPartnerId,
-            foodItem: foodItemId || null,
-            isActive: true
-        });
+        // Ensure we have a foodPartnerId (required by the schema).
+        // If not provided (e.g., a user post tagged only by food), derive it from the food item.
+        let resolvedFoodPartnerId = foodPartnerId;
+        if (!resolvedFoodPartnerId && foodItemId) {
+            const foodItem = await foodModel.findById(foodItemId).select('foodPartner');
+            resolvedFoodPartnerId = foodItem?.foodPartner;
+        }
 
+        if (!resolvedFoodPartnerId) {
+            return res.status(400).json({
+                success: false,
+                message: "Food partner ID is required to submit a review"
+            });
+        }
+
+        // Check if user has already reviewed this combination (prefer foodItem if available)
+        const existingReviewQuery = {
+            user: userId,
+            isActive: true
+        };
+        if (foodItemId) {
+            existingReviewQuery.foodItem = foodItemId;
+        } else {
+            existingReviewQuery.foodPartner = resolvedFoodPartnerId;
+        }
+
+        const existingReview = await reviewModel.findOne(existingReviewQuery);
         if (existingReview) {
             return res.status(400).json({
                 success: false,
@@ -64,7 +83,7 @@ export const createReview = async (req, res) => {
         // Create review
         const review = await reviewModel.create({
             user: userId,
-            foodPartner: foodPartnerId,
+            foodPartner: resolvedFoodPartnerId,
             foodItem: foodItemId || null,
             order: orderId || null,
             rating,
@@ -82,7 +101,7 @@ export const createReview = async (req, res) => {
         });
 
         // Update food partner's ratings
-        await updateFoodPartnerRatings(foodPartnerId);
+        await updateFoodPartnerRatings(resolvedFoodPartnerId);
 
         // Populate review before sending
         const populatedReview = await reviewModel

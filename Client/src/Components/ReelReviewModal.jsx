@@ -87,13 +87,14 @@ const ReelReviewModal = ({
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center">
                         <span className="text-white font-bold">
-                          {review.user?.firstName?.[0]?.toUpperCase() || 
-                           review.user?.name?.[0]?.toUpperCase() || 'U'}
-                        </span>
+                          {review.user?.firstName?.[0]?.toUpperCase() || 'U'} 
+                           {review.user?.lastName?.[0]?.toUpperCase() }
+                        </span> 
+                         {/* replace with user profile pic */}
                       </div>
                       <div className="flex-1">
                         <p className="text-white font-semibold">
-                          {review.user?.firstName || review.user?.name || 'Anonymous'}
+                          {review.user?.firstName + ' '} {review.user?.lastName || 'Anonymous'}
                         </p>
                         <div className="flex gap-1">
                           {[1, 2, 3, 4, 5].map(star => (

@@ -199,6 +199,18 @@ export const API_ENDPOINTS = {
     follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,
   },
   
+  // Comment endpoints (all routes live under /api/comments)
+  comments: {
+    create:   `${BASE_URL}/comments/create`,
+    byPost:   (postId)     => `${BASE_URL}/comments/post/${postId}`,
+    byId:     (commentId)  => `${BASE_URL}/comments/${commentId}`,
+    update:   (commentId)  => `${BASE_URL}/comments/${commentId}`,
+    delete:   (commentId)  => `${BASE_URL}/comments/${commentId}`,
+    like:     `${BASE_URL}/comments/like`,
+    unlike:   (commentId)  => `${BASE_URL}/comments/unlike/${commentId}`,
+    myLikes:  (postId)     => `${BASE_URL}/comments/my-likes/${postId}`,
+  },
+
   // Contact endpoint
   contact: {
     send: `${BASE_URL}/contact`,
