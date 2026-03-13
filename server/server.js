@@ -28,12 +28,6 @@ if (missingVars.length > 0) {
 
 console.log('✅ All environment variables validated');
 
-// Connect to database with error handling
-connectDB().catch(err => {
-    console.error('Failed to connect to database:', err);
-    process.exit(1);
-});
-
 app.get('/', (req, res) => {
     res.send('Hi');
 });
@@ -44,6 +38,11 @@ app.get('/health', (req, res) => {
 
 app.listen(port, () => {
     console.log(`\n🚀 FoodReel Server running on port ${port}`);
+    // Connect to database with error handling
+    connectDB().catch(err => {
+        console.error('Failed to connect to database:', err);
+        process.exit(1);
+    });
 }).on('error', (err) => {
     console.error('Failed to start server:', err);
     process.exit(1);
