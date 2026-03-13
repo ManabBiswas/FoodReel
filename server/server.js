@@ -32,9 +32,7 @@ app.get('/', (req, res) => {
     res.send('Hi');
 });
 
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Server is running' });
-});
+app.get('/health', (req, res) => res.send('OK'));
 
 app.listen(port, () => {
     console.log(`\n🚀 FoodReel Server running on port ${port}`);
