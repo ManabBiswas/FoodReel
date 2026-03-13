@@ -65,6 +65,16 @@ app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
 app.use('/api/emails',emailRoutes);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('Hi!');
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
