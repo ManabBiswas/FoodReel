@@ -28,14 +28,6 @@ if (missingVars.length > 0) {
 
 console.log('✅ All environment variables validated');
 
-app.get('/', (req, res) => {
-    res.send('Hi');
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.listen(port, () => {
     console.log(`\n🚀 FoodReel Server running on port ${port}`);
     // Connect to database with error handling
