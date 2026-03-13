@@ -26,8 +26,19 @@ export const sanitizeInput = (req, res, next) => {
   if (req.body) req.body = sanitizeObject(req.body);
   if (req.params) req.params = sanitizeObject(req.params);
 
-  // req.query is read-only in Express 5 — attach sanitized copy
-  if (req.query) req.sanitizedQuery = sanitizeObject({ ...req.query });
+  if (req.query) {
+    const safeQuery = sanitizeObject({ ...req.query });
+    try {
+      Object.defineProperty(req, 'query', {
+        value: safeQuery,
+        enumerable: true,
+        configurable: true,
+        writable: false,
+      });
+    } catch (err) {
+      req.sanitizedQuery = safeQuery;
+    }
+  }
 
   next();
 };
