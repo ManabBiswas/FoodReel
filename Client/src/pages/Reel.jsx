@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showWarning, showInfo } from '../utils/toast'
 import { ChefHat } from 'lucide-react'
+import ReelPageHeader from '../Components/ReelPageheader'
 import ReelArea from '../Components/ReelArea'
 import ReelReviewModal from '../Components/ReelReviewModal'
 import CommentModal from '../Components/CommentModal'
@@ -741,6 +742,7 @@ const Reel = () => {
 
   return (
     <>
+        <ReelPageHeader />
       <div 
         ref={containerRef}
         className="fixed inset-0 bg-black overflow-y-scroll snap-y snap-mandatory scroll-smooth hide-scrollbar"

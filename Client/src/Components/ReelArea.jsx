@@ -1,4 +1,3 @@
-import ReelPageHeader from './ReelPageheader'
 import ReelMediaPlayer from './ReelMediaPlayer'
 import ReelActionButtons from './ReelActionButtons'
 import ReelBottomInfo from './ReelBottomInfo'
@@ -17,7 +16,7 @@ const ReelArea = ({
   openShopFor,
   onLike,
   onSave,
-  onShare,
+  // onShare,
   onReview,
   onComment,
   onFollow,
@@ -47,12 +46,13 @@ const ReelArea = ({
           onTogglePlayPause={onTogglePlayPause}
           videoRefs={videoRefs}
         />
+        
+      {/* <ReelPageHeader /> */}
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
         {/* Top Header - Only for Posts */}
-        {isPost && <ReelPageHeader />}
 
         {/* Ad Content - Only for Ads */}
         {isAd && (
@@ -71,7 +71,7 @@ const ReelArea = ({
             muted={muted}
             onLike={onLike}
             onSave={onSave}
-            onShare={onShare}
+            // onShare={onShare}
             onReview={onReview}
             onComment={onComment}
             onShopToggle={onShopToggle}
