@@ -1,5 +1,5 @@
 import React from 'react'
-import { Star, X, Send } from 'lucide-react'
+import { Star, X, Send, User } from 'lucide-react'
 
 const ReelReviewModal = ({
   show,
@@ -17,13 +17,44 @@ const ReelReviewModal = ({
 }) => {
   if (!show || !item) return null
 
-  // FIXED: Use keys that match the review model schema
   const ratingCategories = [
     { key: 'food', label: 'Food Quality', icon: '😋' },
     { key: 'service', label: 'Service', icon: '⭐' },
     { key: 'ambiance', label: 'Ambiance', icon: '🎨' },
     { key: 'value', label: 'Value for Money', icon: '💰' }
   ]
+
+  const getProfileImageUrl = (user) => {
+    if (!user || !user.profileImage) return null
+    
+    const profileImage = user.profileImage
+    
+    // If it's already a string URL, return it
+    if (typeof profileImage === 'string') {
+      return profileImage.startsWith('data:') ? profileImage : profileImage
+    }
+    
+    // Handle Buffer/Uint8Array converted to JSON format
+    if (profileImage.data && Array.isArray(profileImage.data)) {
+      const binaryString = String.fromCharCode.apply(null, profileImage.data)
+      const base64 = btoa(binaryString)
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    // Handle Uint8Array
+    if (profileImage instanceof Uint8Array) {
+      const base64 = btoa(String.fromCharCode.apply(null, profileImage))
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    // Handle ArrayBuffer
+    if (profileImage instanceof ArrayBuffer) {
+      const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(profileImage)))
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    return null
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in">
@@ -85,16 +116,22 @@ const ReelReviewModal = ({
                 existingReviews.map((review, idx) => (
                   <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/10">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center">
-                        <span className="text-white font-bold">
-                          {review.user?.firstName?.[0]?.toUpperCase() || 'U'} 
-                           {review.user?.lastName?.[0]?.toUpperCase() }
-                        </span> 
-                         {/* replace with user profile pic */}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center ring-2 ring-orange-400/30 flex-shrink-0">
+                        {getProfileImageUrl(review.user) ? (
+                          <img
+                            src={getProfileImageUrl(review.user)}
+                            alt={`${review.user.firstName} ${review.user.lastName || ''}`}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-white" />
+                        )}
                       </div>
                       <div className="flex-1">
                         <p className="text-white font-semibold">
-                          {review.user?.firstName + ' '} {review.user?.lastName || 'Anonymous'}
+                          {review.user?.firstName
+                            ? `${review.user.firstName} ${review.user.lastName || ''}`.trim()
+                            : 'Anonymous'}
                         </p>
                         <div className="flex gap-1">
                           {[1, 2, 3, 4, 5].map(star => (

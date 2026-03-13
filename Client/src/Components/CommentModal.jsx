@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, Heart, Reply, MessageCircle } from 'lucide-react'
+import { X, Send, Heart, Reply, MessageCircle, User } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
@@ -112,7 +112,6 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       const isLiked = likedComments[commentId]
 
       if (isLiked) {
-        // FIX: was DELETE /api/comment-likes/:id — route is DELETE /api/comments/unlike/:id
         await axios.delete(
           API_ENDPOINTS.comments.unlike(commentId),
           axiosConfig
@@ -123,7 +122,6 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
           return updated
         })
       } else {
-        // FIX: was POST /api/comment-likes/like — route is POST /api/comments/like
         await axios.post(
           API_ENDPOINTS.comments.like,
           { commentId },
@@ -155,6 +153,38 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       console.error('Failed to delete comment:', error)
       toast.error('Failed to delete comment')
     }
+  }
+
+const getProfileImageUrl = (user) => {
+    if (!user || !user.profileImage) return null
+    
+    const profileImage = user.profileImage
+    
+    // If it's already a string URL, return it
+    if (typeof profileImage === 'string') {
+      return profileImage.startsWith('data:') ? profileImage : profileImage
+    }
+    
+    // Handle Buffer/Uint8Array converted to JSON format
+    if (profileImage.data && Array.isArray(profileImage.data)) {
+      const binaryString = String.fromCharCode.apply(null, profileImage.data)
+      const base64 = btoa(binaryString)
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    // Handle Uint8Array
+    if (profileImage instanceof Uint8Array) {
+      const base64 = btoa(String.fromCharCode.apply(null, profileImage))
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    // Handle ArrayBuffer
+    if (profileImage instanceof ArrayBuffer) {
+      const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(profileImage)))
+      return `data:image/jpeg;base64,${base64}`
+    }
+    
+    return null
   }
 
   if (!isOpen || !post) return null
@@ -195,20 +225,22 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
               <div key={comment._id} className="border-l-2 border-gray-200 pl-4 space-y-2">
                 {/* Author row */}
                 <div className="flex items-start gap-3">
-                  {comment.postedBy?.avatar ? (
-                    <img
-                      src={comment.postedBy.avatar}
-                      alt={comment.postedBy?.firstName}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold">
-                      {comment.postedBy?.firstName?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    {getProfileImageUrl(comment.postedBy) ? (
+                      <img
+                        src={getProfileImageUrl(comment.postedBy)}
+                        alt={`${comment.postedBy?.firstName} ${comment.postedBy?.lastName}`}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-4 h-4 text-white" />
+                    )}
+                  </div>
                   <div className="flex-1">
                     <p className="font-semibold text-sm text-gray-900">
-                      {comment.postedBy?.firstName || 'Anonymous'}
+                      {comment.postedBy?.firstName
+                        ? `${comment.postedBy.firstName} ${comment.postedBy.lastName || ''}`.trim()
+                        : 'Anonymous'}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(comment.createdAt).toLocaleDateString()}
@@ -247,7 +279,9 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
                     onClick={() =>
                       setReplyingTo({
                         id: comment._id,
-                        username: comment.postedBy?.username || 'Anonymous'
+                        username: comment.postedBy?.firstName
+                          ? `${comment.postedBy.firstName} ${comment.postedBy.lastName || ''}`.trim()
+                          : 'Anonymous'
                       })
                     }
                     className="flex items-center gap-1 hover:text-blue-500 transition-colors"
@@ -263,19 +297,21 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
                     {comment.replies.map(reply => (
                       <div key={reply._id} className="space-y-1">
                         <div className="flex items-center gap-2">
-                          {reply.postedBy?.avatar ? (
-                            <img
-                              src={reply.postedBy.avatar}
-                              alt={reply.postedBy?.username}
-                              className="w-6 h-6 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold">
-                              {reply.postedBy?.username?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0">
+                            {getProfileImageUrl(reply.postedBy) ? (
+                              <img
+                                src={getProfileImageUrl(reply.postedBy)}
+                                alt={`${reply.postedBy?.firstName} ${reply.postedBy?.lastName}`}
+                                className="w-6 h-6 rounded-full object-cover"
+                              />
+                            ) : (
+                              <User className="w-3 h-3 text-white" />
+                            )}
+                          </div>
                           <span className="text-xs font-semibold text-gray-800">
-                            {reply.postedBy?.username || 'Anonymous'}
+                            {reply.postedBy?.firstName
+                              ? `${reply.postedBy.firstName} ${reply.postedBy.lastName || ''}`.trim()
+                              : 'Anonymous'}
                           </span>
                           <span className="text-xs text-gray-400">
                             {new Date(reply.createdAt).toLocaleDateString()}

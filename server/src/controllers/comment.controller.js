@@ -38,7 +38,7 @@ export const createComment = async (req, res) => {
     // Populate user info
     await comment.populate({
       path: 'postedBy',
-      select: 'username avatar email'
+      select: 'firstName lastName profileImage email'
     })
 
     // Update parent comment's replies if this is a reply
@@ -96,19 +96,19 @@ export const getCommentsByPost = async (req, res) => {
     })
       .populate({
         path: 'postedBy',
-        select: 'username avatar email'
+        select: 'firstName lastName profileImage email'
       })
       .populate({
         path: 'replies',
         populate: {
           path: 'postedBy',
-          select: 'username avatar email'
+          select: 'firstName lastName profileImage email'
         }
       })
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .lean()
+      // .lean()
 
     const total = await Comment.countDocuments({
       postId,
@@ -144,13 +144,13 @@ export const getComment = async (req, res) => {
     const comment = await Comment.findById(commentId)
       .populate({
         path: 'postedBy',
-        select: 'username avatar email'
+        select: 'firstName lastName profileImage email'
       })
       .populate({
         path: 'replies',
         populate: {
           path: 'postedBy',
-          select: 'username avatar email'
+          select: 'firstName lastName profileImage email'
         }
       })
 
@@ -214,7 +214,7 @@ export const updateComment = async (req, res) => {
 
     await comment.populate({
       path: 'postedBy',
-      select: 'username avatar email'
+      select: 'firstName lastName profileImage email'
     })
 
     return res.status(200).json({

@@ -19,11 +19,11 @@ export const createReview = async (req, res) => {
             ratings // Detailed ratings object
         } = req.body;
 
-        // Validate required fields (except foodPartnerId which might be derived)
-        if (!rating || !comment) {
+        // Validate required fields
+        if (!foodPartnerId || !rating || !comment) {
             return res.status(400).json({
                 success: false,
-                message: "Rating and comment are required"
+                message: "Food partner ID, rating, and comment are required"
             });
         }
 
@@ -35,8 +35,7 @@ export const createReview = async (req, res) => {
             });
         }
 
-        // Ensure we have a foodPartnerId (required by the schema).
-        // If not provided (e.g., a user post tagged only by food), derive it from the food item.
+
         let resolvedFoodPartnerId = foodPartnerId;
         if (!resolvedFoodPartnerId && foodItemId) {
             const foodItem = await foodModel.findById(foodItemId).select('foodPartner');
@@ -51,23 +50,23 @@ export const createReview = async (req, res) => {
         }
 
         // Check if user has already reviewed this combination (prefer foodItem if available)
-        const existingReviewQuery = {
-            user: userId,
-            isActive: true
-        };
-        if (foodItemId) {
-            existingReviewQuery.foodItem = foodItemId;
-        } else {
-            existingReviewQuery.foodPartner = resolvedFoodPartnerId;
-        }
+        // const existingReviewQuery = {
+        //     user: userId,
+        //     isActive: true
+        // };
+        // if (foodItemId) {
+        //     existingReviewQuery.foodItem = foodItemId;
+        // } else {
+        //     existingReviewQuery.foodPartner = resolvedFoodPartnerId;
+        // }
 
-        const existingReview = await reviewModel.findOne(existingReviewQuery);
-        if (existingReview) {
-            return res.status(400).json({
-                success: false,
-                message: "You have already reviewed this"
-            });
-        }
+        // const existingReview = await reviewModel.findOne(existingReviewQuery);
+        // // if (existingReview) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "You have already reviewed this"
+        //     });
+        // }
 
         // Check if verified purchase (if order ID provided)
         let isVerifiedPurchase = false;

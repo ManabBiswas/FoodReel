@@ -392,25 +392,25 @@ const Reel = () => {
         const reviews = response.data.data || response.data.reviews || []
         setExistingReviews(reviews)
         
-        try {
-          const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
-          const userId = (userProfileResponse.data.user || userProfileResponse.data)?._id
+        // try {
+        //   const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
+        //   const userId = (userProfileResponse.data.user || userProfileResponse.data)?._id
           
-          if (userId) {
-            const hasReviewed = reviews.some(review => 
-              review.user?._id?.toString() === userId.toString() ||
-              review.userId?.toString() === userId.toString()
-            )
+        //   // if (userId) {
+        //   //   const hasReviewed = reviews.some(review => 
+        //   //     review.user?._id?.toString() === userId.toString() ||
+        //   //     review.userId?.toString() === userId.toString()
+        //   //   )
             
-            setUserHasReviewed(hasReviewed)
+        //   //   setUserHasReviewed(hasReviewed)
             
-            if (hasReviewed) {
-              showInfo('You have already reviewed this item')
-            }
-          }
-        } catch {
-          setUserHasReviewed(false)
-        }
+        //   //   if (hasReviewed) {
+        //   //     showInfo('You have already reviewed this item')
+        //   //   }
+        //   }
+        // } catch {
+        //   setUserHasReviewed(false)
+        // }
       } else {
         setExistingReviews([])
       }
