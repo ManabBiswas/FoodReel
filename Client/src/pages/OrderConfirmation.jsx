@@ -2,26 +2,34 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
-  CheckCircle,
-  MapPin,
-  Clock,
-  Phone,
-  Mail,
-  IndianRupee,
-  Truck,
-  Home,
-  AlertCircle,
-  Copy,
-  Download,
-  Store,
-  User
+  CheckCircle, MapPin, Clock, Phone, Truck,
+  AlertCircle, Copy, Download, Store, User,
+  Mail, CreditCard, ChevronRight
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
+import FoodMedia from '../Components/FoodMedia'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showInfo } from '../utils/toast'
 import { generateReceipt } from '../utils/receiptGenerator'
 
+/* ─── Helpers ───────────────────────────────────────────────────── */
+const fmt = (n) => Number(n ?? 0).toFixed(2)
+const fmtDate = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered']
+const STATUS_LABELS = { pending: 'Confirmed', confirmed: 'Confirmed', preparing: 'Preparing', out_for_delivery: 'On the way', delivered: 'Delivered' }
+
+const STATUS_BADGE = {
+  pending: { bg: '#FEF9C3', text: '#854D0E' },
+  confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
+  preparing: { bg: '#F3E8FF', text: '#6B21A8' },
+  out_for_delivery: { bg: '#FFEDD5', text: '#9A3412' },
+  delivered: { bg: '#DCFCE7', text: '#15803D' },
+  cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+}
+
+/* ─── Page ──────────────────────────────────────────────────────── */
 const OrderConfirmation = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,412 +38,325 @@ const OrderConfirmation = () => {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  const fetchOrderDetails = useCallback(async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await axios.get(
-        API_ENDPOINTS.order.getById(orderId),
-        axiosConfig
-      )
-      setOrder(response.data.order)
-
+      const res = await axios.get(API_ENDPOINTS.order.getById(orderId), axiosConfig)
+      setOrder(res.data.order)
     } catch (err) {
-      console.error('Error fetching order:', err)
-      setError('Failed to load order details')
+      setError(`Failed to load order details ${err}`);
       showError('Failed to load order')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }, [orderId])
 
   useEffect(() => {
-    if (!orderId) {
-      setError('Order not found')
-      setLoading(false)
-      return
-    }
-
-    fetchOrderDetails()
-  }, [orderId, fetchOrderDetails])
+    if (!orderId) { setError('Order not found'); setLoading(false); return }
+    fetchOrder()
+  }, [orderId, fetchOrder])
 
   const copyOrderId = () => {
     navigator.clipboard.writeText(orderId)
-    showSuccess('Order ID copied!')
+    setCopied(true); showSuccess('Order ID copied!')
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDownloadReceipt = () => {
-    if (!order) {
-      showError('Order details not available')
-      return
-    }
-    
-    try {
-      showInfo('Generating receipt...')
-      generateReceipt(order)
-      showSuccess('Receipt downloaded successfully!')
-    } catch (error) {
-      console.error('Receipt generation error:', error)
-      showError('Failed to generate receipt. Please try again.')
-    }
+  const handleReceipt = () => {
+    if (!order) { showError('Order details not available'); return }
+    try { showInfo('Generating receipt…'); generateReceipt(order); showSuccess('Receipt downloaded!') }
+    catch { showError('Failed to generate receipt') }
   }
 
+  const statusIdx = STATUS_STEPS.indexOf(order?.status)
+  const progressPct = statusIdx >= 0 ? Math.round((statusIdx / (STATUS_STEPS.length - 1)) * 100) : 0
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-      preparing: 'bg-purple-100 text-purple-800 border-purple-200',
-      out_for_delivery: 'bg-orange-100 text-orange-800 border-orange-200',
-      delivered: 'bg-green-100 text-green-800 border-green-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200'
-    }
-    return colors[status] || colors.pending
-  }
-
-  const getStatusText = (status) => {
-    const statusMap = {
-      pending: 'Order Pending',
-      confirmed: 'Order Confirmed',
-      preparing: 'Being Prepared',
-      out_for_delivery: 'Out for Delivery',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled'
-    }
-    return statusMap[status] || status
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading order details...</p>
+  /* Loading */
+  if (loading) return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full" style={{ border: '3px solid var(--color-border-light)', borderTopColor: 'var(--color-primary)' }} />
+          <p className="font-sans" style={{ color: 'var(--color-text-muted)' }}>Loading order details…</p>
         </div>
       </div>
-    )
-  }
+      <Footer />
+    </div>
+  )
 
-  if (error || !order) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-3xl mx-auto px-4 py-20">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Order</h1>
-            <p className="text-gray-600 mb-6">{error || 'Order not found'}</p>
-            <button
-              onClick={() => navigate('/orders')}
-              className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition"
-            >
-              View All Orders
-            </button>
-          </div>
+  /* Error */
+  if (error || !order) return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="max-w-sm text-center space-y-4">
+          <AlertCircle className="mx-auto h-14 w-14" style={{ color: '#dc2626' }} />
+          <h1 className="font-serif text-2xl font-bold" style={{ color: 'var(--color-text-base)' }}>Error Loading Order</h1>
+          <p className="font-sans" style={{ color: 'var(--color-text-muted)' }}>{error || 'Order not found'}</p>
+          <button onClick={() => navigate('/order/history')} className="rounded-xl px-8 py-3 font-bold font-sans cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
+            View All Orders
+          </button>
         </div>
-        <Footer />
       </div>
-    )
-  }
+      <Footer />
+    </div>
+  )
 
-  const deliveryAddress = order.deliveryAddress || {}
+  const da = order.deliveryAddress || {}
   const pricing = order.pricing || {}
-  const user = order.user || {}
+  const badge = STATUS_BADGE[order.status] ?? STATUS_BADGE.pending
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
       <Navbar />
 
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
-          <p className="text-gray-600 mb-4">Thank you for your order. We're preparing your delicious food.</p>
+      <main className="flex-1">
+        <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
 
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-4 ${getStatusColor(order.status)}`}>
-            <span className="font-semibold text-sm">{getStatusText(order.status)}</span>
-          </div>
+          {/* ── Success header ────────────────────────────────── */}
+          <header className="mb-8 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: '#DCFCE7' }}>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="font-serif text-4xl font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>Order Confirmed!</h1>
 
-          <div className="inline-flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-lg">
-            <span className="text-sm font-medium text-gray-600">Order ID:</span>
-            <span className="font-mono font-bold text-lg text-gray-900">{order.id || order._id}</span>
-            <button
-              onClick={copyOrderId}
-              className="text-gray-500 hover:text-gray-700 transition"
-              title="Copy Order ID"
+            {/* Order ID pill */}
+            <div className="inline-flex items-center gap-3 rounded-xl px-4 py-2.5 mt-1 font-sans" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)' }}>
+              <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Order ID</span>
+              <span className="font-mono font-bold" style={{ color: 'var(--color-text-base)' }}>#{(order.id || order._id)}</span>
+              <button onClick={copyOrderId} className="cursor-pointer" style={{ color: copied ? '#16a34a' : 'var(--color-text-faint)' }}>
+                {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm font-sans" style={{ color: 'var(--color-text-faint)' }}>
+              Placed on {fmtDate(order.createdAt)}
+            </p>
+          </header>
+
+          <div className="space-y-5">
+
+            {/* ── Delivery progress card ─────────────────────── */}
+            <div
+              className="rounded-2xl p-6"
+              style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}
             >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
-
-          <p className="text-sm text-gray-500 mt-3">Placed on {formatDate(order.createdAt)}</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Delivery Address */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-500" />
-                Delivery Address
-              </h2>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="font-semibold text-gray-900 mb-1">{deliveryAddress.fullName}</p>
-                <p className="text-gray-600 text-sm mb-2">{deliveryAddress.addressLine1}</p>
-                {deliveryAddress.addressLine2 && (
-                  <p className="text-gray-600 text-sm mb-2">{deliveryAddress.addressLine2}</p>
-                )}
-                <p className="text-gray-600 text-sm mb-2">
-                  {deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
-                </p>
-                {deliveryAddress.landmark && (
-                  <p className="text-gray-600 text-sm">Landmark: {deliveryAddress.landmark}</p>
-                )}
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-blue-300">
-                  <Phone className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-700 text-sm">{deliveryAddress.phone}</span>
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest font-sans mb-1" style={{ color: 'var(--color-text-faint)' }}>Estimated Arrival</p>
+                  <h3 className="font-serif text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>30 – 45 mins</h3>
                 </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'rgba(255,106,0,0.1)' }}>
+                  <Truck className="h-6 w-6" style={{ color: 'var(--color-primary)' }} />
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-border-light)' }}>
+                <div className="absolute left-0 top-0 h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: 'var(--color-primary)' }} />
+              </div>
+              <div className="mt-3 flex justify-between">
+                {['Confirmed', 'Preparing', 'On the way', 'Delivered'].map((label, i) => {
+                  const stepPct = i / 3 * 100
+                  const isActive = progressPct >= stepPct
+                  return (
+                    <span key={label} className="text-[10px] font-bold uppercase tracking-wider font-sans" style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-faint)' }}>
+                      {label}
+                    </span>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Customer Information */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-500" />
-                Customer Information
-              </h2>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
-                    <p className="text-sm text-gray-500">Customer</p>
+            {/* ── 2-column grid ──────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+              {/* Delivery address */}
+              <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                <h2 className="font-serif text-lg font-bold flex items-center gap-2" style={{ color: 'var(--color-text-base)' }}>
+                  <MapPin className="h-5 w-5" style={{ color: 'var(--color-primary)' }} /> Delivery Address
+                </h2>
+                <div className="rounded-xl p-4 font-sans text-sm space-y-1" style={{ background: 'var(--color-surface-muted)' }}>
+                  <p className="font-bold" style={{ color: 'var(--color-text-base)' }}>{da.fullName}</p>
+                  <p style={{ color: 'var(--color-text-muted)' }}>{da.addressLine1}</p>
+                  {da.landmark && <p style={{ color: 'var(--color-text-muted)' }}>{da.landmark}</p>}
+                  <p style={{ color: 'var(--color-text-muted)' }}>{da.city}, {da.state} — {da.pincode}</p>
+                  <div className="flex items-center gap-2 pt-2 mt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
+                    <Phone className="h-3.5 w-3.5" style={{ color: 'var(--color-text-faint)' }} />
+                    <span style={{ color: 'var(--color-text-muted)' }}>{da.phone}</span>
                   </div>
                 </div>
-                {user.email && (
-                  <div className="flex items-center gap-3 pl-13">
-                    <Mail className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-700">{user.email}</span>
-                  </div>
-                )}
-                {user.mobile && (
-                  <div className="flex items-center gap-3 pl-13">
-                    <Phone className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-700">{user.mobile}</span>
-                  </div>
-                )}
               </div>
-            </div>
 
-            {/* Order Items */}
-            {order.items && order.items.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Order Items</h2>
-                <div className="space-y-4">
-                  {order.items.map((item, index) => (
-                    <div key={item.id || item._id || index} className="flex justify-between items-start pb-4 border-b last:border-b-0">
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{item.foodItem?.name || 'Food Item'}</p>
-                            {item.foodItem?.description && (
-                              <p className="text-sm text-gray-500 mt-1">{item.foodItem.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 mt-2">
-                              <span className="text-sm text-gray-600">Qty: {item.quantity || 1}</span>
-                              <span className="text-sm text-gray-600">₹{item.priceAtOrder} each</span>
-                            </div>
-                            {item.foodItem?.preparationTime && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Clock className="w-3 h-3 text-gray-400" />
-                                <span className="text-xs text-gray-500">{item.foodItem.preparationTime} mins prep time</span>
-                              </div>
-                            )}
-                          </div>
-                          <p className="font-semibold text-gray-900 ml-4">₹{(item.priceAtOrder * item.quantity).toFixed(2)}</p>
-                        </div>
-                        {item.foodPartner && (
-                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                            <Store className="w-4 h-4 text-orange-500" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">{item.foodPartner.companyName}</p>
-                              <p className="text-xs text-gray-500">{item.foodPartner.address}</p>
-                            </div>
-                          </div>
-                        )}
+              {/* Payment info */}
+              <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                <h2 className="font-serif text-lg font-bold flex items-center gap-2" style={{ color: 'var(--color-text-base)' }}>
+                  <CreditCard className="h-5 w-5" style={{ color: 'var(--color-primary)' }} /> Payment Info
+                </h2>
+                <div className="rounded-xl p-4 font-sans" style={{ background: 'var(--color-surface-muted)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm" style={{ color: 'var(--color-text-base)' }}>
+                        {order.paymentDetails?.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span
+                          className="inline-block h-2 w-2 rounded-full"
+                          style={{ background: order.paymentDetails?.status === 'completed' ? '#16a34a' : 'var(--color-primary)', animation: order.paymentDetails?.status !== 'completed' ? 'pulse 2s infinite' : 'none' }}
+                        />
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-widest font-sans"
+                          style={{ color: order.paymentDetails?.status === 'completed' ? '#16a34a' : 'var(--color-primary)' }}
+                        >
+                          {order.paymentDetails?.status || 'pending'}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Special Instructions */}
-            {order.specialInstructions && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-3">Special Instructions</h2>
-                <p className="text-gray-600">{order.specialInstructions}</p>
-              </div>
-            )}
-
-            {/* Delivery Time */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-500" />
-                Delivery Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-gray-600 text-sm">Estimated Delivery Time</p>
-                    <p className="text-xl font-bold text-gray-900">30-45 mins</p>
-                  </div>
-                  <Truck className="w-10 h-10 text-blue-500 opacity-20" />
-                </div>
-                {order.estimatedDeliveryTime && (
-                  <div className="flex-1">
-                    <p className="text-gray-600 text-sm">Expected By</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatDate(order.estimatedDeliveryTime)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Payment Details */}
-            {order.paymentDetails && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Payment Information</h2>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Payment Method</span>
-                    <span className="font-medium text-gray-900 capitalize">{order.paymentDetails.method}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Payment Status</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${order.paymentDetails.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      order.paymentDetails.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                      {order.paymentDetails.status}
+                    <span
+                      className="rounded-full px-3 py-1 text-xs font-bold font-sans"
+                      style={{ background: badge.bg, color: badge.text }}
+                    >
+                      {order.status}
                     </span>
                   </div>
-                  {order.paymentDetails.razorpayOrderId && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Transaction ID</span>
-                      <span className="font-mono text-gray-700">{order.paymentDetails.razorpayOrderId}</span>
+                </div>
+
+                {/* Customer */}
+                <div className="space-y-2 pt-2">
+                  {order.user?.email && (
+                    <div className="flex items-center gap-2 text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                      <Mail className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--color-text-faint)' }} /> {order.user.email}
+                    </div>
+                  )}
+                  {order.user?.mobile && (
+                    <div className="flex items-center gap-2 text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                      <Phone className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--color-text-faint)' }} /> {order.user.mobile}
                     </div>
                   )}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Price Summary Sidebar */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Price Summary</h2>
-              <div className="space-y-3 mb-4">
-                
+            {/* ── Order Summary ──────────────────────────────── */}
+            <div className="rounded-2xl p-6 space-y-4" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+              <h2 className="font-serif text-lg font-bold" style={{ color: 'var(--color-text-base)' }}>Order Summary</h2>
 
-                {order?.items.map(item => (
-                  <div key={item._id} className="flex justify-between text-gray-600">
-                    <span>{item.foodItem?.name } {item.quantity}</span>
-                    <span>₹{(item.priceAtOrder * item.quantity).toFixed(2)}</span>
+              <div className="space-y-3 pb-4 font-sans text-sm" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                {order.items?.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <span style={{ color: 'var(--color-text-muted)' }}>
+                      {item.foodItem?.name} <span className="font-bold" style={{ color: 'var(--color-text-base)' }}>×{item.quantity}</span>
+                    </span>
+                    <span className="font-medium" style={{ color: 'var(--color-text-base)' }}>₹{fmt(item.priceAtOrder * item.quantity)}</span>
                   </div>
                 ))}
-
-                <div className="flex justify-between font-bold text-gray-800">
-                  <span>Subtotal</span>
-                  <span>₹{pricing.itemPrice.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Delivery Fee</span>
-                  <span className={pricing.deliveryFee === 0 ? 'text-green-600 font-medium' : ''}>
-                    {pricing.deliveryFee === 0 ? 'FREE' : `₹${pricing.deliveryFee?.toFixed(2)}`}
-                  </span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Platform Fee</span>
-                  <span>₹{pricing.platformFee?.toFixed(2) || '0.00'}</span>
-                </div>
-                {pricing.discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
-                    <span>-₹{pricing.discount?.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-gray-600">
-                  <span>GST (5%)</span>
-                  <span>₹{pricing.taxes?.gst?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="border-t pt-3 flex justify-between font-bold text-lg text-gray-900">
-                  <span>Total Amount</span>
-                  <span className="text-red-500">₹{pricing.totalAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                <p className="text-xs text-gray-500 text-center pt-2">
-                  Currency: {order.currency || 'INR'}
-                </p>
               </div>
 
-              <div className="space-y-2">
-                <button
-                  onClick={() => navigate(`/order/tracking/${order.id || order._id}`)}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-medium flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Truck className="w-5 h-5" />
-                  Track Order
-                </button>
-                <button
-                  onClick={handleDownloadReceipt}
-                  className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg hover:bg-gray-200 transition font-medium flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Receipt
-                </button>
-                <button
-                  onClick={() => navigate('/order/history')}
-                  className="w-full bg-gray-50 border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-100 transition font-medium cursor-pointer"
-                >
-                  View All Orders
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  className="w-full border border-gray-300 text-gray-900 py-2 rounded-lg hover:bg-gray-50 transition font-medium cursor-pointer"
-                >
-                  Continue Shopping
-                </button>
+              <div className="space-y-2 pb-4 font-sans text-sm" style={{ borderBottom: '1px dashed var(--color-border-medium)' }}>
+                {[
+                  { l: 'Items total', v: `₹${fmt(pricing.itemPrice)}` },
+                  { l: 'Delivery fee', v: pricing.deliveryFee === 0 ? 'FREE' : `₹${fmt(pricing.deliveryFee)}`, g: pricing.deliveryFee === 0 },
+                  { l: 'Platform fee', v: `₹${fmt(pricing.platformFee)}` },
+                  { l: 'GST (5%)', v: `₹${fmt(pricing.taxes?.gst)}` },
+                  ...(pricing.discount > 0 ? [{ l: 'Discount', v: `-₹${fmt(pricing.discount)}`, g: true }] : []),
+                ].map(({ l, v, g }) => (
+                  <div key={l} className="flex justify-between">
+                    <span style={{ color: 'var(--color-text-muted)' }}>{l}</span>
+                    <span style={{ color: g ? '#16a34a' : 'var(--color-text-base)' }} className={g ? 'font-bold' : ''}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-bold text-lg font-sans" style={{ color: 'var(--color-text-base)' }}>Total Amount</span>
+                <span className="font-serif text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>₹{fmt(pricing.totalAmount)}</span>
               </div>
             </div>
 
-            {/* Order Source */}
-            {order.orderSource && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Order Source:</span> {order.orderSource}
-                </p>
+            {/* ── Items ordered ─────────────────────────────── */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                <h2 className="font-serif text-lg font-bold" style={{ color: 'var(--color-text-base)' }}>Items Ordered</h2>
               </div>
-            )}
+              {order.items?.map((item, i) => {
+                const food = item.foodItem
+                return (
+                  <div key={i} className="flex items-center gap-4 px-6 py-5" style={{ borderTop: i > 0 ? '1px solid var(--color-border-light)' : 'none' }}>
+                    <FoodMedia
+                      foodItem={food}
+                      className="h-20 w-20 flex-shrink-0 rounded-xl"
+                      imgClass="h-full w-full object-cover"
+                      thumbSecond={1}
+                      showPlay={true}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-lg font-sans" style={{ color: 'var(--color-text-base)' }}>{food?.name || 'Food Item'}</h4>
+                          <p className="text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                            {item.quantity} unit{item.quantity > 1 ? 's' : ''}{food?.preparationTime ? ` • ${food.preparationTime} min prep` : ''}
+                          </p>
+                        </div>
+                        <span className="font-bold font-sans flex-shrink-0" style={{ color: 'var(--color-text-base)' }}>₹{fmt(item.priceAtOrder * item.quantity)}</span>
+                      </div>
+                      {item.foodPartner && (
+                        <div className="mt-2 flex items-center gap-2 text-xs font-sans" style={{ color: 'var(--color-text-faint)' }}>
+                          <Store className="h-3.5 w-3.5" style={{ color: 'var(--color-primary)' }} />
+                          {item.foodPartner.companyName}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Action buttons ────────────────────────────── */}
+            <footer className="space-y-3 ">
+              <button
+                onClick={() => navigate(`/order/tracking/${order.id || order._id}`)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-bold font-sans text-lg transition-opacity hover:opacity-90 cursor-pointer"
+                style={{ background: 'var(--color-primary)', color: '#fff', boxShadow: 'var(--shadow-glow)' }}
+              >
+                <Truck className="h-5 w-5" /> Track Order
+              </button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleReceipt}
+                  className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold font-sans transition-colors cursor-pointer"
+                  style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-medium)', color: 'var(--color-text-muted)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-surface-muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'var(--color-background-white)'}
+                >
+                  <Download className="h-4 w-4" /> Receipt
+                </button>
+                <button
+                  onClick={() => navigate('/order/history')}
+                  className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold font-sans transition-colors cursor-pointer"
+                  style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-medium)', color: 'var(--color-text-muted)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-surface-muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'var(--color-background-white)'}
+                >
+                  All Orders <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => navigate('/reels')}
+                  className="w-1/2 gap-2 py-3 font-bold font-sans transition-colors cursor-pointer border-2  px-4 rounded-full hover:text-white hover:bg-primary"
+                  style={{ color: 'var(--color-primary)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+                >
+                  Continue Shopping
+                </button></div>
+            </footer>
+
           </div>
         </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="font-semibold text-green-900 mb-2">📞 Need Help?</h3>
-          <p className="text-green-800 text-sm">If you have any questions about your order, please contact our customer support team.</p>
-        </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
