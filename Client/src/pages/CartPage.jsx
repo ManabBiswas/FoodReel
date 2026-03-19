@@ -14,9 +14,9 @@ const fmt = (n) => Number(n ?? 0).toFixed(2)
 const CartPage = () => {
   const navigate = useNavigate()
   const { cart, loading, removeItem, updateQuantity, clearCart, validateCart } = useCart()
-  const [validating,          setValidating]          = useState(false)
-  const [cartIssues,          setCartIssues]          = useState([])
-  const [appliedRestaurant,   setAppliedRestaurant]   = useState(null)
+  const [validating, setValidating] = useState(false)
+  const [cartIssues, setCartIssues] = useState([])
+  const [appliedRestaurant, setAppliedRestaurant] = useState(null)
 
   const handleValidateCart = useCallback(async () => {
     setValidating(true)
@@ -94,15 +94,12 @@ const CartPage = () => {
 
           {/* ── Page header ────────────────────────────────────── */}
           <div className="mb-8">
-            <button
-              onClick={() => navigate(-1)}
-              className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors"
-              style={{ color: 'var(--color-text-muted)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
-            >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
+            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted);' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                        >
+                          <ArrowLeft className="h-4 w-4" /> Back to Orders
+                        </button>
             <h1 className="font-serif text-5xl font-bold" style={{ color: 'var(--color-text-base)' }}>
               My Cart
             </h1>
@@ -127,7 +124,7 @@ const CartPage = () => {
               <p className="mb-6 font-sans" style={{ color: 'var(--color-text-muted)' }}>Start adding some delicious items!</p>
               <button
                 onClick={() => navigate('/')}
-                className="rounded-xl px-8 py-3 font-bold font-sans transition-opacity hover:opacity-90"
+                className="rounded-xl px-8 py-3 font-bold font-sans transition-opacity hover:opacity-90 cursor-pointer"
                 style={{ background: 'var(--color-primary)', color: '#fff' }}
               >
                 Explore Reels
@@ -161,7 +158,7 @@ const CartPage = () => {
                     </div>
                     <button
                       onClick={handleClearCart}
-                      className="flex items-center gap-1.5 text-sm font-medium font-sans transition-colors"
+                      className="flex items-center gap-1.5 text-sm font-medium font-sans transition-colors cursor-pointer"
                       style={{ color: 'var(--color-text-faint)' }}
                       onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
                       onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-faint)'}
@@ -254,7 +251,7 @@ const CartPage = () => {
                               <button
                                 onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
                                 disabled={item.quantity <= 1 || loading}
-                                className="transition-colors disabled:opacity-40"
+                                className="transition-colors disabled:opacity-40 cursor-pointer"
                                 style={{ color: 'var(--color-text-muted)' }}
                                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
@@ -267,7 +264,7 @@ const CartPage = () => {
                               <button
                                 onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
                                 disabled={item.quantity >= 99 || loading}
-                                className="transition-colors disabled:opacity-40"
+                                className="transition-colors disabled:opacity-40 cursor-pointer"
                                 style={{ color: 'var(--color-text-muted)' }}
                                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
@@ -283,7 +280,7 @@ const CartPage = () => {
                               <button
                                 onClick={() => handleRemoveItem(item._id)}
                                 disabled={loading}
-                                className="flex items-center gap-1 text-sm font-medium font-sans transition-colors disabled:opacity-40"
+                                className="flex items-center gap-1 text-sm font-medium font-sans transition-colors disabled:opacity-40 cursor-pointer"
                                 style={{ color: 'var(--color-text-faint)' }}
                                 onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-faint)'}
@@ -302,7 +299,7 @@ const CartPage = () => {
                 <div className="flex flex-wrap gap-3 pt-2">
                   <button
                     onClick={() => navigate('/reels')}
-                    className="rounded-xl border-2 px-8 py-3 font-bold font-sans transition-all hover:opacity-80"
+                    className="rounded-xl border-2 px-8 py-3 font-bold font-sans transition-all hover:opacity-80 cursor-pointer"
                     style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
                   >
                     Continue Shopping
@@ -323,16 +320,16 @@ const CartPage = () => {
                   {/* Pricing */}
                   <div className="space-y-3 mb-6 pb-6" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                     {[
-                      { label: 'Items total',   val: fmt(cart.totals?.itemsTotal),   color: 'var(--color-text-muted)' },
+                      { label: 'Items total', val: fmt(cart.totals?.itemsTotal), color: 'var(--color-text-muted)' },
                       cart.totals?.deliveryFee > 0
-                        ? { label: 'Delivery fee',  val: fmt(cart.totals.deliveryFee),   color: 'var(--color-text-muted)' }
-                        : { label: 'Delivery fee',  val: 'FREE',                         color: '#16a34a' },
+                        ? { label: 'Delivery fee', val: fmt(cart.totals.deliveryFee), color: 'var(--color-text-muted)' }
+                        : { label: 'Delivery fee', val: 'FREE', color: '#16a34a' },
                       cart.totals?.platformFee > 0
-                        && { label: 'Platform fee', val: fmt(cart.totals.platformFee),   color: 'var(--color-text-muted)' },
+                      && { label: 'Platform fee', val: fmt(cart.totals.platformFee), color: 'var(--color-text-muted)' },
                       cart.totals?.taxes > 0
-                        && { label: 'Taxes (GST)',  val: fmt(cart.totals.taxes),          color: 'var(--color-text-muted)' },
+                      && { label: 'Taxes (GST)', val: fmt(cart.totals.taxes), color: 'var(--color-text-muted)' },
                       cart.totals?.discount > 0
-                        && { label: 'Discount',     val: `-₹${fmt(cart.totals.discount)}`, color: '#16a34a' },
+                      && { label: 'Discount', val: `-₹${fmt(cart.totals.discount)}`, color: '#16a34a' },
                     ].filter(Boolean).map(({ label, val, color }) => (
                       <div key={label} className="flex justify-between font-sans">
                         <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
