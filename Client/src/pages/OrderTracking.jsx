@@ -169,7 +169,7 @@ const OrderTracking = () => {
 
           {/* Page header */}
           <div className="mb-8">
-            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted);borderColor: var(--color-text-muted)' }}
+            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted)'}}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
             >
