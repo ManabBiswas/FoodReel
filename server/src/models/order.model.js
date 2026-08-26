@@ -46,9 +46,19 @@ const orderSchema = new mongoose.Schema({
     },
     orderSource: {
         type: String,
-        enum: ['reel', 'home', 'menu', 'search', 'cart', 'other'],
+        enum: ['reel', 'home', 'menu', 'search', 'cart', 'other', 'foodfest'],
         default: 'reel',
         required: true
+    },
+    eventId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FoodFestEvent',
+        sparse: true
+    },
+    stallId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FoodFestStallApplication',
+        sparse: true
     },
     // CONSOLIDATED PAYMENT INFORMATION (removed duplicates)
     paymentDetails: {
