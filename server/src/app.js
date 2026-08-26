@@ -11,6 +11,7 @@ import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
 import commentRoutes from './routes/comment.route.js';
 import adminRoutes from './routes/admin.route.js';
+import foodfestAdminRoutes from './routes/foodfest/admin.routes.js';
 import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
 import cors from 'cors';
@@ -63,6 +64,7 @@ app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
+app.use('/api/foodfest/admin', foodfestAdminRoutes);
 app.use('/api/emails',emailRoutes);
 
 // Health check endpoint
