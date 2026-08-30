@@ -15,6 +15,11 @@ import {
     goLiveEvent,
     completeEvent
 } from '../controllers/foodfest/event.admin.controller.js';
+import {
+    getApplicationsByEvent,
+    approveApplication,
+    rejectApplication
+} from '../controllers/foodfest/application.admin.controller.js';
 import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
@@ -34,6 +39,11 @@ router.delete('/zones/:zoneId', isAdmin, deleteZone);
 router.post('/events/:eventId/tiers', isAdmin, createTier);
 router.put('/tiers/:tierId', isAdmin, updateTier);
 router.delete('/tiers/:tierId', isAdmin, deleteTier);
+
+// Applications
+router.get('/events/:eventId/applications', isAdmin, getApplicationsByEvent);
+router.post('/applications/:appId/approve', isAdmin, approveApplication);
+router.post('/applications/:appId/reject', isAdmin, rejectApplication);
 
 // Lifecycle & Guardrails
 router.get('/events/:eventId/capacity-check', isAdmin, checkCapacity);
