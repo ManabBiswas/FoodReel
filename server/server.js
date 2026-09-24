@@ -1,5 +1,8 @@
+import { createServer } from 'http';
 import app from './src/app.js';
 import connectDB from './src/db/db.js';
+import { initSocketIO } from './src/services/foodfest.socket.service.js';
+import { startTicketSweeper } from './src/services/foodfest.sweeper.js';
 import 'dotenv/config';
 
 const port = process.env.PORT || 3000;
@@ -28,7 +31,17 @@ if (missingVars.length > 0) {
 
 console.log('✅ All environment variables validated');
 
-app.listen(port, () => {
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+initSocketIO(httpServer);
+console.log('🔌 Socket.io initialized');
+
+// Start Ticket Expiry Sweeper
+startTicketSweeper();
+console.log('🧹 Ticket expiry sweeper started');
+
+httpServer.listen(port, () => {
     console.log(`\n🚀 FoodReel Server running on port ${port}`);
     // Connect to database with error handling
     connectDB().catch(err => {

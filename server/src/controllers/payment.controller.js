@@ -1,6 +1,7 @@
 import paymentService from '../services/payment.service.js';
 import orderModel from '../models/order.model.js';
 import emailService from '../services/email.service.js';
+import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -155,10 +156,20 @@ export const verifyPayment = async (req, res) => {
       note: `Payment successful via ${paymentDetails.payment.method}`,
       addedBy: 'system'
     });
-
+    
     await order.save();
+    
+    // FoodFest Ticket Integration: If this is a ticket payment, finalize the ticket
+    if (razorpay_order_id && razorpay_order_id.startsWith('ticket_')) {
+        try {
+            await finalizeTicketPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+        } catch (ticketErr) {
+            console.error("FoodFest ticket finalization failed:", ticketErr);
+        }
+    }
 
     res.status(200).json({
+
       success: true,
       message: 'Payment verified successfully',
       order: {
