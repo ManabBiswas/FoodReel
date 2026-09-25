@@ -13,3 +13,10 @@ server/jsconfig.json
 !FOOD_VS_ADVERTISEMENT_SYSTEM.md
 !FOOD_VS_ADVERTISEMENT_SYSTEM.md
 !BUSINESS_MODEL.md
+
+.env.production
+
+*.log
+*.err
+*.out
+server-run.log

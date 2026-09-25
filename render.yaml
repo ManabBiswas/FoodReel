@@ -1,0 +1,47 @@
+# Render deployment config for the FoodReel backend (server/).
+# https://render.com/docs/blueprint-spec
+#
+# If this file exists, Render can provision the service from the dashboard
+# ("New +" -> "Blueprint") instead of hand-entering settings.
+# Secret env vars use sync: false so Render prompts for values (never committed).
+
+services:
+  - type: web
+    name: foodreel-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # --- Required at startup (server.js exits if missing) ---
+      - key: NODE_ENV
+        value: production
+      # Vercel production URL — update when the frontend domain changes (F3).
+      - key: FRONTEND_URL
+        value: https://foodreel.vercel.app
+      - key: MONGODB_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: EMAIL_SERVICE
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
+      # --- Optional but important (warnings at startup if missing) ---
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
