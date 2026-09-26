@@ -4,7 +4,7 @@ import {
     applyForStall,
     toggleStallOpen,
     getMyApplications
-} from '../controllers/foodfest/stall.partner.controller.js';
+} from '../../controllers/foodfest/stall.partner.controller.js';
 import isFoodPartnerLoggedin from '../../middlewares/isFoodPartnerLoggedin.js';
 
 const router = express.Router();

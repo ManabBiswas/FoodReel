@@ -1,9 +1,9 @@
-import FoodFestTicket from "../models/FoodFestTicket.model.js";
-import FoodFestZone from "../models/FoodFestZone.model.js";
-import FoodFestEvent from "../models/FoodFestEvent.model.js";
-import FoodFestCheckIn from "../models/FoodFestCheckIn.model.js";
-import qrService from "../services/foodfest.qr.service.js";
-import { emitZoneUpdate, emitZoneAlert } from "../services/foodfest.socket.service.js";
+import FoodFestTicket from "../../models/FoodFestTicket.model.js";
+import FoodFestZone from "../../models/FoodFestZone.model.js";
+import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
+import qrService from "../../services/foodfest.qr.service.js";
+import { emitZoneUpdate, emitZoneAlert } from "../../services/foodfest.socket.service.js";
 import mongoose from "mongoose";
 
 export const scanTicket = async (req, res) => {

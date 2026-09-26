@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
-import cookie from "cookie";
+import { parseCookie } from "cookie";
 
 let io = null;
 const eventRooms = new Map(); // eventId -> Set of socketIds
@@ -15,7 +15,7 @@ export const initSocketIO = (httpServer) => {
 
     io.use((socket, next) => {
         // Auth via cookie
-        const cookies = cookie.parse(socket.handshake.headers.cookie || '');
+        const cookies = parseCookie(socket.handshake.headers.cookie || '');
         const token = cookies.token;
         if (!token) return next(new Error("Authentication required"));
         

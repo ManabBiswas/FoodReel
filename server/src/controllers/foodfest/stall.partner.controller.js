@@ -1,6 +1,6 @@
-import FoodFestEvent from "../models/FoodFestEvent.model.js";
-import FoodFestStallApplication from "../models/FoodFestStallApplication.model.js";
-import foodModel from "../models/food.model.js";
+import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import FoodFestStallApplication from "../../models/FoodFestStallApplication.model.js";
+import foodModel from "../../models/food.model.js";
 import emailService from "../../services/email.service.js";
 
 export const getAvailableEvents = async (req, res) => {

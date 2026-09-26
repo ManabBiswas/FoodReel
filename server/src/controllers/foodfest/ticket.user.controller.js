@@ -1,6 +1,6 @@
-import FoodFestEvent from "../models/FoodFestEvent.model.js";
-import FoodFestTier from "../models/FoodFestTier.model.js";
-import FoodFestTicket from "../models/FoodFestTicket.model.js";
+import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import FoodFestTier from "../../models/FoodFestTier.model.js";
+import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import paymentService from "../../services/payment.service.js";
 import mongoose from "mongoose";
 

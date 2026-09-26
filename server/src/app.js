@@ -22,6 +22,7 @@ import cors from 'cors';
 import helmet from "helmet";
 import { globalRateLimiter } from './middlewares/rateLimiter.js';
 import { sanitizeInput } from './middlewares/sanitization.js';
+import { requestId, accessLog } from './middlewares/requestId.js';
 
 const app = express() 
 
@@ -54,6 +55,11 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }))
  
+// Correlation id + one structured access-log line per request. Mounted first so
+// every later middleware and controller can reference req.id.
+app.use(requestId);
+app.use(accessLog);
+
 app.use(globalRateLimiter);  // Global rate limiter
 
 // Razorpay signs the RAW request bytes — capture the body as a Buffer for the

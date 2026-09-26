@@ -1,4 +1,4 @@
-import FoodFestStallApplication from "../models/FoodFestStallApplication.model.js";
+import FoodFestStallApplication from "../../models/FoodFestStallApplication.model.js";
 import emailService from "../../services/email.service.js";
 
 export const getApplicationsByEvent = async (req, res) => {

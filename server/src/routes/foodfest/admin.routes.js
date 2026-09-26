@@ -14,12 +14,12 @@ import {
     publishEvent,
     goLiveEvent,
     completeEvent
-} from '../controllers/foodfest/event.admin.controller.js';
+} from '../../controllers/foodfest/event.admin.controller.js';
 import {
     getApplicationsByEvent,
     approveApplication,
     rejectApplication
-} from '../controllers/foodfest/application.admin.controller.js';
+} from '../../controllers/foodfest/application.admin.controller.js';
 import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();

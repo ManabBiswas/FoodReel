@@ -4,7 +4,7 @@ import {
     getEventDetails,
     purchaseTicket,
     getMyTickets
-} from '../controllers/foodfest/ticket.user.controller.js';
+} from '../../controllers/foodfest/ticket.user.controller.js';
 import isLoggedin from '../../middlewares/isLoggedin.js';
 
 const router = express.Router();

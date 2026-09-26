@@ -1,6 +1,6 @@
-import FoodFestEvent from "../models/FoodFestEvent.model.js";
-import FoodFestZone from "../models/FoodFestZone.model.js";
-import FoodFestTier from "../models/FoodFestTier.model.js";
+import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import FoodFestZone from "../../models/FoodFestZone.model.js";
+import FoodFestTier from "../../models/FoodFestTier.model.js";
 
 export const createEvent = async (req, res) => {
     try {
