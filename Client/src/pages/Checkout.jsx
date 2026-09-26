@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
+import { useAuth } from '../hooks/useAuth'
+import FoodMedia from '../Components/FoodMedia'
 import { showSuccess, showError, showWarning } from '../utils/toast'
 import axios from 'axios'
 import {
@@ -17,7 +19,9 @@ import {
   CheckCircle,
   Clock,
   IndianRupee,
-  Asterisk
+  Asterisk,
+  Loader2,
+  Plus
 } from 'lucide-react'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 
@@ -25,6 +29,7 @@ const Checkout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { clearCart } = useCart()
+  const { user } = useAuth()
   const orderData = location.state?.orderData
 
   const [currentStep, setCurrentStep] = useState(1)
@@ -45,6 +50,70 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState('cod') // cod, online
   const [errors, setErrors] = useState({})
   const [razorpayLoaded, setRazorpayLoaded] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState([])
+  const [selectedAddressId, setSelectedAddressId] = useState(null)
+  const [useSavedAddress, setUseSavedAddress] = useState(true)
+  const [loadingAddresses, setLoadingAddresses] = useState(true)
+
+  // Map a saved address record onto the checkout form shape. The address
+  // subdocument uses addressLine1/pincode, the manual form uses address/pincode.
+  // A saved address only stores street/city/state/pincode, so name, phone and
+  // email fall back to the signed-in profile.
+  const applySavedAddress = (addr) => {
+    const profileName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim()
+    setDeliveryInfo(prev => ({
+      fullName: addr.fullName || profileName || prev.fullName || '',
+      phone: addr.phone || user?.mobile || user?.phone || prev.phone || '',
+      email: addr.email || prev.email || user?.email || '',
+      address: addr.addressLine1 || addr.street || '',
+      addressLine2: addr.addressLine2 || '',
+      landmark: addr.landmark || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      pincode: addr.pincode || addr.pinCode || ''
+    }))
+    setErrors({})
+  }
+
+  // Load addresses saved from Profile Settings
+  useEffect(() => {
+    let cancelled = false
+    const loadAddresses = async () => {
+      try {
+        const res = await axios.get(API_ENDPOINTS.user.address, axiosConfig)
+        if (cancelled) return
+        const list = res.data?.addresses || []
+        setSavedAddresses(list)
+        const preferred = list.find(a => a.isDefault) || list[0]
+        if (preferred) {
+          setSelectedAddressId(preferred._id)
+          setUseSavedAddress(true)
+          applySavedAddress(preferred)
+        } else {
+          setUseSavedAddress(false)
+        }
+      } catch {
+        if (!cancelled) setUseSavedAddress(false)
+      } finally {
+        if (!cancelled) setLoadingAddresses(false)
+      }
+    }
+    loadAddresses()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Email is required but not part of a saved address, so seed it from the
+  // account — otherwise "Continue to payment" fails on an empty field.
+  useEffect(() => {
+    if (!user) return
+    const profileName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+    setDeliveryInfo(prev => ({
+      email: prev.email || user.email || '',
+      fullName: prev.fullName || profileName,
+      phone: prev.phone || user.mobile || user.phone || ''
+    }))
+  }, [user?.email, user?.firstName, user?.lastName, user?.mobile])
 
   // Check if Razorpay is loaded
   useEffect(() => {
@@ -85,43 +154,60 @@ const Checkout = () => {
     }
   }
 
-  // Validate delivery info
+  // Validate delivery info — returns the error map so callers don't read stale state
   const validateDeliveryInfo = () => {
     const newErrors = {}
+    const d = deliveryInfo || {}
 
-    if (!deliveryInfo.fullName.trim()) newErrors.fullName = 'Name is required'
-    if (!deliveryInfo.phone.trim()) {
+    if (!d.fullName?.trim()) newErrors.fullName = 'Name is required'
+    if (!d.phone?.trim()) {
       newErrors.phone = 'Phone is required'
-    } else if (!/^[6-9]\d{9}$/.test(deliveryInfo.phone)) {
+    } else if (!/^[6-9]\d{9}$/.test(d.phone.trim())) {
       newErrors.phone = 'Invalid phone number'
     }
-    if (!deliveryInfo.email.trim()) {
+    if (!d.email?.trim()) {
       newErrors.email = 'Email is required'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryInfo.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) {
       newErrors.email = 'Invalid email'
     }
-    if (!deliveryInfo.address.trim()) newErrors.address = 'Address is required'
-    if (!deliveryInfo.city.trim()) newErrors.city = 'City is required'
-    if (!deliveryInfo.state.trim()) newErrors.state = 'State is required'
-    if (!deliveryInfo.pincode.trim()) {
+    if (!d.address?.trim()) newErrors.address = 'Address is required'
+    if (!d.city?.trim()) newErrors.city = 'City is required'
+    if (!d.state?.trim()) newErrors.state = 'State is required'
+    if (!d.pincode?.trim()) {
       newErrors.pincode = 'Pincode is required'
-    } else if (!/^\d{6}$/.test(deliveryInfo.pincode)) {
+    } else if (!/^\d{6}$/.test(d.pincode.trim())) {
       newErrors.pincode = 'Invalid pincode'
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors
   }
 
   // Handle next step
   const handleNextStep = () => {
-    if (currentStep === 1 && validateDeliveryInfo()) {
-      setCurrentStep(2)
+    if (currentStep !== 1) return
+
+    const newErrors = validateDeliveryInfo()
+    const missing = Object.keys(newErrors)
+
+    if (missing.length > 0) {
+      // Fields are visible, so inline errors show; toast for a fast read.
+      showError(`Please complete: ${missing.join(', ')}`)
+      return
     }
+
+    setCurrentStep(2)
   }
 
   // Handle Razorpay Payment
   const handleRazorpayPayment = async (orderId) => {
+    // Ad-blockers leave window.Razorpay undefined — bail with a clear message
+    // before creating a Razorpay order we can't open (M24).
+    if (typeof window.Razorpay !== 'function') {
+      showError('Payment gateway could not load. Please try Cash on Delivery or disable your ad blocker.')
+      setLoading(false)
+      return
+    }
     try {
       // Create payment order via backend using the orderId
       const paymentResponse = await axios.post(
@@ -197,14 +283,15 @@ const Checkout = () => {
       razorpay.open()
     } catch (error) {
       console.error('Payment initiation error:', error)
-      showError(error.response?.data?.message || 'Failed to initiate payment')
+      showError(error.response?.data?.error || error.response?.data?.message || 'Failed to initiate payment')
       setLoading(false)
     }
   }
 
   // Handle place order
   const handlePlaceOrder = async () => {
-    if (!validateDeliveryInfo()) {
+    const newErrors = validateDeliveryInfo()
+    if (Object.keys(newErrors).length > 0) {
       showWarning('Please fill all required fields')
       setCurrentStep(1)
       return
@@ -222,7 +309,7 @@ const Checkout = () => {
           fullName: deliveryInfo.fullName,
           phone: deliveryInfo.phone,
           addressLine1: deliveryInfo.address,
-          addressLine2: deliveryInfo.landmark,
+          landmark: deliveryInfo.landmark,
           city: deliveryInfo.city,
           state: deliveryInfo.state,
           pincode: deliveryInfo.pincode
@@ -267,7 +354,7 @@ const Checkout = () => {
       })
     } catch (error) {
       console.error('Order placement error:', error)
-      showError(error.response?.data?.message || 'Failed to place order')
+      showError(error.response?.data?.error || error.response?.data?.message || 'Failed to place order')
     } finally {
       if (paymentMethod === 'cod') {
         setLoading(false)
@@ -337,6 +424,92 @@ const Checkout = () => {
                 Delivery Information
               </h2>
 
+              {/* Saved addresses — picker sits above the manual form so the
+                  form can collapse entirely when one is selected. */}
+              {loadingAddresses ? (
+                <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading saved addresses…
+                </div>
+              ) : savedAddresses.length > 0 ? (
+                <div className="mb-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery address
+                  </label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {savedAddresses.map((addr) => {
+                      const active = useSavedAddress && selectedAddressId === addr._id
+                      return (
+                        <button
+                          key={addr._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAddressId(addr._id)
+                            setUseSavedAddress(true)
+                            applySavedAddress(addr)
+                          }}
+                          className={`text-left rounded-xl border-2 p-3 transition-all cursor-pointer ${
+                            active
+                              ? 'border-orange-500 bg-orange-50/60 shadow-sm'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <MapPin className={`w-4 h-4 flex-shrink-0 ${active ? 'text-orange-500' : 'text-gray-400'}`} />
+                            <span className="text-sm font-semibold text-gray-900">
+                              {addr.label || 'Address'}
+                            </span>
+                            {addr.isDefault && (
+                              <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {addr.addressLine1 || addr.street}
+                            {addr.landmark ? `, ${addr.landmark}` : ''}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {addr.city}, {addr.state} - {addr.pincode || addr.pinCode}
+                          </p>
+                          {addr.fullName && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {addr.fullName}{addr.phone ? ` · ${addr.phone}` : ''}
+                            </p>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseSavedAddress(false)
+                      setSelectedAddressId(null)
+                      setDeliveryInfo({
+                        fullName: '', phone: '', email: user?.email || '',
+                        address: '', addressLine2: '', landmark: '',
+                        city: '', state: '', pincode: ''
+                      })
+                      setErrors({})
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Clear and enter a new address
+                  </button>
+                </div>
+              ) : (
+                <p className="mb-5 text-sm text-gray-500">
+                  No saved addresses yet — add your delivery details below, or{' '}
+                  <Link to="/profile/settings" className="text-orange-600 font-semibold hover:underline">
+                    save an address in Profile Settings
+                  </Link>{' '}
+                  for faster checkout next time.
+                </p>
+              )}
+
+              {/* The form below is always visible and editable — a saved
+                  address simply prefills it. */}
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Full Name */}
                 <div>
@@ -406,7 +579,7 @@ const Checkout = () => {
                 </div>
 
                 {/* Address */}
-                <div className="md:col-span-2">
+                <div className={`md:col-span-2 ${useSavedAddress && selectedAddressId ? 'hidden' : ''}`}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Street Address *
                   </label>
@@ -594,13 +767,14 @@ const Checkout = () => {
               <div className="space-y-3 mb-4 pb-4 border-b">
                 {orderData.items?.map((item, index) => (
                   <div key={index} className="flex gap-3">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      <img
-                        src={item.image || '/placeholder-food.png'}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <FoodMedia
+                      foodItem={{ image: item.image, video: item.video }}
+                      className="w-16 h-16 rounded-lg flex-shrink-0"
+                      imgClass="w-full h-full object-cover"
+                      thumbSecond={1}
+                      showPlay={true}
+                      alt={item.name}
+                    />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-800 truncate">{item.name}</h3>
                       <p className="text-sm text-gray-500">Qty: {item.quantity}</p>

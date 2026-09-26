@@ -6,7 +6,8 @@ import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import FoodMedia from '../Components/FoodMedia'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-import { showError } from '../utils/toast'
+import { showError, showSuccess } from '../utils/toast'
+import { useCart } from '../hooks/useCart'
 
 /* ─── Status config ─────────────────────────────────────────────── */
 const STATUS = {
@@ -26,7 +27,7 @@ const formatDate = (d) => new Date(d).toLocaleString('en-IN', {
 })
 
 /* ─── Order card ────────────────────────────────────────────────── */
-const OrderCard = ({ order, onTrack, onDetails }) => {
+const OrderCard = ({ order, onTrack, onDetails, onReorder, reordering }) => {
   const s = getStatus(order.status)
   const isActive = ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
 
@@ -75,6 +76,18 @@ const OrderCard = ({ order, onTrack, onDetails }) => {
               <p className="text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>
                 {order.items?.map(i => `${i.quantity}x ${i.foodItem?.name || 'Item'}`).join(', ')}
               </p>
+              {order.cancellation?.isCancelled && order.cancellation.reason && (
+                <p
+                  className="mt-2 inline-flex max-w-full items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-sans"
+                  style={{ background: '#FEF2F2', color: '#991B1B' }}
+                >
+                  <span className="font-bold">Reason:</span>
+                  <span className="truncate">
+                    {order.cancellation.cancelledBy === 'partner' ? 'Restaurant: ' : ''}
+                    {order.cancellation.reason}
+                  </span>
+                </p>
+              )}
             </div>
             <p className="font-serif text-2xl font-bold" style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-base)' }}>
               ₹{Number(order.pricing?.totalAmount || 0).toFixed(2)}
@@ -92,11 +105,12 @@ const OrderCard = ({ order, onTrack, onDetails }) => {
               </button>
             ) : (
               <button
-                onClick={() => onTrack(order._id)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 px-6 font-bold font-sans text-sm transition-all hover:opacity-80 md:flex-none"
+                onClick={() => onReorder(order)}
+                disabled={reordering}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 px-6 font-bold font-sans text-sm transition-all hover:opacity-80 disabled:opacity-50 md:flex-none"
                 style={{ background: 'rgba(255,106,0,0.1)', color: 'var(--color-primary)' }}
               >
-                <RefreshCw className="h-4 w-4" /> Reorder
+                <RefreshCw className={`h-4 w-4 ${reordering ? 'animate-spin' : ''}`} /> Reorder
               </button>
             )}
             <button
@@ -118,18 +132,24 @@ const OrderCard = ({ order, onTrack, onDetails }) => {
 /* ─── Page ──────────────────────────────────────────────────────── */
 const OrderHistory = () => {
   const navigate = useNavigate()
+  const { addToCart } = useCart()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [reorderingId, setReorderingId] = useState(null)
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ totalCount: 0, totalPages: 1 })
 
   useEffect(() => {
     let cancelled = false
     const fetch = async () => {
       try {
         setLoading(true)
-        const res = await axios.get(API_ENDPOINTS.order.getAll, axiosConfig)
-        if (!cancelled) setOrders(res.data.orders || [])
+        const res = await axios.get(`${API_ENDPOINTS.order.getAll}?page=${page}&limit=10`, axiosConfig)
+        if (cancelled) return
+        setOrders(res.data.orders || [])
+        setPagination(res.data.pagination || { totalCount: 0, totalPages: 1 })
       } catch {
         showError('Failed to load orders')
       } finally {
@@ -138,7 +158,7 @@ const OrderHistory = () => {
     }
     fetch()
     return () => { cancelled = true }
-  }, [])
+  }, [page])
 
   const filtered = orders.filter(o => {
     const q = searchTerm.toLowerCase()
@@ -146,6 +166,31 @@ const OrderHistory = () => {
     const matchStatus = filterStatus === 'all' || o.status === filterStatus
     return matchSearch && matchStatus
   })
+
+  const handleReorder = async (order) => {
+    const items = order.items || []
+    if (items.length === 0) {
+      showError('This order has no items to reorder')
+      return
+    }
+
+    setReorderingId(order._id)
+    try {
+      for (const item of items) {
+        const foodItemId = item.foodItem?._id || item.foodItem
+        if (!foodItemId) continue
+        const result = await addToCart(foodItemId, item.quantity || 1, item.specialInstructions || '')
+        if (!result?.success) {
+          showError(result?.error || 'Some items could not be added to the cart')
+          return
+        }
+      }
+      showSuccess('Items added to your cart')
+      navigate('/cart')
+    } finally {
+      setReorderingId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -243,8 +288,33 @@ const OrderHistory = () => {
                   order={order}
                   onTrack={(id) => navigate(`/order/tracking/${id}`)}
                   onDetails={(id) => navigate(`/order/confirmation/${id}`, { state: { orderId: id } })}
+                  onReorder={handleReorder}
+                  reordering={reorderingId === order._id}
                 />
               ))}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 pt-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="rounded-xl px-5 py-2.5 font-bold font-sans text-sm disabled:opacity-40"
+                    style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-base)', border: '1px solid var(--color-border-light)' }}
+                  >
+                    Previous
+                  </button>
+                  <span className="font-sans text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Page {pagination.currentPage || page} of {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                    disabled={page >= pagination.totalPages}
+                    className="rounded-xl px-5 py-2.5 font-bold font-sans text-sm disabled:opacity-40"
+                    style={{ background: 'var(--color-primary)', color: '#fff' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

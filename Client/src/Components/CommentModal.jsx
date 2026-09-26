@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Send, Heart, Reply, MessageCircle, User } from 'lucide-react'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showWarning } from '../utils/toast'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useAuth } from '../hooks/useAuth'
@@ -64,11 +64,11 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
   const handleSubmitComment = async (e) => {
     e.preventDefault()
     if (!newComment.trim()) {
-      toast.warning('Comment cannot be empty')
+      showWarning('Comment cannot be empty')
       return
     }
     if (!isAuthenticated) {
-      toast.warning('Please login to comment')
+      showWarning('Please login to comment')
       return
     }
 
@@ -91,11 +91,11 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       setComments(prev => [createdComment, ...prev])
       setNewComment('')
       setReplyingTo(null)
-      toast.success('Comment posted!')
+      showSuccess('Comment posted!')
       onCommentAdded?.(post._id)
     } catch (error) {
       console.error('Failed to submit comment:', error)
-      toast.error(error.response?.data?.message || 'Failed to post comment')
+      showError(error.response?.data?.error || error.response?.data?.message || 'Failed to post comment')
     } finally {
       setSubmitting(false)
     }
@@ -104,7 +104,7 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
   // ── Like / Unlike a comment ──────────────────────────────────────────────────
   const handleLikeComment = async (commentId) => {
     if (!isAuthenticated) {
-      toast.warning('Please login to like comments')
+      showWarning('Please login to like comments')
       return
     }
 
@@ -134,7 +134,7 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       fetchComments()
     } catch (error) {
       console.error('Failed to like comment:', error)
-      toast.error('Failed to process like')
+      showError('Failed to process like')
     }
   }
 
@@ -148,10 +148,10 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
         axiosConfig
       )
       setComments(prev => prev.filter(c => c._id !== commentId))
-      toast.success('Comment deleted')
+      showSuccess('Comment deleted')
     } catch (error) {
       console.error('Failed to delete comment:', error)
-      toast.error('Failed to delete comment')
+      showError('Failed to delete comment')
     }
   }
 
