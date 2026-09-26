@@ -38,8 +38,8 @@ This README provides a high‑level overview, project structure, setup & run ins
 ## Project Overview
 
 - **Frontend:** React (Vite) app located in `Client/`
-- **Backend:** Express server located in `Server/` using Mongoose for MongoDB models
-- **Storage:** ImageKit (via `Server/src/services/storage.service.js`) for uploaded images/videos
+- **Backend:** Express server located in `server/` using Mongoose for MongoDB models
+- **Storage:** ImageKit (via `server/src/services/storage.service.js`) for uploaded images/videos
 - **Authentication:** JWT-based cookie authentication (HTTP-only cookies). Middleware protects partner routes
 - **Payments:** Razorpay integration for secure online payments
 - **Features:** Social feed, follow system, reviews & ratings, food ordering, advertisements
@@ -109,7 +109,8 @@ FoodReel/
 │
 ├── README.md                     # Project overview, setup, and API docs
 
-├── docs/                         # 📁 Organized documentation (21 files) ✨ NEW
+├── docs/                         # 📁 Versioned docs (only BUSINESS_MODEL.md and
+│                                 #    FOOD_VS_ADVERTISEMENT_SYSTEM.md are committed)
 │
 ├── Client/                       # React frontend application
 │   ├── package.json              # Frontend dependencies (React, Vite, Axios, Lucide icons)
@@ -240,115 +241,94 @@ FoodReel/
 
 FoodReel maintains comprehensive documentation organized into logical categories for easy navigation and maintenance.
 
-### 📖 Quick Start Documentation
+### 📖 Documentation
+
+Only these documents are version-controlled, so only these are linked here. Everything else under `docs/` is local-only by design (the repository ignores `*.md` apart from the files below).
 
 | I want to... | Go to |
 |--------------|-------|
-| Understand the system architecture | [docs/architecture/](docs/architecture/) |
-| Learn about authentication | [AUTHENTICATION_SYSTEM.md](docs/architecture/AUTHENTICATION_SYSTEM.md) |
-| Implement a new feature | [docs/features/](docs/features/) |
-| Fix a bug | [docs/guides/](docs/guides/) |
-| Run tests | [TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md) |
-| Check project status | [docs/checklists/](docs/checklists/) |
-| View recent updates | [docs/updates/](docs/updates/) |
+| Set the project up and run it | [README.md](#getting-started) (this file) |
+| Set up the React frontend | [Client/README.md](Client/README.md) |
+| Understand business logic & monetization | [docs/architecture/BUSINESS_MODEL.md](docs/architecture/BUSINESS_MODEL.md) |
+| Understand the content-type system (food vs advertisement) | [docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md](docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md) |
+| Understand the API surface | `server/src/routes/` — routes are the source of truth |
 
-### 📂 Documentation Structure
-
-```
-docs/
-├── DOCUMENTATION_INDEX.md         # Detailed navigation guide
-│
-├── architecture/                  # 🏗️ System design & architecture
-│   ├── AUTHENTICATION_SYSTEM.md   # Complete auth architecture (800+ lines)
-│   ├── BUSINESS_MODEL.md          # Business logic & monetization
-│   └── FOOD_VS_ADVERTISEMENT_SYSTEM.md # Content type system
-│
-├── features/                      # 🎨 Feature documentation
-│   ├── CHECKOUT_FROM_REEL_FEATURE.md # Checkout flow from reels
-│   ├── RAZORPAY_INTEGRATION_COMPLETE.md # Payment integration
-│   └── WEBHOOK_REFUND_FEATURES.md # Payment webhooks & refunds
-│
-├── guides/                        # 📚 How-to guides & references
-│   ├── QUICK_REFERENCE.md         # Developer cheat sheet (500+ lines)
-│   ├── AUTHENTICATION_FIXES.md    # Auth troubleshooting
-│   ├── TOAST_NOTIFICATION_FIXES.md # Toast implementation guide
-│   └── UI_CHANGES_GUIDE.md        # UI/UX guidelines
-│
-├── testing/                       # 🧪 Testing documentation
-│   └── TESTING_GUIDE.md           # Comprehensive testing guide
-│
-├── updates/                       # 🔄 Project updates & reports
-│   ├── UPDATES_DECEMBER_11.md     # Recent session updates
-│   ├── MARKDOWN_UPDATE_SUMMARY.md # Documentation updates
-│   ├── PRODUCTION_READINESS_REPORT.md # Production checklist (v1)
-│   └── PRODUCTION_READINESS_REPORT_UPDATED.md # Production checklist (v2)
-│
-└── checklists/                    # ✅ Task lists & progress tracking
-    ├── INTEGRATION_CHECKLIST.md   # Integration status (v2.0)
-    ├── INTEGRATION_SUMMARY.md     # Integration overview
-    ├── TASK_SCHEDULE.md           # Development schedule
-    ├── TODO.md                    # Active tasks
-    ├── BACKEND_UPDATE_CHECKLIST.md # Backend updates needed ✨ NEW
-    └── FRONTEND_UPDATE_CHECKLIST.md # Frontend updates needed ✨ NEW
+```text
+FoodReel/
+├── README.md
+├── Client/
+│   ├── README.md
+│   └── src/          # React app (components, pages, contexts, hooks, config, utils)
+├── server/
+│   └── src/          # Express app (routes, controllers, services, models, middlewares, utils)
+└── docs/
+    └── architecture/
+        ├── BUSINESS_MODEL.md
+        └── FOOD_VS_ADVERTISEMENT_SYSTEM.md
 ```
 
-### 🎯 Key Documentation Files
-
-**For New Developers:**
-- **[DOCS_INDEX.md](DOCS_INDEX.md)** - Master documentation index with quick navigation
-- **[AUTHENTICATION_SYSTEM.md](docs/architecture/AUTHENTICATION_SYSTEM.md)** - Complete auth system guide
-- **[QUICK_REFERENCE.md](docs/guides/QUICK_REFERENCE.md)** - Developer cheat sheet
-- **[INTEGRATION_CHECKLIST.md](docs/checklists/INTEGRATION_CHECKLIST.md)** - Current project status
-
-**For Current Development:**
-- **[BACKEND_UPDATE_CHECKLIST.md](docs/checklists/BACKEND_UPDATE_CHECKLIST.md)** - Backend tasks for order management
-- **[FRONTEND_UPDATE_CHECKLIST.md](docs/checklists/FRONTEND_UPDATE_CHECKLIST.md)** - Frontend tasks for order management
-- **[UPDATES_DECEMBER_11.md](docs/updates/UPDATES_DECEMBER_11.md)** - Latest development updates
-
-**For Testing & Deployment:**
-- **[TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)** - Comprehensive testing guide
-- **[PRODUCTION_READINESS_REPORT_UPDATED.md](docs/updates/PRODUCTION_READINESS_REPORT_UPDATED.md)** - Production deployment checklist
-
-### 📊 Documentation Statistics
-
-- **Total Documentation Files**: 24 (including READMEs)
-- **Organized Categories**: 6 main folders
-- **Lines of Documentation**: ~6,400+ lines
-- **Last Updated**: December 11, 2025
+> The `docs/` tree also contains audits, checklists and updates locally. They are **not** committed — see `.gitignore`.
 
 ---
 
 ## Local setup
 
-Before you start, ensure you have Node.js (>=16) and npm/yarn installed, plus a running MongoDB instance (local or cloud such as MongoDB Atlas).
+Before you start, ensure you have Node.js (>=18) and npm/yarn installed, plus a running MongoDB instance (local or cloud such as MongoDB Atlas).
 
 ### 1) Prerequisites
 
-- Node.js & npm (or yarn)
+- Node.js & npm (or yarn) — Node.js 18 or newer (Express 5 / bcrypt 6 requirement)
 - MongoDB connection string
 - ImageKit account (optional but used by default in the project)
 
 ### 2) Environment variables
 
-Create `.env` files for the `Server/` folder (or set env vars in your environment). Required variables (examples):
+Create a `.env` file for the `server/` folder (or set env vars in your environment). These names must match the code exactly — the server validates them at startup and exits if required ones are missing:
 
 ```
+# Required at startup (server.js)
 PORT=3000
-MONGO_URI=mongodb://localhost:27017/foodreel
+MONGODB_URL=mongodb://localhost:27017/foodreel
 JWT_SECRET=your_jwt_secret_here
+FRONTEND_URL=http://localhost:5173
+EMAIL_SERVICE=smtp.example.com
+EMAIL_USER=you@example.com
+EMAIL_PASS=your_email_password
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxx
+RAZORPAY_KEY_SECRET=your_razorpay_secret
 IMAGEKIT_PUBLIC_KEY=your_imagekit_public
 IMAGEKIT_PRIVATE_KEY=your_imagekit_private
 IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_imagekit_id
+
+# Strongly recommended (warnings at startup if missing)
+NODE_ENV=development
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 ```
 
-Place other optional config values as needed (cookie options, CORS origin, etc.).
+See `server/.env.example` for the full list with placeholders.
+
+> **Naming note:** older docs used `MONGO_URI`/`MONGODB_URI`/`CLIENT_URL`/`CORS_ORIGIN`/`SENDGRID_API_KEY`. The code reads **`MONGODB_URL`** and **`FRONTEND_URL`** only — setting the old names causes a boot-loop.
+
+**Deployment:**
+- **Backend (Render):** `render.yaml` at the repo root defines the service (`rootDir: server`, `/health` check). Secret values are prompted by Render, never committed.
+- **Frontend (Vercel):** set the project **Root Directory = `Client`** in the dashboard; `Client/.env.production` carries `VITE_API_BASE_URL` (read at build time), and `Client/vercel.json` provides the SPA rewrite. Set `FRONTEND_URL` on Render to your Vercel origin (CORS allowlist).
+- **Keeping Render awake:** Render's free tier idles the service after ~15 minutes, and the first request then pays a cold start (measured 33s vs 0.7s warm). `.github/workflows/keep-render-warm.yml` pings `/health` every 5 minutes to hold it open. Optionally set the repo secret `RENDER_HEALTH_URL` (Settings → Secrets and variables → Actions) to override the default production URL. Note that GitHub disables scheduled workflows in public repos after 60 days of inactivity.
+
+### Automation
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `.github/workflows/ci.yml` | push / PR to `main` | Server import + app-load check, `npm test`, client lint + build, dependency audit |
+| `.github/workflows/keep-render-warm.yml` | every 5 min / manual | Pings Render `/health` so the free instance never spins down |
+
+Server tests run locally with `cd server && npm test` (Node's built-in runner — no test framework installed).
 
 ### 3) Install & run
 
-Backend (Server):
+Backend (server):
 
 ```powershell
-cd Server
+cd server
 npm install
 npm start
 # or for dev with nodemon
@@ -365,12 +345,12 @@ npm run dev
 ```
 
 Notes:
-- Backend CORS is preconfigured to allow `http://localhost:5173` in `Server/src/app.js`.
+- Backend CORS is preconfigured to allow `http://localhost:5173` in `server/src/app.js`.
 - Backend listens on `http://localhost:3000` by default (changeable via `PORT`).
 
 ## Development notes
 
-- File uploads are handled with `multer` in memory and uploaded to ImageKit via `Server/src/services/storage.service.js`.
+- File uploads are handled with `multer` in memory and uploaded to ImageKit via `server/src/services/storage.service.js`.
 - Uploaded media URLs from ImageKit are returned and stored in `food.image` or `food.video` in MongoDB.
 - Partner profile endpoint returns formatted food items (includes `image`, `video`, `likeCount`, `commentCount`, `tags`).
 - Frontend uses `axios` with `withCredentials: true` for cookie-based auth.
@@ -382,7 +362,7 @@ Notes:
 
 ## 📚 API Documentation
 
-**Comprehensive API documentation is available in [`Server/API.md`](Server/API.md)**
+**The route files under `server/src/routes/` are the source of truth for the API.** Each route file maps paths to controllers; the auth middleware applied to each route documents who may call it.
 
 ### Quick API Reference
 
@@ -468,7 +448,7 @@ Notes:
 - `PUT /api/advertisement/:id` – Update advertisement (partner only)
 - `DELETE /api/advertisement/:id` – Delete advertisement (partner only)
 
-**For detailed request/response formats, authentication requirements, and examples, see the complete [API Documentation](Server/API.md).**
+**For request/response shapes, read the controller that backs each route in `server/src/controllers/`.**
 
 ---
 
@@ -521,25 +501,18 @@ Notes:
 ### 📊 Current Status
 
 - ✅ **Completed**: OrderConfirmation.jsx and OrderHistory.jsx pages created
-- ✅ **Completed**: Documentation reorganized into 6 categories
-- ✅ **Completed**: Comprehensive checklists created
-- 🔄 **In Progress**: Backend API endpoint implementation
-- 🔄 **In Progress**: Frontend routing and navigation updates
-
-*📈 Check [INTEGRATION_CHECKLIST.md](docs/checklists/INTEGRATION_CHECKLIST.md) for overall project status and [UPDATES_DECEMBER_11.md](docs/updates/UPDATES_DECEMBER_11.md) for recent development updates.*
+- ✅ **Completed**: Core user, partner, cart, order, review, follow and FoodFest modules implemented
+- 🔄 **In Progress**: Payment verification hardening and FoodFest ticket finalization
+- 🔄 **In Progress**: Test coverage and CI
 
 ---
 
 ## 📝 Documentation Notes
 
-**Documentation Reorganization (December 11, 2025):**
-- All documentation files have been organized into the `docs/` folder with 6 logical categories
-- Created comprehensive checklists for backend and frontend updates
-- Added master documentation index ([DOCS_INDEX.md](DOCS_INDEX.md)) for easy navigation
-- See [REORGANIZATION_SUMMARY.md](REORGANIZATION_SUMMARY.md) for complete details
+**Version control policy**
+- `.gitignore` ignores `*.md`, with explicit exceptions for `README.md`, `Client/README.md`, `docs/architecture/BUSINESS_MODEL.md` and `docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md`.
+- Only those four files are committed. The wider `docs/` tree (audits, checklists, updates) stays local by design, so it is deliberately not linked from this README.
+- Want the audits and roadmap in version control? Remove the `*.md` rule (or add a `!docs/**/*.md` negation) in `.gitignore` and commit them.
 
-**Quick Links:**
-- 🏗️ [System Architecture](docs/architecture/) | 🎨 [Features](docs/features/) | 📚 [Guides](docs/guides/)
-- 🧪 [Testing](docs/testing/) | 🔄 [Updates](docs/updates/) | ✅ [Checklists](docs/checklists/)
 ---
 
