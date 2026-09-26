@@ -9,6 +9,7 @@ const PLACEHOLDER_LABELS = ['Artisan Sushi', 'Wood-fire Pizza', 'Street Tacos', 
 
 const ReelCard = ({ reel, index }) => {
   const [imgError, setImgError] = useState(false)
+  const isVideo = !imgError && reel.type === 'video' && !!reel.video
   const src = !imgError && (reel.image || reel.video)
 
   return (
@@ -17,11 +18,23 @@ const ReelCard = ({ reel, index }) => {
         className="relative overflow-hidden rounded-2xl bg-surface-muted"
         style={{ aspectRatio: '3/4' }}
       >
-        {/* Media */}
-        {src ? (
+        {/* Media — video sources need a <video> element; an <img> would always fail */}
+        {isVideo ? (
+          <video
+            src={reel.video}
+            muted
+            autoPlay
+            loop
+            playsInline
+            onError={() => setImgError(true)}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : src ? (
           <img
-            src={src}
+            src={reel.image || src}
             alt={reel.name}
+            loading="lazy"
+            decoding="async"
             onError={() => setImgError(true)}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />

@@ -10,16 +10,16 @@ const events = [
         title: 'Burger Mania 2026',
         image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop',
         tag: 'Street Food',
-        link: '/foodfest',
+        link: '/work',
     },
     {
         id: 2,
         date: 'April 05–07, 2026',
         city: 'Bangalore',
         title: 'Global Street Treats',
-        image: 'https://images.unsplash.com/photo-1555939594-58d7cb561404?w=400&h=300&fit=crop',
+        image: 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=400&h=300&fit=crop',
         tag: 'International',
-        link: '/foodfest',
+        link: '/work',
     },
     {
         id: 3,
@@ -28,7 +28,7 @@ const events = [
         title: 'Green Eats Fest',
         image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
         tag: 'Vegan',
-        link: '/foodfest',
+        link: '/work',
     },
 ]
 
@@ -91,7 +91,7 @@ const FoodFestSection = () => {
                             ))}
                         </div>
 
-                        <Link to="/foodfest">
+                        <Link to="/work">
                             <button
                                 className="flex items-center gap-2 rounded-xl px-6 py-3 font-bold font-sans text-sm transition-opacity hover:opacity-90"
                                 style={{ background: 'var(--color-accent)', color: 'var(--color-background-dark)' }}
@@ -145,7 +145,7 @@ const FoodFestSection = () => {
                                             className="w-full rounded-xl py-2.5 text-sm font-bold font-sans transition-opacity hover:opacity-90"
                                             style={{ background: 'var(--color-primary)', color: '#fff' }}
                                         >
-                                            Book Now
+                                            Coming Soon
                                         </button>
                                     </div>
                                 </div>
