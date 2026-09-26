@@ -23,7 +23,9 @@ function sanitizeObject(obj) {
 }
 
 export const sanitizeInput = (req, res, next) => {
-  if (req.body) req.body = sanitizeObject(req.body);
+  // Never touch raw Buffer bodies (e.g. the Razorpay webhook route) — they
+  // must stay byte-identical for HMAC signature verification.
+  if (req.body && !Buffer.isBuffer(req.body)) req.body = sanitizeObject(req.body);
   if (req.params) req.params = sanitizeObject(req.params);
 
   if (req.query) {
@@ -40,5 +42,26 @@ export const sanitizeInput = (req, res, next) => {
     }
   }
 
+  next();
+};
+
+// Multipart bodies are parsed by multer AFTER sanitizeInput has run, so their
+// fields (and uploaded filenames) never get sanitized. Mount this right after
+// upload.single()/upload.fields() on file-upload routes.
+export const sanitizeMultipart = (req, res, next) => {
+  if (req.body && !Buffer.isBuffer(req.body)) {
+    req.body = sanitizeObject(req.body);
+  }
+  const sanitizeFile = (file) => {
+    if (file && typeof file.originalname === 'string') {
+      // Strip path separators / control chars from client-supplied filenames
+      file.originalname = xss(file.originalname.replace(/[/\\]/g, '_'));
+    }
+  };
+  if (req.file) sanitizeFile(req.file);
+  if (Array.isArray(req.files)) req.files.forEach(sanitizeFile);
+  else if (req.files && typeof req.files === 'object') {
+    Object.values(req.files).flat().forEach(sanitizeFile);
+  }
   next();
 };
