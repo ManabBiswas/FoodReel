@@ -21,6 +21,7 @@ import {
 import Navbar from '../../Components/Navbar'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { showSuccess, showError } from '../../utils/toast'
+import CancelOrderDialog from '../../Components/CancelOrderDialog'
 
 const OrderDetail = () => {
   const { orderId } = useParams()
@@ -30,6 +31,7 @@ const OrderDetail = () => {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [error, setError] = useState('')
 
   const fetchOrderDetails = useCallback(async () => {
@@ -42,14 +44,14 @@ const OrderDetail = () => {
     try {
       setLoading(true)
       const response = await axios.get(
-        API_ENDPOINTS.order.getById(orderId),
+        API_ENDPOINTS.order.partnerGetById(orderId),
         axiosConfig
       )
       setOrder(response.data.order)
       setError('')
     } catch (err) {
       console.error('Error fetching order:', err)
-      setError(err.response?.data?.message || 'Failed to load order details')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load order details')
       showError('Failed to load order')
     } finally {
       setLoading(false)
@@ -84,22 +86,20 @@ const OrderDetail = () => {
     }
   }
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = async (reason) => {
     if (!orderId) return
-
-    const confirmCancel = window.confirm('Are you sure you want to cancel this order?')
-    if (!confirmCancel) return
 
     try {
       setCancelling(true)
       const response = await axios.post(
         API_ENDPOINTS.order.partnerCancel(orderId),
-        { reason: 'Cancelled by food partner' },
+        { reason },
         axiosConfig
       )
 
-      if (response.data.success) {
-        showSuccess('Order cancelled successfully')
+      if (response.data.success || response.status === 200) {
+        setShowCancelDialog(false)
+        showSuccess('Order cancelled')
         await fetchOrderDetails()
       }
     } catch (err) {
@@ -242,9 +242,9 @@ const OrderDetail = () => {
                     action === 'cancel' ? (
                       <button
                         key={action}
-                        onClick={handleCancelOrder}
+                        onClick={() => setShowCancelDialog(true)}
                         disabled={cancelling || updating}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         {cancelling ? (
                           <>
@@ -462,6 +462,14 @@ const OrderDetail = () => {
           </div>
         </div>
       </div>
+
+      <CancelOrderDialog
+        open={showCancelDialog}
+        mode="partner"
+        cancelling={cancelling}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancelOrder}
+      />
     </div>
   )
 }

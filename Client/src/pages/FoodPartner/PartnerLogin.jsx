@@ -26,6 +26,7 @@ const PartnerLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setErrors({})
 
     // Validate form first
     const validationErrors = validateForm()
@@ -104,6 +105,12 @@ const PartnerLogin = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* General (server-side) error */}
+          {errors.general && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" role="alert">
+              {errors.general}
+            </div>
+          )}
           <div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

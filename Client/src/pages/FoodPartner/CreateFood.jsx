@@ -155,6 +155,9 @@ const CreateFood = () => {
 
     // Advertisement-specific validation
     if (formData.postType === 'advertisement') {
+      if (!formData.promotionType) {
+        newErrors.promotionType = 'Promotion type is required'
+      }
       // For promotion types that require pricing, validate prices
       const promoTypesRequiringPrices = ['discount', 'sale', 'combo'];
       if (promoTypesRequiringPrices.includes(formData.promotionType)) {

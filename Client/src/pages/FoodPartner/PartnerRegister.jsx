@@ -3,6 +3,7 @@ import axios from 'axios'
 import { showSuccess, showError, showInfo } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
 import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, UserPlus, Loader2, Navigation } from 'lucide-react'
 
 const PartnerRegister = () => {
@@ -20,6 +21,7 @@ const PartnerRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const navigate = useNavigate()
+  const { checkAuth } = useAuth()
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
@@ -68,6 +70,7 @@ const PartnerRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setErrors({})
 
     // Validate form first
     const validationErrors = validateForm()
@@ -93,13 +96,15 @@ const PartnerRegister = () => {
       }
 
       const response = await axios.post(API_ENDPOINTS.auth.partnerRegister, submitData, axiosConfig)
-      
-      if (response.data.isAuthenticated) {
-          showInfo('Already logged in! Redirecting to dashboard...')
-          setTimeout(() => navigate('/partner-dashboard'), 1000)
-        }
-        
-      // console.log(response)
+
+      // Backend sets the partner auth cookie on register. Refresh auth state
+      // so ProtectedRoute sees the session before navigating — otherwise the
+      // user is bounced to /login. (response.data.isAuthenticated was never
+      // sent by the backend, so that branch was dead.)
+      if (response.status < 300) {
+        await checkAuth(true)
+      }
+
       showSuccess('Registration successful! Redirecting...')
       
       setFormData({
@@ -113,14 +118,15 @@ const PartnerRegister = () => {
         longitude: null
       })
       
-      setTimeout(() => navigate('/CreateFood'), 1500)
+      navigate('/CreateFood')
       
     } catch (error) {
       console.error("Registration error: ", error)
       if (error.message && error.message.includes('location')) {
         showError(`Location Error: ${error.message}. Please enable location access and try again.`)
       } else {
-        const serverMsg = error?.response?.data?.message || error?.message || 'Registration failed'
+        const serverMsg = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Registration failed'
+        setErrors({ general: serverMsg })
         showError(serverMsg)
       }
     } finally {
@@ -196,6 +202,12 @@ const PartnerRegister = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* General (server-side) error */}
+          {errors.general && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" role="alert">
+              {errors.general}
+            </div>
+          )}
           <div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

@@ -139,6 +139,14 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
           {(order.items?.length || 0) > 2 && (
             <p className="text-xs text-gray-400">+{order.items.length - 2} more</p>
           )}
+          {order.cancellation?.isCancelled && order.cancellation.reason && (
+            <p className="mt-1 inline-flex max-w-full items-start gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+              <span className="font-bold">
+                {order.cancellation.cancelledBy === 'partner' ? 'You: ' : 'Customer: '}
+              </span>
+              <span className="truncate">{order.cancellation.reason}</span>
+            </p>
+          )}
         </div>
 
         {/* Amount */}
@@ -179,7 +187,7 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
           )}
           {['pending', 'confirmed', 'preparing'].includes(order.status) && (
             <button onClick={() => onCancelOrder(order._id)} disabled={updating}
-              className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors">
+              className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
               Cancel
             </button>
           )}
@@ -231,21 +239,37 @@ const Dashboard = () => {
   // Content management state
   const [contentFilter, setContentFilter] = useState('all') // all, food, advertisement
   const [deletingId, setDeletingId] = useState(null)
+  const [orderPage, setOrderPage] = useState(1)
+  const [orderPagination, setOrderPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 })
+  const [revenueByDay, setRevenueByDay] = useState([])
 
   /**
    * Fetch only orders from backend
    * Partner profile and posts come from context
    */
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (page = 1) => {
     try {
       setOrderLoading(true)
       setError('')
 
-      const ordersRes = await axios.get(API_ENDPOINTS.order.partner, axiosConfig)
+      const [ordersRes, statsRes] = await Promise.all([
+        axios.get(`${API_ENDPOINTS.order.partner}?page=${page}&limit=20`, axiosConfig),
+        axios.get(API_ENDPOINTS.order.statistics, axiosConfig)
+      ])
       const ordersData = ordersRes.data?.orders || []
       setOrders(ordersData)
+      setOrderPagination(ordersRes.data?.pagination || { currentPage: page, totalPages: 1, totalCount: ordersData.length })
 
-      const completed = (o) => ['completed', 'delivered'].includes(o.status)
+      const byStatus = {}
+      let totalCountAll = 0
+      let totalRevenueAll = 0
+      for (const row of statsRes.data?.statistics?.byStatus || []) {
+        byStatus[row._id] = row.count
+        totalCountAll += row.count
+        totalRevenueAll += row.totalRevenue || 0
+      }
+      setRevenueByDay(statsRes.data?.statistics?.revenueByDay || [])
+
       const foodPosts = posts?.food || []
       const adPosts = posts?.advertisement || []
 
@@ -262,15 +286,15 @@ const Dashboard = () => {
           totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
         },
         orders: {
-          total: ordersData.length,
-          pending: ordersData.filter((o) => o.status === 'pending').length,
-          confirmed: ordersData.filter((o) => o.status === 'confirmed').length,
-          preparing: ordersData.filter((o) => o.status === 'preparing').length,
-          ready: ordersData.filter((o) => o.status === 'ready').length,
-          completed: ordersData.filter(completed).length,
-          cancelled: ordersData.filter((o) => o.status === 'cancelled').length,
-          revenue: ordersData.filter(completed).reduce((s, o) => s + (o.pricing?.totalAmount || o.totalAmount || 0), 0),
-          totalRevenue: ordersData.reduce((s, o) => s + (o.pricing?.totalAmount || o.totalAmount || 0), 0)
+          total: totalCountAll,
+          pending: byStatus.pending || 0,
+          confirmed: byStatus.confirmed || 0,
+          preparing: byStatus.preparing || 0,
+          ready: byStatus.ready || 0,
+          completed: byStatus.delivered || 0,
+          cancelled: byStatus.cancelled || 0,
+          revenue: statsRes.data?.statistics?.delivered?.deliveredRevenue || 0,
+          totalRevenue: totalRevenueAll
         }
       })
     } catch (err) {
@@ -279,7 +303,7 @@ const Dashboard = () => {
         showError('Session expired. Please login again.')
         setTimeout(() => navigate('/partner-login'), 2000)
       } else {
-        const msg = err.response?.data?.message || 'Failed to load orders'
+        const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to load orders'
         setError(msg)
         showError(msg)
       }
@@ -289,15 +313,15 @@ const Dashboard = () => {
   }, [posts, navigate])
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchOrders(orderPage)
+  }, [fetchOrders, orderPage])
 
   /* ── order action handlers ──────────────────────────────── */
   const handleRefresh = useCallback(async () => {
     refresh()
-    await fetchOrders()
+    await fetchOrders(orderPage)
     showSuccess('Dashboard refreshed')
-  }, [refresh, fetchOrders])
+  }, [refresh, fetchOrders, orderPage])
 
   const handleStatusUpdate = useCallback(async (orderId, newStatus) => {
     try {
@@ -306,23 +330,32 @@ const Dashboard = () => {
       setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)))
       showSuccess(`Order marked as ${newStatus}`)
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to update order status')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to update order status')
     } finally { setUpdatingOrder(null) }
   }, [])
 
-  const handleCancelOrder = useCallback(async (orderId) => {
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancellingOrder, setCancellingOrder] = useState(false)
+
+  const handleCancelOrder = useCallback(async (reason) => {
+    if (!cancelTarget) return
     try {
-      setUpdatingOrder(orderId)
-      await axios.post(API_ENDPOINTS.order.partnerCancel(orderId), {}, axiosConfig)
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: 'cancelled' } : o)))
+      setCancellingOrder(true)
+      await axios.post(API_ENDPOINTS.order.partnerCancel(cancelTarget), { reason }, axiosConfig)
+      setOrders((prev) => prev.map((o) => (
+        o._id === cancelTarget
+          ? { ...o, status: 'cancelled', cancellation: { ...(o.cancellation || {}), isCancelled: true, cancelledBy: 'partner', reason } }
+          : o
+      )))
+      setCancelTarget(null)
       showSuccess('Order cancelled')
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to cancel order')
-    } finally { setUpdatingOrder(null) }
-  }, [])
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to cancel order')
+    } finally { setCancellingOrder(false) }
+  }, [cancelTarget])
 
   const handleViewDetails = useCallback(
-    (orderId) => navigate(`/order/confirmation/${orderId}`),
+    (orderId) => navigate(`/order/${orderId}`),
     [navigate]
   )
 
@@ -332,7 +365,8 @@ const Dashboard = () => {
     try {
       setReviewsLoading(true)
       const res = await axios.get(API_ENDPOINTS.reviews.byPartner(partnerProfile._id), axiosConfig)
-      setReviews(res.data?.reviews || res.data?.data || [])
+      const list = res.data?.reviews || res.data?.data || []
+      setReviews(list.map((r) => ({ ...r, partnerResponse: r.partnerResponse || r.response?.text || '' })))
     } catch (err) {
       console.error('Reviews fetch error:', err)
     } finally { setReviewsLoading(false) }
@@ -343,13 +377,13 @@ const Dashboard = () => {
   const handleRespondToReview = useCallback(async (reviewId) => {
     if (!responseText.trim()) return
     try {
-      await axios.post(API_ENDPOINTS.reviews.respond(reviewId), { response: responseText.trim() }, axiosConfig)
-      setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, partnerResponse: responseText.trim() } : r))
+      await axios.post(API_ENDPOINTS.reviews.respond(reviewId), { text: responseText.trim() }, axiosConfig)
+      setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, partnerResponse: responseText.trim(), response: { text: responseText.trim() } } : r))
       setRespondingTo(null)
       setResponseText('')
       showSuccess('Response posted')
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to respond')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to respond')
     }
   }, [responseText])
 
@@ -373,7 +407,7 @@ const Dashboard = () => {
       showSuccess('Post deleted')
       refresh() // refresh context data
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to delete')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete')
     } finally { setDeletingId(null) }
   }, [refresh])
 
@@ -393,25 +427,23 @@ const Dashboard = () => {
   }, [orders, statusFilter, searchTerm])
 
   const revenueChartData = useMemo(() => {
+    const byDate = new Map((revenueByDay || []).map(row => [row._id, row]))
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - (6 - i))
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const key = `${yyyy}-${mm}-${dd}`
+      const row = byDate.get(key)
       return {
         day: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' }),
-        dateStr: d.toLocaleDateString('en-IN'),
-        'Revenue (₹)': 0,
-        Orders: 0
-      }
-    })
-    orders.forEach((o) => {
-      const slot = days.find((d) => d.dateStr === new Date(o.createdAt).toLocaleDateString('en-IN'))
-      if (slot) {
-        slot['Revenue (₹)'] += o.pricing?.totalAmount || o.totalAmount || 0
-        slot.Orders += 1
+        'Revenue (₹)': row?.revenue || 0,
+        Orders: row?.orders || 0
       }
     })
     return days
-  }, [orders])
+  }, [revenueByDay])
 
   const ordersBarData = useMemo(() => {
     if (!statistics) return []
@@ -769,6 +801,27 @@ const Dashboard = () => {
                     updating={updatingOrder === order._id}
                   />
                 ))}
+                {orderPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 pt-3">
+                    <button
+                      onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                      disabled={orderPage <= 1}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 disabled:opacity-40 hover:bg-gray-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      Page {orderPagination.currentPage} of {orderPagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => setOrderPage(p => Math.min(orderPagination.totalPages, p + 1))}
+                      disabled={orderPage >= orderPagination.totalPages}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -970,6 +1023,14 @@ const Dashboard = () => {
         )}
 
       </div>
+
+      <CancelOrderDialog
+        open={!!cancelTarget}
+        mode="partner"
+        cancelling={cancellingOrder}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancelOrder}
+      />
     </div>
   )
 }
