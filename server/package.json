@@ -12,17 +12,17 @@
   "author": "Manab Biswas",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
     "dotenv": "^17.2.2",
-    "ejs": "^3.1.10",
     "express": "^5.1.0",
-    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.1.0",
-    "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
@@ -32,8 +32,8 @@
     "nodemailer": "^8.0.1",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
+    "socket.io": "^4.8.3",
     "uuid": "^13.0.0",
-    "xss": "^1.0.15",
-    "xss-clean": "^0.1.4"
+    "xss": "^1.0.15"
   }
 }

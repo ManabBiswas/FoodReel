@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import {
   CheckCircle, MapPin, Clock, Phone, Truck,
   AlertCircle, Copy, Download, Store, User,
-  Mail, CreditCard, ChevronRight
+  Mail, CreditCard, ChevronRight, XCircle
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
@@ -17,14 +17,14 @@ import { generateReceipt } from '../utils/receiptGenerator'
 const fmt = (n) => Number(n ?? 0).toFixed(2)
 const fmtDate = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered']
-const STATUS_LABELS = { pending: 'Confirmed', confirmed: 'Confirmed', preparing: 'Preparing', out_for_delivery: 'On the way', delivered: 'Delivered' }
+const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
+const STATUS_LABELS = { pending: 'Confirmed', confirmed: 'Confirmed', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' }
 
 const STATUS_BADGE = {
   pending: { bg: '#FEF9C3', text: '#854D0E' },
   confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
   preparing: { bg: '#F3E8FF', text: '#6B21A8' },
-  out_for_delivery: { bg: '#FFEDD5', text: '#9A3412' },
+  ready: { bg: '#FFEDD5', text: '#9A3412' },
   delivered: { bg: '#DCFCE7', text: '#15803D' },
   cancelled: { bg: '#FEE2E2', text: '#991B1B' },
 }
@@ -33,7 +33,10 @@ const STATUS_BADGE = {
 const OrderConfirmation = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const orderId = location.state?.orderId
+  const { orderId: routeOrderId } = useParams()
+  // Route is /order/confirmation/:orderId — prefer the path param so refresh
+  // and deep links work (location.state is lost on reload).
+  const orderId = routeOrderId || location.state?.orderId
 
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +73,9 @@ const OrderConfirmation = () => {
 
   const statusIdx = STATUS_STEPS.indexOf(order?.status)
   const progressPct = statusIdx >= 0 ? Math.round((statusIdx / (STATUS_STEPS.length - 1)) * 100) : 0
+  const etaLabel = order?.estimatedDeliveryTime
+    ? fmtDate(order.estimatedDeliveryTime)
+    : '30 – 45 mins'
 
   /* Loading */
   if (loading) return (
@@ -145,7 +151,7 @@ const OrderConfirmation = () => {
               <div className="flex items-start justify-between mb-5">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest font-sans mb-1" style={{ color: 'var(--color-text-faint)' }}>Estimated Arrival</p>
-                  <h3 className="font-serif text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>30 – 45 mins</h3>
+                  <h3 className="font-serif text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{etaLabel}</h3>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'rgba(255,106,0,0.1)' }}>
                   <Truck className="h-6 w-6" style={{ color: 'var(--color-primary)' }} />
@@ -180,7 +186,7 @@ const OrderConfirmation = () => {
                 <div className="rounded-xl p-4 font-sans text-sm space-y-1" style={{ background: 'var(--color-surface-muted)' }}>
                   <p className="font-bold" style={{ color: 'var(--color-text-base)' }}>{da.fullName}</p>
                   <p style={{ color: 'var(--color-text-muted)' }}>{da.addressLine1}</p>
-                  {da.landmark && <p style={{ color: 'var(--color-text-muted)' }}>{da.landmark}</p>}
+                  {(da.landmark || da.addressLine2) && <p style={{ color: 'var(--color-text-muted)' }}>{da.landmark || da.addressLine2}</p>}
                   <p style={{ color: 'var(--color-text-muted)' }}>{da.city}, {da.state} — {da.pincode}</p>
                   <div className="flex items-center gap-2 pt-2 mt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
                     <Phone className="h-3.5 w-3.5" style={{ color: 'var(--color-text-faint)' }} />
@@ -214,13 +220,49 @@ const OrderConfirmation = () => {
                       </div>
                     </div>
                     <span
-                      className="rounded-full px-3 py-1 text-xs font-bold font-sans"
+                      className="rounded-full px-3 py-1 text-xs font-bold font-sans capitalize"
                       style={{ background: badge.bg, color: badge.text }}
                     >
                       {order.status}
                     </span>
                   </div>
                 </div>
+
+                {/* Cancellation reason — the page a user lands on after cancelling */}
+                {order.cancellation?.isCancelled && (
+                  <div
+                    className="rounded-2xl p-5"
+                    style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold font-sans text-red-800">
+                          Order cancelled
+                          {order.cancellation.cancelledBy === 'partner' ? ' by the restaurant' : ''}
+                        </p>
+                        <p className="mt-1 text-sm font-sans text-red-700">
+                          {order.cancellation.reason || 'No reason was provided.'}
+                        </p>
+                        {order.cancellation.cancelledAt && (
+                          <p className="mt-1.5 text-xs font-sans text-red-600">
+                            Cancelled on {fmtDate(order.cancellation.cancelledAt)}
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'pending' && (
+                          <p className="mt-1.5 text-xs font-sans text-red-600">
+                            Your refund is being processed (5–7 business days).
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'not_applicable' && (
+                          <p className="mt-1.5 text-xs font-sans text-red-600">
+                            No payment was captured, so there is nothing to refund.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Customer */}
                 <div className="space-y-2 pt-2">
