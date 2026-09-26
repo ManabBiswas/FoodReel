@@ -3,6 +3,7 @@ import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
+import { authCookieOptions } from "../utils/cookies.js";
 
 async function register(req, res) {
     try {
@@ -37,15 +38,8 @@ async function register(req, res) {
 
         const user = await userModel.create(userData);
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
-        res.cookie("token", token, {
-            httpOnly: true,
-            // Use Lax so localhost:5173 (frontend) can send cookies to localhost:3000 (API) during dev
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-            path: '/'
-        });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.cookie("token", token, authCookieOptions());
 
         res.status(201).json({
             message: "User created successfully",
@@ -88,18 +82,18 @@ async function login(req, res) {
             });
         }
 
+        if (user.isBlocked) {
+            return res.status(403).json({
+                error: "Your account has been blocked. Please contact support."
+            });
+        }
+
         // Compare password
         const isPasswordMatched = await bcrypt.compare(password, user.password);
 
         if (isPasswordMatched) {
-            const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            });
+            const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
 
             res.status(200).json({
                 message: "User logged in successfully",
@@ -340,14 +334,8 @@ async function adminLogin(req, res) {
             });
         }
 
-        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET);
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-            path: '/'
-        });
+        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.cookie('token', token, authCookieOptions());
         
         res.status(200).json({ 
             message: "Admin login successful",
