@@ -17,6 +17,7 @@ import foodfestUserRoutes from './routes/foodfest/user.routes.js';
 import foodfestGateRoutes from './routes/foodfest/gate.routes.js';
 import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
+import contactRoutes from './routes/contact.route.js';
 import cors from 'cors';
 import helmet from "helmet";
 import { globalRateLimiter } from './middlewares/rateLimiter.js';
@@ -24,20 +25,26 @@ import { sanitizeInput } from './middlewares/sanitization.js';
 
 const app = express() 
 
-// CORS configuration for production and development
+// Behind Render's reverse proxy — without this, req.ip resolves to the proxy
+// IP for every client and the rate limiter shares ONE bucket for the whole site.
+app.set('trust proxy', 1);
+
+// CORS configuration for production and development.
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  (process.env.FRONTEND_URL || '').replace(/\/$/, ''),
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    if (allowedOrigins.indexOf(origin.replace(/\/$/, '')) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Do not throw: a thrown error surfaces as a 500 from the error
+      // handler instead of a clean CORS rejection.
+      callback(null, false);
     }
   },
   credentials: true,
@@ -49,9 +56,35 @@ app.use(cors({
  
 app.use(globalRateLimiter);  // Global rate limiter
 
-app.use(express.json({ limit: '1mb' }));
-app.use(helmet());
+// Razorpay signs the RAW request bytes — capture the body as a Buffer for the
+// webhook route BEFORE express.json() consumes the stream. body-parser sets
+// req._body after parsing, so express.json() below skips this route.
+app.use('/api/payment/webhook', express.raw({ type: '*/*' }));
+app.use(express.json({ limit: '10mb' })); // 10mb max because of food images
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(sanitizeInput);
+
+// Clamp pagination query params (M12): controllers pass req.query.limit/skip
+// straight into .limit()/.skip() — a huge limit from the client becomes an
+// unbounded DB query. Express 5's req.query is a getter, but sanitizeInput
+// replaced it with a plain object we can safely mutate.
+app.use((req, res, next) => {
+  if (req.query && typeof req.query === 'object') {
+    if (req.query.limit !== undefined) {
+      const n = parseInt(req.query.limit, 10);
+      req.query.limit = (Number.isFinite(n) && n > 0) ? Math.min(n, 100) : 10;
+    }
+    if (req.query.skip !== undefined) {
+      const n = parseInt(req.query.skip, 10);
+      req.query.skip = (Number.isFinite(n) && n > 0) ? n : 0;
+    }
+    if (req.query.page !== undefined) {
+      const n = parseInt(req.query.page, 10);
+      req.query.page = (Number.isFinite(n) && n > 0) ? n : 1;
+    }
+  }
+  next();
+});
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
 app.use('/api/food',foodRoutes);
@@ -72,6 +105,7 @@ app.use('/api/foodfest/partner', foodfestPartnerRoutes);
 app.use('/api/foodfest/user', foodfestUserRoutes);
 app.use('/api/foodfest/gate', foodfestGateRoutes);
 app.use('/api/emails',emailRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -91,8 +125,28 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+
+  // Multer errors are client errors — must not surface as 500
+  if (err && err.name === 'MulterError') {
+    const tooLarge = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooLarge ? 413 : 400).json({
+      error: tooLarge
+        ? `File too large. Maximum size allowed: ${((err.limit || 0) / (1024 * 1024))}MB`
+        : (err.message || 'Invalid file upload')
+    });
+  }
+
+  const status = err.status || 500;
+  // M15: never leak internal error messages for unhandled (500) errors in
+  // production — they can expose stack/db details. Explicit err.status (4xx
+  // set by our code) is safe to relay.
+  const isProd = process.env.NODE_ENV === 'production';
+  const message = (status < 500 || !isProd) && err.message
+    ? err.message
+    : 'Internal Server Error';
+
+  res.status(status).json({
+    error: message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
