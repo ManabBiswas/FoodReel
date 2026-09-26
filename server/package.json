@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --watch server.js",
-    "start": "node server.js"
-  },
+    "scripts": {
+        "dev": "node --watch server.js",
+        "start": "node server.js",
+        "test": "node --test",
+        "test:watch": "node --test --watch",
+        "check:imports": "node check-imports.cjs src",
+        "sweep": "node scripts/data-sweep.mjs"
+    },
   "keywords": [],
   "author": "Manab Biswas",
   "license": "ISC",

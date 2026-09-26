@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'fix/**', 'feat/**']
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same branch instead of queueing them
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server (imports + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      # .env is gitignored; the import check only needs the module graph to load
+      - name: Create minimal .env for import check
+        run: |
+          cat > .env <<'EOF'
+          MONGODB_URL=mongodb://127.0.0.1:27017/foodreel_ci
+          JWT_SECRET=ci-only-not-a-real-secret-value-000
+          FRONTEND_URL=http://localhost:5173
+          EMAIL_SERVICE=smtp.example.com
+          EMAIL_USER=ci@example.com
+          EMAIL_PASS=ci-only
+          RAZORPAY_KEY_ID=rzp_test_ci
+          RAZORPAY_KEY_SECRET=ci_only
+          IMAGEKIT_PUBLIC_KEY=ci_only
+          IMAGEKIT_PRIVATE_KEY=ci_only
+          IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/ci
+          NODE_ENV=test
+          EOF
+
+      - run: npm ci
+
+      # Catches the broken relative-import depth bugs that broke the boot before
+      - name: Verify relative imports resolve
+        run: node check-imports.cjs src
+
+      # Proves the Express app graph loads without booting a server
+      - name: Verify app module loads
+        run: node -e "import('./src/app.js').then(()=>console.log('APP IMPORT OK')).catch(e=>{console.error('FAIL',e.message);process.exit(1)})"
+
+      - name: Run tests
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  client:
+    name: Client (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Client/package-lock.json
+
+      - run: npm ci
+
+      # Warnings are allowed (pre-existing exhaustive-deps); errors are not
+      - name: Lint
+        run: npm run lint -- --max-warnings=25
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

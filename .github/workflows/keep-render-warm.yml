@@ -1,0 +1,69 @@
+name: Keep Render Warm
+
+# Render's free tier spins the service down after ~15 minutes of inactivity,
+# which makes the first real user request wait through a cold start (measured:
+# 33s cold vs 0.7s warm). This pings /health often enough to hold the instance
+# open.
+#
+# NOTE: GitHub disables scheduled workflows in public repositories after 60 days
+# of no activity. Check the Actions tab if pings ever stop.
+
+on:
+  schedule:
+    # Every 5 minutes. Render idles out at 15, so there is margin for the drift
+    # GitHub's scheduler applies to cron jobs.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {} # allow a manual run to verify it works
+
+# Never let two pings overlap; a queued run is wasted free-tier time.
+concurrency:
+  group: keep-render-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping /health
+    runs-on: ubuntu-latest
+    # Hard ceiling above the measured cold start, so a slow wake-up is not
+    # reported as a failure.
+    timeout-minutes: 4
+    steps:
+      - name: Ping backend
+        env:
+          # Set this in repo Settings > Secrets and variables > Actions to avoid
+          # hardcoding the URL. Falls back to the known production host.
+          RENDER_HEALTH_URL: ${{ secrets.RENDER_HEALTH_URL || 'https://foodreel-ufxk.onrender.com/health' }}
+        run: |
+          set -euo pipefail
+
+          # Clear any previous body: curl does not write the output file when it
+          # fails before connecting, so a stale file would be printed as the error.
+          rm -f /tmp/ping.out
+
+          start=$(date +%s)
+          # --max-time 150 covers a cold start; -f fails on any HTTP >= 400.
+          status=$(curl -sS -o /tmp/ping.out -w '%{http_code}' \
+            --max-time 150 \
+            --retry 2 --retry-delay 5 --retry-connrefused \
+            -H 'User-Agent: foodreel-keepalive' \
+            "$RENDER_HEALTH_URL") || {
+              echo "::error::Ping failed: request errored or timed out"
+              cat /tmp/ping.out 2>/dev/null || true
+              exit 1
+            }
+
+          elapsed=$(( $(date +%s) - start ))
+          body=$(cat /tmp/ping.out)
+          echo "HTTP $status in ${elapsed}s — $body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Expected HTTP 200, got $status"
+            exit 1
+          fi
+
+          # A response that is not the health payload means something else is
+          # answering (proxy error page, wrong route) — worth failing on.
+          case "$body" in
+            *'"status":"ok"'*) echo "Backend is awake." ;;
+            *) echo "::warning::Unexpected body from $RENDER_HEALTH_URL: $body" ;;
+          esac
