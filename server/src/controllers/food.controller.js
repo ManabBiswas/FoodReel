@@ -137,7 +137,7 @@ const createFood = async (req, res) => {
         }
 
         const newFoodItem = await foodModel.create(foodData);
-        await newFoodItem.populate('foodPartner', 'restaurantName email verified');
+        await newFoodItem.populate('foodPartner', 'companyName email verified');
 
         res.status(201).json({
             message: `${postType === 'food' ? 'Food item' : 'Advertisement'} created successfully`,
@@ -163,7 +163,7 @@ const getFoodItems = async (req, res) => {
 
         const foods = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified')
+            .populate('foodPartner', 'companyName email verified')
             .sort(sortObj);
 
         const groupedFoods = {
@@ -202,7 +202,7 @@ const getActiveAdvertisements = async (req, res) => {
                     { validUntil: { $exists: false } }
                 ]
             })
-            .populate('foodPartner', 'restaurantName email verified profileImage')
+            .populate('foodPartner', 'companyName email verified profileImage')
             .sort({ createdAt: -1 })
             .limit(validLimit)
             .lean();
@@ -226,6 +226,7 @@ const getFoodItemsWithPricing = async (req, res) => {
         const filter = {
             postType: 'food',
             isActive: true,
+            isAvailable: { $ne: false },
             price: { $exists: true, $gt: 0 }
         };
 
@@ -235,7 +236,7 @@ const getFoodItemsWithPricing = async (req, res) => {
 
         const foodItems = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified profileImage address')
+            .populate('foodPartner', 'companyName email verified profileImage address')
             .sort({ price: 1 })
             .limit(validLimit)
             .lean();
@@ -296,7 +297,7 @@ const getTrendingFoods = async (req, res) => {
         const { limit = 3, postType } = req.query;
         const validLimit = Math.min(parseInt(limit), 50);
 
-        const matchFilter = { isActive: true };
+        const matchFilter = { isActive: true, isAvailable: { $ne: false } };
         if (postType && ['food', 'advertisement'].includes(postType)) {
             matchFilter.postType = postType;
         }
@@ -333,7 +334,7 @@ const getTrendingFoods = async (req, res) => {
                     promotionType: 1, prices: 1, validUntil: 1, promoCode: 1,
                     likeCount: 1, commentCount: 1, savesCount: 1,
                     tags: 1, trendingScore: 1, createdAt: 1,
-                    "foodPartner.restaurantName": 1,
+                    "foodPartner.companyName": 1,
                     "foodPartner.email": 1,
                     "foodPartner.verified": 1
                 }
@@ -357,7 +358,7 @@ const getAllFoods = async (req, res) => {
     try {
         const { postType, limit = 50, page = 1, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
-        const filter = { isActive: true };
+        const filter = { isActive: true, isAvailable: { $ne: false } };
         if (postType && ['food', 'advertisement'].includes(postType)) filter.postType = postType;
 
         const validLimit = Math.min(parseInt(limit), 100);
@@ -367,7 +368,7 @@ const getAllFoods = async (req, res) => {
 
         const foods = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified profileImage')
+            .populate('foodPartner', 'companyName email verified profileImage')
             .populate('likes', '_id')
             .sort(sortObj)
             .skip(skip)
@@ -556,6 +557,31 @@ const updateFood = async (req, res) => {
         if (ingredients) food.ingredients = ingredients;
         if (preparationTime) food.preparationTime = preparationTime;
         if (typeof isAvailable === 'boolean') food.isAvailable = isAvailable;
+
+        if (req.file) {
+            const mimeIsVideo = req.file.mimetype.startsWith('video/');
+            const mimeIsImage = req.file.mimetype.startsWith('image/');
+
+            if (!mimeIsVideo && !mimeIsImage) {
+                return res.status(400).json({ error: 'Please upload a valid image or video file' });
+            }
+
+            const { url: fileUrl, isVideo: uploadedAsVideo } = await storageService.uploadFile(
+                req.file.buffer,
+                req.file.originalname,
+                req.file.mimetype
+            );
+
+            if (uploadedAsVideo) {
+                food.video = fileUrl;
+                food.image = undefined;
+                food.type = 'video';
+            } else {
+                food.image = fileUrl;
+                food.video = undefined;
+                food.type = 'image';
+            }
+        }
 
         await food.save();
         res.status(200).json({ message: 'Food item updated successfully', food });

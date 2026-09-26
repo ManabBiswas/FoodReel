@@ -179,6 +179,25 @@ async function validatePassword(req, res) {
     }
 }
 
+// Normalize the two address shapes the frontend sends:
+// - QuickOrderModal: fullName, phone, addressLine1, city, state, pincode
+// - ProfileSettings: label, street, city, state, pinCode, country
+function normalizeAddressInput(body, user) {
+    return {
+        label: body.label || 'Home',
+        fullName: body.fullName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''),
+        phone: body.phone || (user && user.mobile) || '',
+        addressLine1: body.addressLine1 || body.street || '',
+        addressLine2: body.addressLine2 || '',
+        landmark: body.landmark || '',
+        city: body.city || '',
+        state: body.state || '',
+        pincode: String(body.pincode || body.pinCode || ''),
+        country: body.country || 'India',
+        isDefault: !!body.isDefault
+    };
+}
+
 // Get all user addresses
 async function getAddresses(req, res) {
     try {
@@ -205,18 +224,20 @@ async function getAddresses(req, res) {
 async function addAddress(req, res) {
     try {
         const userId = req.user._id;
-        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode, isDefault } = req.body;
-
-        // Validate required fields
-        if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
-            return res.status(400).json({ 
-                error: "Required fields: fullName, phone, addressLine1, city, state, pincode" 
-            });
-        }
-
         const user = await userModel.findById(userId);
         if (!user) {
             return res.status(404).json({ error: "User not found" });
+        }
+
+        const input = normalizeAddressInput(req.body, user);
+
+        // Validate required fields (after normalization so ProfileSettings'
+        // {street, pinCode} shape and QuickOrderModal's {addressLine1, pincode}
+        // shape both work)
+        if (!input.addressLine1 || !input.city || !input.state || !input.pincode) {
+            return res.status(400).json({ 
+                error: "Required fields: addressLine1 (or street), city, state, pincode (or pinCode)" 
+            });
         }
 
         // Initialize addresses array if it doesn't exist
@@ -225,7 +246,7 @@ async function addAddress(req, res) {
         }
 
         // If this is the first address or marked as default, set it as default
-        const makeDefault = isDefault || user.deliveryAddresses.length === 0;
+        const makeDefault = input.isDefault || user.deliveryAddresses.length === 0;
         
         // If making this default, unset all other defaults
         if (makeDefault) {
@@ -233,17 +254,7 @@ async function addAddress(req, res) {
         }
 
         // Add new address
-        user.deliveryAddresses.push({
-            fullName,
-            phone,
-            addressLine1,
-            addressLine2,
-            landmark,
-            city,
-            state,
-            pincode,
-            isDefault: makeDefault
-        });
+        user.deliveryAddresses.push({ ...input, isDefault: makeDefault });
 
         await user.save();
 
@@ -256,12 +267,11 @@ async function addAddress(req, res) {
     }
 }
 
-// Update delivery address
+// Update delivery address (by :addressId)
 async function updateAddress(req, res) {
     try {
         const userId = req.user._id;
         const { addressId } = req.params;
-        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode } = req.body;
 
         const user = await userModel.findById(userId);
         if (!user) {
@@ -273,21 +283,63 @@ async function updateAddress(req, res) {
             return res.status(404).json({ error: "Address not found" });
         }
 
-        // Update fields if provided
-        if (fullName) address.fullName = fullName;
-        if (phone) address.phone = phone;
-        if (addressLine1) address.addressLine1 = addressLine1;
-        if (addressLine2 !== undefined) address.addressLine2 = addressLine2;
-        if (landmark !== undefined) address.landmark = landmark;
-        if (city) address.city = city;
-        if (state) address.state = state;
-        if (pincode) address.pincode = pincode;
+        // Accept both frontend shapes (street/pinCode vs addressLine1/pincode)
+        const body = req.body || {};
+        if (body.label !== undefined) address.label = body.label;
+        if (body.fullName) address.fullName = body.fullName;
+        if (body.phone) address.phone = body.phone;
+        const line1 = body.addressLine1 || body.street;
+        if (line1) address.addressLine1 = line1;
+        if (body.addressLine2 !== undefined) address.addressLine2 = body.addressLine2;
+        if (body.landmark !== undefined) address.landmark = body.landmark;
+        if (body.city) address.city = body.city;
+        if (body.state) address.state = body.state;
+        const pin = body.pincode || body.pinCode;
+        if (pin) address.pincode = String(pin);
+        if (body.country) address.country = body.country;
+
+        if (body.isDefault === true) {
+            user.deliveryAddresses.forEach(addr => { addr.isDefault = false; });
+            address.isDefault = true;
+        }
 
         await user.save();
 
         res.status(200).json({
             message: "Address updated successfully",
             addresses: user.deliveryAddresses
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+// Update the profile's single address object (PUT /user/address, no :addressId).
+// This is what ProfileSettings.handleAddressUpdate calls — it is NOT a
+// delivery-address CRUD call (that uses /:addressId).
+async function updateProfileAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const body = req.body || {};
+        user.address = {
+            ...(user.address?.toObject?.() || user.address || {}),
+            street: body.street || body.addressLine1 || user.address?.street || '',
+            city: body.city || user.address?.city || '',
+            state: body.state || user.address?.state || '',
+            pincode: String(body.pincode || body.pinCode || user.address?.pincode || ''),
+            country: body.country || user.address?.country || 'India'
+        };
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Address updated successfully",
+            address: user.address
         });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -312,7 +364,7 @@ async function deleteAddress(req, res) {
 
         // If deleting default address, make first remaining address default
         const wasDefault = address.isDefault;
-        address.remove();
+        user.deliveryAddresses.pull({ _id: addressId });
 
         if (wasDefault && user.deliveryAddresses.length > 0) {
             user.deliveryAddresses[0].isDefault = true;
@@ -370,6 +422,7 @@ export default {
     getAddresses,
     addAddress,
     updateAddress,
+    updateProfileAddress,
     deleteAddress,
     setDefaultAddress,
     getUserActivity,

@@ -354,7 +354,8 @@ const validateCart = async (req, res) => {
 
         const cart = await cartModel
             .findOne({ user: userId })
-            .populate('items.foodItem');
+            .populate('items.foodItem')
+            .populate('activeRestaurant', 'companyName profileImage');
 
         if (!cart || cart.items.length === 0) {
             return res.status(200).json({

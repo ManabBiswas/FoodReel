@@ -4,6 +4,7 @@ import reviewModel from "../models/review.model.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import emailService from '../services/email.service.js';
+import { authCookieOptions } from '../utils/cookies.js';
 
 async function register(req,res) {
     try{
@@ -34,14 +35,8 @@ async function register(req,res) {
                 longitude: lng
                 // profileImage will be added later via profile update
             })
-            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            })
+            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
             res.status(201).json({
                 message: "FoodPartner created successfully",
                 _id: foodPartner._id,
@@ -73,19 +68,19 @@ async function login(req,res){
                 error: "Invalid email or password"
             });
         }
+
+        if (foodPartner.isBlocked) {
+            return res.status(403).json({
+                error: "Your account has been blocked. Please contact support."
+            });
+        }
         
         // Correct bcrypt.compare usage (returns Promise, no callback needed)
         const isPasswordMatched = await bcrypt.compare(password, foodPartner.password);
         
         if(isPasswordMatched){
-            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            })
+            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
             res.status(200).json({
                 message: "FoodPartner logged in successfully",
                 foodPartner: {
@@ -242,14 +237,14 @@ async function getReviews(req, res) {
             foodPartner: partnerId, 
             isActive: true 
         })
-        .populate('user', 'name email profileImage')
+        .populate('user', 'firstName lastName username profileImage')
         .populate('foodItem', 'name')
         .sort({ createdAt: -1 });
 
         const formattedReviews = reviews.map(review => ({
             id: review._id,
             user: {
-                name: review.user?.name || "Anonymous User",
+                name: [review.user?.firstName, review.user?.lastName].filter(Boolean).join(' ') || review.user?.username || "Anonymous User",
                 profileImage: review.user?.profileImage || "/api/placeholder/40/40"
             },
             rating: review.rating,
@@ -257,7 +252,8 @@ async function getReviews(req, res) {
             foodItem: review.foodItem?.name || "General Review",
             createdAt: review.createdAt,
             helpful: review.helpfulCount,
-            verified: review.isVerified,
+            verified: review.isVerifiedPurchase,
+            response: review.response?.text || null,
             images: review.images || []
         }));
 

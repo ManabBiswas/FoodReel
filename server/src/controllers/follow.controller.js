@@ -2,20 +2,30 @@ import followModel from "../models/follow.model.js";
 import userModel from "../models/user.Model.js";
 import foodPartnerModel from "../models/foodPartner.Model.js";
 
+const TARGET_TYPES = ['User', 'FoodPartner'];
+
 // Follow a user or food partner
 export const followUser = async (req, res) => {
     try {
         const { targetId, targetType } = req.body; // targetType: 'User' or 'FoodPartner'
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        // User model has 'firstName', FoodPartner has 'companyName'
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware;
+        // fall back to a field check for older callers.
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Target ID and type are required" 
+            });
+        }
+        // follow.followingModel enum is ['User','FoodPartner'] — validate before
+        // hitting the DB so a bad value is a 400, not a ValidationError → 500.
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
             });
         }
 
@@ -114,13 +124,19 @@ export const unfollowUser = async (req, res) => {
         const { targetId, targetType } = req.body;
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware;
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Target ID and type are required" 
+            });
+        }
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
             });
         }
 
@@ -271,8 +287,15 @@ export const checkFollowing = async (req, res) => {
         const { targetId, targetType } = req.params;
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
+
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
+            });
+        }
 
         const isFollowing = await followModel.exists({
             follower: followerId,
@@ -302,8 +325,8 @@ export const getSuggestedFollows = async (req, res) => {
     try {
         const userId = req.user._id;
         
-        // Determine user type by checking which model the user belongs to
-        const userType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine user type — set by isUserOrPartner middleware
+        const userType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
         const limit = parseInt(req.query.limit) || 10;
 
         // Get users the current user is already following

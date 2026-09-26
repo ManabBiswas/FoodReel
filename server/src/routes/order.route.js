@@ -30,6 +30,12 @@ router.get('/partner',
     orderController.getPartnerOrders
 );
 
+// GET /api/orders/partner/:orderId - Get one order for the owning partner
+router.get('/partner/:orderId',
+    isFoodPartnerLoggedin,
+    orderController.getPartnerOrderById
+);
+
 // PUT /api/orders/partner/:orderId/status - Update order status
 router.put('/partner/:orderId/status',
     isFoodPartnerLoggedin,
@@ -55,8 +61,11 @@ router.post('/:orderId/cancel',
 );
 
 // DEV-ONLY: POST /api/orders/dev/:orderId/status - Update order status and send email (for testing after DB changes)
-router.post('/dev/:orderId/status',
-    orderController.devUpdateOrderStatusAndEmail
-);
+// Never registered in production (controller has a second NODE_ENV guard as defense-in-depth).
+if (process.env.NODE_ENV !== 'production') {
+    router.post('/dev/:orderId/status',
+        orderController.devUpdateOrderStatusAndEmail
+    );
+}
 
 export default router;

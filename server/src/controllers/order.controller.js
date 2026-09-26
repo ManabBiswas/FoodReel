@@ -37,10 +37,23 @@ const createOrder = async (req, res) => {
         error: "Complete delivery address is required (fullName, phone, addressLine1, city, state, pincode)"
       });
     }
+    // Order schema enforces /^(0?[6-9]\d{9})$/ — validate here so a bad phone
+    // is a 400, not a Mongoose ValidationError → 500.
+    if (!/^0?[6-9]\d{9}$/.test(String(phone).trim())) {
+      return res.status(400).json({
+        error: "Phone must be a valid 10-digit Indian mobile number"
+      });
+    }
+    // paymentDetails.method enum in order.model.js is ['razorpay', 'cod'] —
+    // validate here so an unknown value is a 400, not a ValidationError → 500.
+    if (!['razorpay', 'cod'].includes(paymentMethod)) {
+      return res.status(400).json({ error: `Invalid payment method: ${paymentMethod}` });
+    }
 
     // Build items array with validation
     const orderItems = [];
     let itemPriceTotal = 0;
+    const prepTimes = [];
 
     for (const { foodItemId, quantity = 1 } of items) {
       const foodItem = await foodModel.findById(foodItemId).populate('foodPartner');
@@ -53,10 +66,20 @@ const createOrder = async (req, res) => {
       if (!foodItem.price || foodItem.price <= 0) {
         return res.status(400).json({ error: `${foodItem.name} has no valid price` });
       }
+      // Schema requires items.foodPartner — a food item without a partner used
+      // to throw `foodItem.foodPartner._id` (TypeError → 500).
+      if (!foodItem.foodPartner) {
+        return res.status(400).json({ error: `${foodItem.name} has no restaurant assigned` });
+      }
 
       const qty = parseInt(quantity);
+      if (!Number.isFinite(qty) || qty < 1 || qty > 100) {
+        return res.status(400).json({ error: `Invalid quantity for ${foodItem.name}` });
+      }
       const subtotal = foodItem.price * qty;
       itemPriceTotal += subtotal;
+
+      prepTimes.push(foodItem.preparationTime || 20);
 
       orderItems.push({
         foodItem: foodItem._id,
@@ -69,13 +92,10 @@ const createOrder = async (req, res) => {
     // Calculate pricing (subtotal + fees + taxes - discounts)
     const pricing = paymentService.calculatePricing(itemPriceTotal);
 
-    // Estimated delivery time (max prep time among items + delivery buffer)
-    const maxPrepTime = await Promise.all(orderItems.map(async i => {
-      const food = await foodModel.findById(i.foodItem);
-      return food.preparationTime || 20;
-    }));
+    // Estimated delivery time (max prep time among items + delivery buffer).
+    // Uses prepTimes collected above — no N+1 refetch per item.
     const deliveryTime = 30;
-    const estimatedDeliveryTime = new Date(Date.now() + (Math.max(...maxPrepTime) + deliveryTime) * 60 * 1000);
+    const estimatedDeliveryTime = new Date(Date.now() + (Math.max(...prepTimes) + deliveryTime) * 60 * 1000);
 
     // Create order
     const orderData = {
@@ -385,11 +405,53 @@ const getOrderStatistics = async (req, res) => {
             }
         ]);
 
+        // Delivered revenue: total and a 7-day series. Computed here (not on the
+        // client) so the numbers cover every order, not just the current page.
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+        const deliveredStats = await orderModel.aggregate([
+            {
+                $match: {
+                    'items.foodPartner': partnerId,
+                    status: 'delivered'
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    deliveredRevenue: { $sum: "$pricing.totalAmount" },
+                    deliveredOrders: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const revenueByDay = await orderModel.aggregate([
+            {
+                $match: {
+                    'items.foodPartner': partnerId,
+                    status: 'delivered',
+                    createdAt: { $gte: sevenDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                    revenue: { $sum: "$pricing.totalAmount" },
+                    orders: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
         res.status(200).json({
             message: "Order statistics retrieved successfully",
             statistics: {
                 byStatus: stats,
-                today: todayStats[0] || { todayOrders: 0, todayRevenue: 0 }
+                today: todayStats[0] || { todayOrders: 0, todayRevenue: 0 },
+                delivered: deliveredStats[0] || { deliveredRevenue: 0, deliveredOrders: 0 },
+                revenueByDay
             }
         });
 
@@ -430,7 +492,7 @@ const getOrderById = async (req, res) => {
 const cancelOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { reason } = req.body;
+        const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 300) : '';
 
         const order = await orderModel.findById(orderId)
             .populate('user', 'firstName lastName email mobile')
@@ -501,8 +563,9 @@ const cancelOrder = async (req, res) => {
               price: item.priceAtOrder
             })),
             totalAmount: order.pricing?.grandTotal || order.pricing?.totalAmount,
-            reason: reason || 'Customer requested cancellation',
-            cancelledBy: 'user',
+            reason: order.cancellation.reason,
+            cancelledBy: order.cancellation.cancelledBy,
+            cancelledAt: order.cancellation.cancelledAt,
             refundStatus: order.cancellation.refundStatus,
             refundAmount: order.cancellation.refundAmount
           };
@@ -522,7 +585,7 @@ const cancelOrder = async (req, res) => {
 const partnerCancelOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { reason } = req.body;
+        const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 300) : '';
 
         // Find order that contains items from this food partner
         const order = await orderModel.findOne({
@@ -672,12 +735,43 @@ const devUpdateOrderStatusAndEmail = async (req, res) => {
   }
 };
 
+const getPartnerOrderById = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const order = await orderModel
+            .findOne({ _id: orderId, 'items.foodPartner': req.foodPartner._id })
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name description image video price currency preparationTime')
+            .populate('items.foodPartner', 'companyName email mobile address');
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found or permission denied" });
+        }
+
+        // A mixed-partner order must not expose another vendor's items.
+        const ownItems = (order.items || []).filter(
+            item => item.foodPartner?._id?.toString() === req.foodPartner._id.toString()
+        );
+
+        res.status(200).json({
+            message: "Order retrieved successfully",
+            order: { ...order.toObject(), items: ownItems }
+        });
+
+    } catch (error) {
+        console.error("Error getting partner order:", error);
+        res.status(500).json({ error: 'Failed to retrieve order', details: error.message });
+    }
+};
+
 export default {
     createOrder,
     getUserOrders,
     getPartnerOrders,
     updateOrderStatus,
     getOrderById,
+    getPartnerOrderById,
     getOrderStatistics,
     cancelOrder,
     partnerCancelOrder,
