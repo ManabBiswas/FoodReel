@@ -347,7 +347,10 @@ export const initiateRefund = async (req, res) => {
 export const razorpayWebhook = async (req, res) => {
   try {
     const webhookSignature = req.headers['x-razorpay-signature'];
-    const webhookBody = req.body;
+    // express.raw delivers the exact bytes Razorpay signed (Buffer).
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}), 'utf8');
 
     if (!webhookSignature) {
       return res.status(400).json({
@@ -356,8 +359,8 @@ export const razorpayWebhook = async (req, res) => {
       });
     }
 
-    // Verify webhook signature
-    const isValid = paymentService.verifyWebhookSignature(webhookBody, webhookSignature);
+    // Verify webhook signature against the RAW body
+    const isValid = paymentService.verifyWebhookSignature(rawBody, webhookSignature);
 
     if (!isValid) {
       console.error('Invalid webhook signature received');
@@ -367,6 +370,8 @@ export const razorpayWebhook = async (req, res) => {
       });
     }
 
+    // Signature is valid — safe to parse the payload now
+    const webhookBody = JSON.parse(rawBody.toString('utf8'));
     const event = webhookBody.event;
     const payload = webhookBody.payload;
 

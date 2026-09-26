@@ -1,9 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { CartContext } from './CartContextBase'
+import { useAuth } from '../hooks/useAuth'
 
 export const CartProvider = ({ children }) => {
+  const { isAuthenticated, authType } = useAuth()
   const [cart, setCart] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -18,6 +20,10 @@ export const CartProvider = ({ children }) => {
         setCart(response.data.cart)
       }
     } catch (err) {
+      if (err.response?.status === 401) {
+        setCart(null)
+        return
+      }
       console.error('Error fetching cart:', err)
       setError(err.response?.data?.error || 'Failed to fetch cart')
     } finally {
@@ -25,10 +31,16 @@ export const CartProvider = ({ children }) => {
     }
   }, [])
 
-  // Initialize cart on mount
+  // The cart is per-account: load it when a user session exists, and drop the
+  // previous session's cart on logout/login so data never leaks between accounts.
   useEffect(() => {
-    fetchCart()
-  }, [fetchCart])
+    if (authType === 'user' && isAuthenticated) {
+      fetchCart()
+    } else {
+      setCart(null)
+      setError(null)
+    }
+  }, [authType, isAuthenticated, fetchCart])
 
   // Add item to cart
   const addToCart = useCallback(async (foodItemId, quantity = 1, specialInstructions = '') => {
@@ -123,6 +135,9 @@ export const CartProvider = ({ children }) => {
       setLoading(true)
       setError(null)
       const response = await axios.get(API_ENDPOINTS.cart.validate, axiosConfig)
+      if (response.data?.cart) {
+        setCart(response.data.cart)
+      }
       return {
         success: response.data?.success || false,
         valid: response.data?.valid || false,
@@ -162,6 +177,11 @@ export const CartProvider = ({ children }) => {
     }
   }, [])
 
+  const itemCount = useMemo(
+    () => (cart?.items || []).reduce((total, item) => total + (Number(item.quantity) || 0), 0),
+    [cart]
+  )
+
   const value = {
     cart,
     loading,
@@ -173,7 +193,7 @@ export const CartProvider = ({ children }) => {
     clearCart,
     validateCart,
     checkout,
-    itemCount: cart?.items?.length || 0,
+    itemCount,
     totals: cart?.totals || null
   }
 

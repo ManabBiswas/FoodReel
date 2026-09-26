@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { PartnerDataContext } from '../config/contexts'
+import { useAuth } from '../hooks/useAuth'
 
 /**
  * PartnerDataProvider - Simple storage for partner data
  * Provides: partnerProfile, posts, loading, error, refresh
  */
 export const PartnerDataProvider = ({ children }) => {
+  const { isAuthenticated, authType } = useAuth()
   const [partnerProfile, setPartnerProfile] = useState(null)
   const [posts, setPosts] = useState(null) // { food: [], advertisement: [] }
   const [loading, setLoading] = useState(true)
@@ -17,7 +19,7 @@ export const PartnerDataProvider = ({ children }) => {
   /**
    * Fetch all partner data - simple, no transformations
    */
-  const fetchPartnerData = async (isRefresh = false) => {
+  const fetchPartnerData = useCallback(async (isRefresh = false) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true)
       setError('')
@@ -44,18 +46,32 @@ export const PartnerDataProvider = ({ children }) => {
 
       setPosts({ food: foodPosts, advertisement: adPosts })
     } catch (err) {
+      if (err.response?.status === 401) {
+        setPartnerProfile(null)
+        setPosts(null)
+        setError('')
+        return
+      }
       console.error('Partner data fetch error:', err)
-      setError(err.response?.data?.message || 'Failed to load partner data')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load partner data')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }
-
-  // Fetch once on mount
-  useEffect(() => {
-    fetchPartnerData()
   }, [])
+
+  // Partner data is per-account: load it for a partner session only, and clear
+  // the previous partner's data on logout/login so it never leaks.
+  useEffect(() => {
+    if (authType === 'partner' && isAuthenticated) {
+      fetchPartnerData()
+    } else {
+      setPartnerProfile(null)
+      setPosts(null)
+      setError('')
+      setLoading(false)
+    }
+  }, [authType, isAuthenticated, fetchPartnerData])
 
   const value = {
     partnerProfile,

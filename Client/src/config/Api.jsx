@@ -38,6 +38,8 @@ export const API_ENDPOINTS = {
   admin: {    
     // Dashboard
     dashboard: `${BASE_URL}/admin/dashboard`,
+    dashboardLive: `${BASE_URL}/admin/dashboard/live`,
+    dashboardSeries: (range) => `${BASE_URL}/admin/dashboard/timeseries?range=${range}`,
     
     // User Management
     users: `${BASE_URL}/admin/users`,
@@ -148,6 +150,7 @@ export const API_ENDPOINTS = {
     partnerCancel: (id) => `${BASE_URL}/orders/partner/${id}/cancel`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
     getById: (id) => `${BASE_URL}/orders/${id}`,
+    partnerGetById: (id) => `${BASE_URL}/orders/partner/${id}`,
     cancel: (id) => `${BASE_URL}/orders/${id}/cancel`,
   },
   

@@ -31,7 +31,9 @@ const CartPage = () => {
     setValidating(false)
   }, [validateCart])
 
-  useEffect(() => { handleValidateCart() }, [cart, handleValidateCart])
+  // Validate on entry. Depending on `cart` here would loop forever: the
+  // server response is stored back into the cart, producing a new object.
+  useEffect(() => { handleValidateCart() }, [handleValidateCart])
 
   const handleUpdateQuantity = async (itemId, newQty) => {
     if (newQty < 0) return
@@ -61,6 +63,9 @@ const CartPage = () => {
         quantity: item.quantity,
         name: item.foodItem.name,
         price: item.priceAtAdd,
+        image: item.foodItem.image || null,
+        video: item.foodItem.video || null,
+        type: item.foodItem.type,
       })),
       totalPrice: cart.totals?.itemsTotal || 0,
       restaurantId: appliedRestaurant,

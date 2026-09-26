@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useAuth } from '../../hooks/useAuth'
 import { LogOut, Menu, X, RefreshCw, Bell, Zap } from 'lucide-react'
 
 import AdminGlobalStyles from '../../Components/admin/AdminGlobalStyles'
@@ -21,6 +20,7 @@ import AnalyticsTab from '../../Components/admin/tabs/AnalyticsTab'
 ═══════════════════════════════════════════════════════ */
 const AdminDashboard = () => {
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState('')
@@ -28,9 +28,9 @@ const AdminDashboard = () => {
 
   /* ── Logout ────────────────────────────────────────── */
   const handleLogout = async () => {
-    try { await axios.post(API_ENDPOINTS.auth.adminLogout, {}, axiosConfig) } catch {
-      console.warn('Logout request failed')
-     }
+    // Context logout clears the admin cookie AND auth state — otherwise
+    // ProtectedRoute sees the user as still authenticated and bounces.
+    await logout()
     navigate('/admin-login')
   }
 

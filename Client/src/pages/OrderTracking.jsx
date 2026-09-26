@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
-  Package, Clock, CheckCircle, XCircle, Truck,
+  Package, Clock, CheckCircle, XCircle,
   ChefHat, MapPin, Phone, Home, AlertCircle,
   ArrowLeft, MessageCircle, Download, Calendar,
   User, CreditCard
@@ -13,6 +13,7 @@ import FoodMedia from '../Components/FoodMedia'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showInfo } from '../utils/toast'
 import { generateReceipt } from '../utils/receiptGenerator'
+import CancelOrderDialog from '../Components/CancelOrderDialog'
 
 /* ─── Helpers ───────────────────────────────────────────────────── */
 const fmt = (n) => Number(n ?? 0).toFixed(2)
@@ -22,8 +23,7 @@ const STATUS_FLOW = [
   { key: 'pending', label: 'Order Placed', Icon: Package },
   { key: 'confirmed', label: 'Confirmed', Icon: CheckCircle },
   { key: 'preparing', label: 'Preparing', Icon: ChefHat },
-  { key: 'ready', label: 'Ready for Pickup', Icon: Clock },
-  { key: 'out_for_delivery', label: 'Out for Delivery', Icon: Truck },
+  { key: 'ready', label: 'Ready', Icon: Clock },
   { key: 'delivered', label: 'Delivered', Icon: CheckCircle },
 ]
 
@@ -78,6 +78,7 @@ const OrderTracking = () => {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [error, setError] = useState('')
 
   const fetchOrder = useCallback(async () => {
@@ -87,7 +88,7 @@ const OrderTracking = () => {
       const res = await axios.get(API_ENDPOINTS.order.getById(orderId), axiosConfig)
       setOrder(res.data.order); setError('')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load order'); showError('Failed to load order')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load order'); showError('Failed to load order')
     } finally { setLoading(false) }
   }, [orderId])
 
@@ -100,8 +101,13 @@ const OrderTracking = () => {
   const getEstDelivery = () => {
     if (!order) return 'Calculating…'
     if (order.status === 'delivered') return 'Delivered'
-    const prepTimes = order.items?.map(i => i.foodItem?.preparationTime || 20) ?? [20]
-    const eta = new Date(order.createdAt).getTime() + (Math.max(...prepTimes) + 50) * 60000
+    let eta
+    if (order.estimatedDeliveryTime) {
+      eta = new Date(order.estimatedDeliveryTime).getTime()
+    } else {
+      const prepTimes = order.items?.map(i => i.foodItem?.preparationTime || 20) ?? [20]
+      eta = new Date(order.createdAt).getTime() + (Math.max(...prepTimes) + 50) * 60000
+    }
     const left = eta - Date.now()
     if (left <= 0) return 'Any moment now'
     return `${Math.floor(left / 60000)} mins`
@@ -112,11 +118,13 @@ const OrderTracking = () => {
   const isDelivered = order?.status === 'delivered'
   const canCancel = order && !isCancelled && ['pending', 'confirmed', 'preparing'].includes(order.status)
 
-  const handleCancel = async () => {
+  const handleCancel = async (reason) => {
     try {
       setCancelLoading(true)
-      await axios.post(API_ENDPOINTS.order.cancel(orderId), { reason: 'Customer requested cancellation' }, axiosConfig)
-      showSuccess('Order cancelled'); fetchOrder()
+      await axios.post(API_ENDPOINTS.order.cancel(orderId), { reason }, axiosConfig)
+      setShowCancelDialog(false)
+      showSuccess('Order cancelled')
+      fetchOrder()
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to cancel order')
     } finally { setCancelLoading(false) }
@@ -278,7 +286,11 @@ const OrderTracking = () => {
                 <div className="rounded-xl p-4 space-y-2 font-sans text-sm" style={{ background: 'var(--color-surface-muted)' }}>
                   <p className="font-bold" style={{ color: 'var(--color-text-base)' }}>{order.deliveryAddress?.fullName}</p>
                   <p style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress?.addressLine1}</p>
-                  {order.deliveryAddress?.landmark && <p style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress.landmark}</p>}
+                  {(order.deliveryAddress?.landmark || order.deliveryAddress?.addressLine2) && (
+                <p style={{ color: 'var(--color-text-muted)' }}>
+                  {order.deliveryAddress.landmark || order.deliveryAddress.addressLine2}
+                </p>
+              )}
                   <p style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress?.city}, {order.deliveryAddress?.state} — {order.deliveryAddress?.pincode}</p>
                   <div className="flex items-center gap-2 pt-2 mt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
                     <Phone className="h-4 w-4" style={{ color: 'var(--color-text-faint)' }} />
@@ -354,7 +366,7 @@ const OrderTracking = () => {
                     <Download className="h-5 w-5" /> Receipt
                   </button>
                   <button
-                    onClick={() => navigate('/contact')}
+                    onClick={() => navigate('/contact-us')}
                     className="flex flex-col items-center justify-center gap-1 rounded-xl p-4 text-xs font-bold font-sans transition-colors cursor-pointer"
                     style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border-light)', color: 'var(--color-text-muted)' }}
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-border-light)'}
@@ -366,15 +378,12 @@ const OrderTracking = () => {
 
                 {canCancel && (
                   <button
-                    onClick={handleCancel}
+                    onClick={() => setShowCancelDialog(true)}
                     disabled={cancelLoading}
                     className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold font-sans text-sm transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
                     style={{ background: '#dc2626', color: '#fff' }}
                   >
-                    {cancelLoading
-                      ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Cancelling…</>
-                      : <><XCircle className="h-4 w-4" /> Cancel Order</>
-                    }
+                    <XCircle className="h-4 w-4" /> Cancel Order
                   </button>
                 )}
               </div>
@@ -384,6 +393,14 @@ const OrderTracking = () => {
       </main>
 
       <Footer />
+
+      <CancelOrderDialog
+        open={showCancelDialog}
+        mode="user"
+        cancelling={cancelLoading}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancel}
+      />
     </div>
   )
 }

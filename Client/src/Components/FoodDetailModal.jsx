@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { showSuccess, showError, showWarning } from '../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
+import { useCart } from '../hooks/useCart'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
 
 const FoodDetailModal = ({ food, onClose }) => {
@@ -16,6 +17,7 @@ const FoodDetailModal = ({ food, onClose }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [comment, setComment] = useState('')
   const navigate = useNavigate()
+  const { addToCart } = useCart()
   const videoRef = React.useRef(null)
 
   const getFoodId = React.useCallback(() => food?.id || food?._id || null, [food])
@@ -29,9 +31,14 @@ const FoodDetailModal = ({ food, onClose }) => {
         axiosConfig
       )
       
-      if (response.data && Array.isArray(response.data.data)) {
-        setReviews(response.data.data)
-      }
+      // Backend returns { reviews, totalCount, averageRating } — older shape was { data: [...] }
+      const payload = response.data
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.reviews)
+          ? payload.reviews
+          : []
+      setReviews(list)
     } catch (err) {
       console.error('Error fetching reviews:', err)
       // Optional: toast.error('Failed to load reviews')
@@ -59,7 +66,7 @@ const FoodDetailModal = ({ food, onClose }) => {
 
   const handleLike = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
 
@@ -81,7 +88,7 @@ const FoodDetailModal = ({ food, onClose }) => {
 
   const handleSubmitReview = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
 
@@ -104,20 +111,28 @@ const FoodDetailModal = ({ food, onClose }) => {
       await fetchReviews(id)
     } catch (err) {
       console.error('Error submitting review:', err)
-      showError(err.response?.data?.message || 'Failed to submit review')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to submit review')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleOrder = () => {
+  const handleOrder = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
-    onClose()
     const id = getFoodId()
-    navigate(`/order/${id}`)
+    if (!id) return
+    // Add to cart and take the user to the cart/checkout flow — the old
+    // destination (/order/:id) is a partner-only route.
+    const result = await addToCart(id, 1)
+    if (result?.success) {
+      onClose()
+      navigate('/cart')
+    } else {
+      showError(result?.error || 'Failed to add item to cart')
+    }
   }
 
   // Don't render if modal is closed
@@ -146,7 +161,7 @@ const FoodDetailModal = ({ food, onClose }) => {
   }
 
   const handleSave = async () => {
-    if (!user) return navigate('/user-login')
+    if (!user) return navigate('/login')
     try {
       const id = getFoodId()
       if (!id) return
