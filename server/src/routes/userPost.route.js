@@ -2,31 +2,25 @@ import express from 'express';
 import multer from 'multer';
 import isLoggedin from '../middlewares/isLoggedin.js';
 import userPostController from '../controllers/userPost.controller.js';
+import { sanitizeMultipart } from '../middlewares/sanitization.js';
+import { uploadMedia, enforceMediaSize, FILE_SIZE_LIMITS } from '../middlewares/fileUpload.js';
 
 const router = express.Router();
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /^(image\/|video\/)/;
-    if (allowedTypes.test(file.mimetype)) cb(null, true);
-    else cb(new Error('Only image and video files are allowed'), false);
-  },
-  limits: { fileSize: 5 * 1024 * 1024 }
-});
+const upload = uploadMedia;
 
 const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ error: 'Unexpected field. Only "file" field is allowed for file upload.' });
-    if (error.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+    if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `File too large. Maximum size is ${Math.floor(FILE_SIZE_LIMITS.VIDEO / (1024 * 1024))}MB.` });
     return res.status(400).json({ error: error.message });
   }
-  if (error?.message?.includes('Only image and video files are allowed')) return res.status(400).json({ error: error.message });
+  if (error?.message?.includes('Invalid file type')) return res.status(400).json({ error: error.message });
   next(error);
 };
 
 // POST /api/food/user - create a post by a regular user
-router.post('/user', isLoggedin, upload.single('file'), handleMulterError, userPostController.createUserPost);
+router.post('/user', isLoggedin, upload.single('file'), enforceMediaSize, sanitizeMultipart, handleMulterError, userPostController.createUserPost);
 
 // GET /api/food/user - get all user posts
 router.get('/user', userPostController.getAllUserPosts);

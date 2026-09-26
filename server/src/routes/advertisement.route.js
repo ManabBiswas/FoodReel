@@ -1,26 +1,13 @@
 import express from 'express'
 import * as advertisementController from '../controllers/advertisement.controller.js'
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js'
+import { sanitizeMultipart } from '../middlewares/sanitization.js'
+import { uploadMedia, enforceMediaSize } from '../middlewares/fileUpload.js'
 import multer from 'multer'
 
 const router = express.Router()
 
-// Configure multer for file uploads (same as food route)
-const upload = multer({
-    storage: multer.memoryStorage(),
-    fileFilter: (req, file, cb) => {
-        // Accept both image and video files
-        const allowedTypes = /^(image\/|video\/)/;
-        if (allowedTypes.test(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image and video files are allowed'), false);
-        }
-    },
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit to match frontend
-    }
-});
+const upload = uploadMedia
 
 // Multer error handling middleware
 const handleMulterError = (error, req, res, next) => {
@@ -47,7 +34,8 @@ const handleMulterError = (error, req, res, next) => {
 // POST /api/advertisement
 router.post('/', 
     isFoodPartnerLoggedin, 
-    upload.single('file'), 
+    upload.single('file'), enforceMediaSize, 
+    sanitizeMultipart,
     handleMulterError,
     advertisementController.createAdvertisement
 )
@@ -68,7 +56,8 @@ router.get('/:id', advertisementController.getAdvertisementById)
 // PUT /api/advertisement/:id
 router.put('/:id', 
     isFoodPartnerLoggedin, 
-    upload.single('file'), 
+    upload.single('file'), enforceMediaSize, 
+    sanitizeMultipart,
     handleMulterError,
     advertisementController.updateAdvertisement
 )

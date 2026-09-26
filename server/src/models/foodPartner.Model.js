@@ -36,6 +36,10 @@ const foodPartnerSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
     latitude: {
         type: Number
     },

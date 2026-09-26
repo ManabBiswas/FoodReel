@@ -2,25 +2,10 @@ import express from 'express';
 import foodController from '../controllers/food.controller.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
+import { sanitizeMultipart } from '../middlewares/sanitization.js';
+import { uploadMedia, enforceMediaSize } from '../middlewares/fileUpload.js';
 
-import multer from 'multer';
-
-
-const upload = multer({
-    storage: multer.memoryStorage(),
-    fileFilter: (req, file, cb) => {
-        // Accept both image and video files
-        const allowedTypes = /^(image\/|video\/)/;
-        if (allowedTypes.test(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image and video files are allowed'), false);
-        }
-    },
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit to match frontend
-    }
-});
+const upload = uploadMedia;
 
 const router = express.Router();
 
@@ -49,7 +34,8 @@ const handleMulterError = (error, req, res, next) => {
 // POST /api/food - Create food or advertisement post
 router.post('/',
     isFoodPartnerLoggedin,
-    upload.single('file'), // Changed from 'video' to 'file' to match frontend
+    upload.single('file'), enforceMediaSize, // Changed from 'video' to 'file' to match frontend
+    sanitizeMultipart,
     handleMulterError,
     foodController.createFood
 );
@@ -118,7 +104,8 @@ router.delete('/:id',
 // PUT /api/food/:id - Update a food item (partner only)
 router.put('/:id',
     isFoodPartnerLoggedin,
-    upload.single('file'),
+    upload.single('file'), enforceMediaSize,
+    sanitizeMultipart,
     handleMulterError,
     foodController.updateFood
 );

@@ -19,6 +19,13 @@ async function isLoggedin(req, res, next) {
                 message: "User not found" 
             });
         }
+
+        if (user.isBlocked) {
+            return res.status(403).json({
+                isAuthenticated: false,
+                message: "Your account has been blocked. Please contact support."
+            });
+        }
         
         req.user = user;
         next();

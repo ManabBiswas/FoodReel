@@ -67,6 +67,10 @@ const userSchema = new mongoose.Schema({
         enum: ['active', 'suspended', 'deleted'],
         default: 'active'
     },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
     posts: [
         {
             type: mongoose.Schema.Types.ObjectId,
@@ -118,6 +122,20 @@ const userSchema = new mongoose.Schema({
     orderHistory: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Order"
+    }],
+    // Saved delivery addresses (used by ProfileSettings + QuickOrderModal)
+    deliveryAddresses: [{
+        label: { type: String, default: 'Home' },
+        fullName: { type: String, default: '' },
+        phone: { type: String, default: '' },
+        addressLine1: { type: String, default: '' },
+        addressLine2: { type: String, default: '' },
+        landmark: { type: String, default: '' },
+        city: { type: String, default: '' },
+        state: { type: String, default: '' },
+        pincode: { type: String, default: '' },
+        country: { type: String, default: 'India' },
+        isDefault: { type: Boolean, default: false }
     }]
 }, {
     timestamps: true
