@@ -46,6 +46,7 @@ const Reel = () => {
   const containerRef = useRef(null)
   const videoRefs = useRef([])
   const hasInitializedInteractions = useRef(false)
+const currentUserIdRef = useRef(null)
 
   const handleShopToggle = useCallback((postId) => {
     setOpenShopFor(prev => (prev === postId ? null : postId))
@@ -286,7 +287,7 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to like posts')
       } else {
-        showError(error.response?.data?.message || 'Failed to like post')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to like post')
       }
     }
   }, [likedPosts, currentUserId])
@@ -321,7 +322,7 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to save posts');
       } else {
-        showError(error.response?.data?.message || 'Failed to save post');
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to save post');
       }
     }
   }, [savedPosts, combinedContent])
@@ -358,7 +359,7 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to follow')
       } else {
-        showError(error.response?.data?.message || 'Failed to update follow status')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to update follow status')
       }
     }
   }, [followingStatus])
@@ -373,7 +374,7 @@ const Reel = () => {
       comment: '',
       ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
     })
-    
+
     await fetchReviews(item)
   }, [])
   
@@ -381,39 +382,26 @@ const Reel = () => {
     setLoadingReviews(true)
     try {
       let endpoint = null
-      
-      if (item.postSource === 'partner' && item.partnerId?._id) {
-        endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
-      } else if (item.foodId) {
+
+      if (item.foodId) {
         endpoint = API_ENDPOINTS.reviews.byFood(item.foodId)
+      } else if (item.postSource === 'partner' && item.partnerId?._id) {
+        endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
       }
-      
+
       if (endpoint) {
         const response = await axios.get(endpoint, axiosConfig)
         const reviews = response.data.data || response.data.reviews || []
         setExistingReviews(reviews)
-        
-        // try {
-        //   const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
-        //   const userId = (userProfileResponse.data.user || userProfileResponse.data)?._id
-          
-        //   // if (userId) {
-        //   //   const hasReviewed = reviews.some(review => 
-        //   //     review.user?._id?.toString() === userId.toString() ||
-        //   //     review.userId?.toString() === userId.toString()
-        //   //   )
-            
-        //   //   setUserHasReviewed(hasReviewed)
-            
-        //   //   if (hasReviewed) {
-        //   //     showInfo('You have already reviewed this item')
-        //   //   }
-        //   }
-        // } catch {
-        //   setUserHasReviewed(false)
-        // }
+
+        const viewerId = currentUserIdRef.current
+        const hasReviewed = viewerId
+          ? reviews.some(review => review.user?._id?.toString() === viewerId.toString())
+          : false
+        setUserHasReviewed(hasReviewed)
       } else {
         setExistingReviews([])
+        setUserHasReviewed(false)
       }
     } catch (error) {
       console.error('Error fetching reviews:', error)
@@ -447,6 +435,12 @@ const Reel = () => {
   const closeCommentModal = useCallback(() => {
     setShowCommentModal(false)
     setCurrentCommentItem(null)
+  }, [])
+
+  const handleCommentAdded = useCallback((postId) => {
+    setCombinedContent(prev => prev.map(item => (
+      item._id === postId ? { ...item, comments: (item.comments || 0) + 1 } : item
+    )))
   }, [])
 
   const handleSubmitReview = async () => {
@@ -510,9 +504,9 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to submit a review')
       } else if (error.response?.status === 400) {
-        showError(error.response?.data?.message || 'Invalid review data')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Invalid review data')
       } else {
-        showError(error.response?.data?.message || 'Failed to submit review')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to submit review')
       }
     } finally {
       setSubmittingReview(false)
@@ -524,25 +518,43 @@ const Reel = () => {
     if (hasInitializedInteractions.current || combinedContent.length === 0) return
     
     const checkUserInteractions = async () => {
+      // Mark as attempted up-front: early returns below (401, missing id) used
+      // to leave the flag false, so every combinedContent change re-ran this
+      // effect (M19).
+      hasInitializedInteractions.current = true
       try {
-        // Fetch user profile
+        // Fetch identity: user profile first, then partner check (M20 —
+        // partners/admins get 401 on /auth/user/profile and used to bail,
+        // never initializing their interactions).
         let userProfile = null
         try {
           const profileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
           userProfile = profileResponse.data.user || profileResponse.data
-        } catch {
-          return
+        } catch (userErr) {
+          if (userErr.response?.status === 401) {
+            try {
+              const partnerResponse = await axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig)
+              userProfile = partnerResponse.data.foodPartner || null
+            } catch {
+              return // anonymous (or admin) — no personal interactions to load
+            }
+          } else {
+            return // transient failure; interactions stay default
+          }
         }
 
-        const userId = userProfile._id?.toString()
+        const userId = userProfile?._id?.toString()
         if (!userId) return
         
         // Store user ID for later use
         setCurrentUserId(userId)
+        currentUserIdRef.current = userId
 
         const followingChecks = {}
         const likedChecks = {}
         const savedChecks = {}
+        // targetId -> targetType, deduped; checked in one parallel batch below
+        const followTargets = {}
         
         const savedFoodIds = new Set(
           (userProfile.savedFoods || []).map(item => 
@@ -576,7 +588,7 @@ const Reel = () => {
               savedChecks[postId] = savedFoodIds.has(postId)
             }
             
-            // Check following status
+            // Collect following-status targets
             let targetId = null
             let targetType = null
             
@@ -588,37 +600,29 @@ const Reel = () => {
               targetType = 'User'
             }
             
-            if (targetId && targetType && targetId !== userId) {
-              if (!(targetId in followingChecks)) {
-                try {
-                  const response = await axios.get(
-                    API_ENDPOINTS.follow.check(targetId, targetType),
-                    axiosConfig
-                  )
-                  followingChecks[targetId] = response.data.isFollowing
-                } catch {
-                  followingChecks[targetId] = false
-                }
-              }
+            if (targetId && targetType && targetId !== userId && !(targetId in followTargets)) {
+              followTargets[targetId] = targetType
+              followingChecks[targetId] = false
             }
           }
         }
-        
-        // console.log('Initialized states:', {
-        //   totalPostsChecked: Object.keys(likedChecks).length,
-        //   actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
-        //   totalSavedChecked: Object.keys(savedChecks).length,
-        //   actuallySaved: Object.entries(savedChecks).filter(([, isSaved]) => isSaved).length,
-        //   totalUsersChecked: Object.keys(followingChecks).length,
-        //   actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
-        // })
+
+        // Batch the follow checks (previously serial N+1 awaits)
+        await Promise.all(Object.entries(followTargets).map(async ([targetId, targetType]) => {
+          try {
+            const response = await axios.get(
+              API_ENDPOINTS.follow.check(targetId, targetType),
+              axiosConfig
+            )
+            followingChecks[targetId] = response.data.isFollowing
+          } catch {
+            followingChecks[targetId] = false
+          }
+        }))
         
         setFollowingStatus(followingChecks)
         setLikedPosts(likedChecks)
         setSavedPosts(savedChecks)
-        
-        // Mark as initialized
-        hasInitializedInteractions.current = true
         
       } catch (error) {
         console.error('Error checking user interactions:', error)
@@ -823,10 +827,7 @@ const Reel = () => {
         isOpen={showCommentModal}
         post={currentCommentItem}
         onClose={closeCommentModal}
-        onCommentAdded={() => {
-          // Refresh the post view if needed
-          // Could refetch the post to update comment count
-        }}
+        onCommentAdded={handleCommentAdded}
       />
 
       {/* Bottom Menu Bar */}

@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useAuth } from '../../hooks/useAuth'
 import Navbar from '../../Components/Navbar'
 import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
 
@@ -17,6 +18,7 @@ const UserProfile = () => {
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [savingBio, setSavingBio] = useState(false)
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   const fetchUserData = useCallback(async () => {
     try {
@@ -102,7 +104,9 @@ const UserProfile = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post(API_ENDPOINTS.auth.userLogout, {}, axiosConfig)
+      // Context logout: clears the cookie AND auth state so route guards
+      // don't bounce the "logged-in" user back to '/'.
+      await logout()
       showSuccess('Logged out successfully')
       navigate('/login')
     } catch (error) {
@@ -145,14 +149,23 @@ const UserProfile = () => {
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
             {/* Profile Picture */}
             <div className="flex justify-center sm:justify-start">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 via-yellow-500 to-amber-600 p-0.5 flex-shrink-0">
+              <div className="relative w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 via-yellow-500 to-amber-600 p-0.5 flex-shrink-0">
                 <div className="w-full h-full rounded-full bg-white p-1">
-                  <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden relative group cursor-pointer">
+                  <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden relative group">
                     {user.profileImage ? (
                       <img src={user.profileImage} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-gray-600" />
                     )}
+                    {/* Change-photo affordance */}
+                    <Link
+                      to="/profile/settings"
+                      aria-label="Change profile photo"
+                      title="Change profile photo"
+                      className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      <Camera className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -172,19 +185,25 @@ const UserProfile = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row justify-center sm:justify-start gap-2">
-                  <button onClick={handleEditBio} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer" style={{ width: 'auto' }}>
+                  <button onClick={handleEditBio} className="px-4 py-2 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" style={{ background: 'var(--color-primary)' }}>
                     <Edit3 className="w-4 h-4" />
                     Edit Profile
                   </button>
                   <Link
                     to="/profile/settings"
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer"
+                    aria-label="Settings"
+                    title="Settings"
+                    className="px-3 py-2 rounded-xl text-sm font-medium transition-all hover:bg-gray-100 flex items-center justify-center cursor-pointer"
+                    style={{ border: '1px solid var(--color-border-light)', color: 'var(--color-text-base)' }}
                   >
                     <Settings className="w-4 h-4" />
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center cursor-pointer"
+                    aria-label="Log out"
+                    title="Log out"
+                    className="px-3 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90 flex items-center justify-center cursor-pointer"
+                    style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
@@ -363,14 +382,17 @@ const UserProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-gray-900 flex items-center justify-center">
-                    <Grid3X3 className="w-6 h-6 text-gray-900" />
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,106,0,0.10)' }}>
+                    <Grid3X3 className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
                   </div>
-                  <h3 className="text-xl font-light text-gray-900 mb-2">No Posts Yet</h3>
-                  <p className="text-gray-500 mb-4">Share your food experiences with the community</p>
+                  <h3 className="text-xl font-serif font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>No Posts Yet</h3>
+                  <p className="text-sm mb-5 font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                    Share your food experiences with the community
+                  </p>
                   <button
                     onClick={() => navigate('/create-post')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-2"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] cursor-pointer"
+                    style={{ background: 'var(--color-primary)' }}
                   >
                     <Plus className="w-4 h-4" />
                     Create Your First Post
@@ -409,11 +431,20 @@ const UserProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-gray-900 flex items-center justify-center">
-                    <Bookmark className="w-6 h-6 text-gray-900" />
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,106,0,0.10)' }}>
+                    <Bookmark className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
                   </div>
-                  <h3 className="text-xl font-light text-gray-900 mb-2">No Saved Items</h3>
-                  <p className="text-gray-500">Save food items and posts you want to revisit later</p>
+                  <h3 className="text-xl font-serif font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>No Saved Items</h3>
+                  <p className="text-sm mb-5 font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                    Tap the bookmark on any reel to save it here for later
+                  </p>
+                  <button
+                    onClick={() => navigate('/reels')}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] cursor-pointer"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
+                    Browse reels
+                  </button>
                 </div>
               )}
             </div>

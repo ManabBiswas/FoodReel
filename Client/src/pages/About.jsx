@@ -373,7 +373,7 @@ const About = () => {
                       Download App
                     </button>
                   </Link>
-                  <Link to="/contact">
+                  <Link to="/contact-us">
                     <button
                       className="rounded-xl px-10 py-4 font-bold font-sans transition-all hover:bg-white/10 active:scale-[0.97]"
                       style={{

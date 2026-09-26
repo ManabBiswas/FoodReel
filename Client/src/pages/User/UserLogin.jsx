@@ -65,6 +65,12 @@ const UserLogin = () => {
         
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-6">
+          {/* General (server-side) error */}
+          {errors.general && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" role="alert">
+              {errors.general}
+            </div>
+          )}
           {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

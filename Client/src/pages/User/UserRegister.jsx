@@ -127,7 +127,7 @@ const UserRegister = () => {
     } catch (error) {
       console.error('Registration error:', error)
       showError(
-        error.response?.data?.message ||
+        error.response?.data?.error || error.response?.data?.message ||
         'Registration failed. Please try again.'
       )
     } finally {

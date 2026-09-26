@@ -16,8 +16,12 @@ const ReelActionButtons = ({
     onToggleMute,
     formatCount
 }) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, authType } = useAuth();
     const navigate = useNavigate();
+
+    // Like/save/review/comment/cart/order endpoints are all user-only on the
+    // server (isLoggedin), so surface them only to user sessions.
+    const canActAsUser = isAuthenticated && authType === 'user';
 
     // Centralized authentication handler
     const handleAuthenticatedAction = useCallback((action) => {
@@ -30,8 +34,12 @@ const ReelActionButtons = ({
             });
             return;
         }
+        if (authType !== 'user') {
+            navigate(authType === 'partner' ? '/partner-dashboard' : '/admin/dashboard');
+            return;
+        }
         action();
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, authType, navigate]);
 
     // Memoized handlers
     const handleLike = useCallback(() => {
@@ -62,6 +70,7 @@ const ReelActionButtons = ({
     return (
        <div className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 sm:gap-4 z-10">
   {/* Like Button */}
+  {canActAsUser && (
   <button
     onClick={handleLike}
     className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
@@ -80,9 +89,10 @@ const ReelActionButtons = ({
       {formatCount(item.likeCount || 0)}
     </span>
   </button>
+  )}
 
   {/* Review Button - Only for tagged food posts */}
-  {item.foodId && (
+  {canActAsUser && item.foodId && (
     <button
       onClick={handleReview}
       className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
@@ -95,7 +105,7 @@ const ReelActionButtons = ({
   )}
 
   {/* Comment Button - Only for regular user posts without food tag */}
-  {!item.foodId && item.postSource === 'user' && (
+  {canActAsUser && !item.foodId && item.postSource === 'user' && (
     <button
       onClick={handleComment}
       className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
@@ -111,6 +121,7 @@ const ReelActionButtons = ({
   )}
 
   {/* Save Button */}
+  {canActAsUser && (
   <button
     onClick={handleSave}
     className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
@@ -124,9 +135,10 @@ const ReelActionButtons = ({
       )}
     </div>
   </button>
+  )}
 
-  {/* Shop Button - Only show if authenticated AND has price */}
-  {isAuthenticated && item.price && (
+  {/* Shop Button - Only show for user sessions when the item has a price */}
+  {canActAsUser && item.price && (
     <button
       onClick={handleShopToggle}
       className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"

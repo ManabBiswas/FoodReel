@@ -96,7 +96,7 @@ const AppRoutes = () => {
         <Route path='/order/:orderId' element={<ProtectedRoute requireAuth allowedType="partner"><OrderDetail /></ProtectedRoute>} />
         <Route path='/CreateFood' element={<ProtectedRoute requireAuth allowedType="partner"><CreateFood /></ProtectedRoute>} />
         <Route path='/partner-profile' element={<ProtectedRoute requireAuth allowedType="partner"><PartnerProfile /></ProtectedRoute>} />
-        <Route path='/partner-profile/settings' element={<ProtectedRoute requireAuth allowedType="partner"><ProfileSettings /></ProtectedRoute>} />
+        <Route path='/partner-profile/settings' element={<ProtectedRoute requireAuth allowedType="partner"><PartnerProfile /></ProtectedRoute>} />
 
         {/* Admin Protected Routes */}
         <Route path='/admin-login' element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />

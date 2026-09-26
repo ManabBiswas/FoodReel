@@ -5,7 +5,7 @@ import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig, multipartConfig } from '../../config/Api'
 import { 
   User, Mail, Phone, Save, ArrowLeft, Camera, Upload, 
-  Loader2, Eye, EyeOff, Lock, Trash2,  Plus, Edit2, MapPin
+  Loader2, Eye, EyeOff, Lock, Trash2,  Plus, Edit2, MapPin, SlidersHorizontal
 } from 'lucide-react'
 
 const ProfileSettings = () => {
@@ -323,10 +323,10 @@ const ProfileSettings = () => {
     setEditingAddress(address._id)
     setAddressForm({
       label: address.label || 'Home',
-      street: address.street || '',
+      street: address.street || address.addressLine1 || '',
       city: address.city || '',
       state: address.state || '',
-      pinCode: address.pinCode || '',
+      pinCode: address.pinCode || address.pincode || '',
       country: address.country || '',
       isDefault: address.isDefault || false
     })
@@ -416,20 +416,21 @@ const ProfileSettings = () => {
             {[
               { id: 'basic', label: 'Basic Info', icon: User },
               { id: 'password', label: 'Password', icon: Lock },
-              { id: 'preferences', label: 'Preferences', icon: User },
+              { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
               { id: 'delivery', label: 'Delivery Addresses', icon: MapPin },
-              { id: 'address', label: 'Address', icon: Mail }
+              { id: 'address', label: 'Billing Address', icon: Mail }
             ].map((tab) => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-6 py-3 text-sm font-medium font-sans transition-colors whitespace-nowrap cursor-pointer ${
                     activeTab === tab.id
-                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      ? 'border-b-2'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
+                  style={activeTab === tab.id ? { color: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -759,12 +760,15 @@ const ProfileSettings = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Delivery Addresses</h2>
-                  <p className="text-sm text-gray-600 mt-1">Manage your delivery addresses for faster checkout</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    These appear as selectable options at checkout. Your default is selected automatically.
+                  </p>
                 </div>
                 {!showAddressForm && (
                   <button
                     onClick={() => setShowAddressForm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-white font-bold text-sm font-sans transition-all hover:opacity-90 active:scale-[0.97] cursor-pointer"
+                    style={{ background: 'var(--color-primary)' }}
                   >
                     <Plus className="w-4 h-4" />
                     Add Address
