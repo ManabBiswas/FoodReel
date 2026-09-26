@@ -121,7 +121,7 @@ export const getAllAdvertisements = async (req, res) => {
   try {
     const advertisements = await Advertisement
       .find({ partnerId: req.foodPartner._id })
-      .populate('partnerId', 'name email')
+      .populate('partnerId', 'companyName email')
       .sort({ createdAt: -1 })
 
     res.status(200).json({
@@ -139,7 +139,7 @@ export const getAdvertisementById = async (req, res) => {
   try {
     const advertisement = await Advertisement
       .findById(req.params.id)
-      .populate('partnerId', 'name email')
+      .populate('partnerId', 'companyName email')
 
     if (!advertisement) return res.status(404).json({ error: 'Advertisement not found' })
 
@@ -152,6 +152,13 @@ export const getAdvertisementById = async (req, res) => {
 
 export const updateAdvertisement = async (req, res) => {
   try {
+    // Ownership check first: a partner may only update their own advertisement
+    // (also avoids re-uploading a file before we know the request is allowed)
+    const existing = await Advertisement.findById(req.params.id)
+    if (!existing) return res.status(404).json({ error: 'Advertisement not found' })
+    if (String(existing.partnerId) !== String(req.foodPartner._id))
+      return res.status(403).json({ error: 'You can only update your own advertisement' })
+
     const { name, description, type, tags, promotionType, prices, validUntil, promoCode } = req.body
 
     const updateData = {
@@ -184,7 +191,7 @@ export const updateAdvertisement = async (req, res) => {
 
     const advertisement = await Advertisement
       .findByIdAndUpdate(req.params.id, updateData, { new: true })
-      .populate('partnerId', 'name email')
+      .populate('partnerId', 'companyName email')
 
     if (!advertisement) return res.status(404).json({ error: 'Advertisement not found' })
 
@@ -197,6 +204,12 @@ export const updateAdvertisement = async (req, res) => {
 
 export const deleteAdvertisement = async (req, res) => {
   try {
+    // Ownership check: a partner may only delete their own advertisement
+    const existing = await Advertisement.findById(req.params.id)
+    if (!existing) return res.status(404).json({ error: 'Advertisement not found' })
+    if (String(existing.partnerId) !== String(req.foodPartner._id))
+      return res.status(403).json({ error: 'You can only delete your own advertisement' })
+
     const advertisement = await Advertisement.findByIdAndDelete(req.params.id)
     if (!advertisement) return res.status(404).json({ error: 'Advertisement not found' })
     res.status(200).json({ message: 'Advertisement deleted successfully' })

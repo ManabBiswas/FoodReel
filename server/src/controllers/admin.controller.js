@@ -8,6 +8,8 @@ import advertisementModel from "../models/advertisement.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
+import { authCookieOptions } from "../utils/cookies.js";
+import { createCache } from "../utils/cache.js";
 
 // AUTH CONTROLLERS
 async function login(req, res) {
@@ -35,14 +37,8 @@ async function login(req, res) {
             });
         }
 
-        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET);
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-            path: '/'
-        });
+        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.cookie('token', token, authCookieOptions());
         res.status(200).json({ 
             message: "Login successful",
             admin: {
@@ -110,31 +106,212 @@ async function getAdminProfile(req, res) {
 }
 
 // DASHBOARD CONTROLLERS
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Different TTLs per endpoint: the live counter can change constantly and stays
+// cheap, the lifetime aggregates scan a lot of documents and change slowly.
+const liveCache = createCache(3000)
+const overviewCache = createCache(15000)
+// One cache per range — a single shared cache would serve 7d data for 30d.
+const seriesCaches = new Map()
+
+const getSeriesCache = (rangeKey) => {
+    if (!seriesCaches.has(rangeKey)) seriesCaches.set(rangeKey, createCache(60000))
+    return seriesCaches.get(rangeKey)
+}
+
+const SERIES_RANGES = { '7d': 7, '30d': 30, '90d': 90 }
+
+const invalidateDashboardCaches = () => {
+    liveCache.invalidate()
+    overviewCache.invalidate()
+    for (const cache of seriesCaches.values()) cache.invalidate()
+}
+
+const startOfDay = (d) => {
+    const copy = new Date(d)
+    copy.setHours(0, 0, 0, 0)
+    return copy
+}
+
+/**
+ * One pass over the orders collection returns every dashboard aggregate.
+ * Previously this was 5 countDocuments plus a separate full-collection
+ * $group, so the cost grew with traffic instead of staying flat.
+ */
+const buildOverview = async () => {
+    const now = Date.now()
+    const since24h = new Date(now - DAY_MS)
+    const since7d = new Date(now - 7 * DAY_MS)
+
+    const [users, partners, foodItems, ads, orderAgg] = await Promise.all([
+        // estimatedDocumentCount reads collection metadata — no collection scan
+        userModel.estimatedDocumentCount(),
+        foodPartnerModel.estimatedDocumentCount(),
+        foodModel.estimatedDocumentCount({ postType: 'food' }),
+        foodModel.estimatedDocumentCount({ postType: 'advertisement' }),
+        orderModel.aggregate([
+            {
+                $facet: {
+                    byStatus: [
+                        { $group: { _id: '$status', count: { $sum: 1 }, revenue: { $sum: '$pricing.totalAmount' } } },
+                    ],
+                    lifetime: [
+                        {
+                            $group: {
+                                _id: null,
+                                totalOrders: { $sum: 1 },
+                                totalRevenue: { $sum: '$pricing.totalAmount' },
+                                paidRevenue: {
+                                    $sum: {
+                                        $cond: [{ $eq: ['$paymentDetails.status', 'completed'] }, '$pricing.totalAmount', 0]
+                                    }
+                                }
+                            }
+                        },
+                    ],
+                    last24h: [
+                        { $match: { createdAt: { $gte: since24h } } },
+                        {
+                            $group: {
+                                _id: null,
+                                orders: { $sum: 1 },
+                                revenue: { $sum: '$pricing.totalAmount' }
+                            }
+                        },
+                    ],
+                    last7d: [
+                        { $match: { createdAt: { $gte: since7d } } },
+                        {
+                            $group: {
+                                _id: null,
+                                orders: { $sum: 1 },
+                                revenue: { $sum: '$pricing.totalAmount' }
+                            }
+                        },
+                    ],
+                },
+            },
+        ]),
+    ])
+
+    const facet = orderAgg[0] || {}
+    const lifetime = facet.lifetime?.[0] || {}
+    const last24h = facet.last24h?.[0] || {}
+    const last7d = facet.last7d?.[0] || {}
+
+    const byStatus = {}
+    for (const row of facet.byStatus || []) {
+        byStatus[row._id] = { count: row.count, revenue: row.revenue || 0 }
+    }
+
+    return {
+        totalUsers: users,
+        totalPartners: partners,
+        totalFoodItems: foodItems,
+        totalAds: ads,
+        totalOrders: lifetime.totalOrders || 0,
+        totalRevenue: lifetime.totalRevenue || 0,
+        paidRevenue: lifetime.paidRevenue || 0,
+        orders24h: last24h.orders || 0,
+        revenue24h: last24h.revenue || 0,
+        orders7d: last7d.orders || 0,
+        revenue7d: last7d.revenue || 0,
+        byStatus,
+        serverTime: new Date().toISOString(),
+    }
+}
+
 async function getDashboardStats(req, res) {
     try {
-        const totalUsers = await userModel.countDocuments();
-        const totalPartners = await foodPartnerModel.countDocuments();
-        const totalOrders = await orderModel.countDocuments();
-        const totalFoodItems = await foodModel.countDocuments({ postType: 'food' });
-        const totalAds = await foodModel.countDocuments({ postType: 'advertisement' });
-        
-        const revenueData = await orderModel.aggregate([
-            { $group: { _id: null, totalRevenue: { $sum: "$pricing.totalAmount" } } }
-        ]);
-        
-        res.status(200).json({
-            stats: {
-                totalUsers,
-                totalPartners,
-                totalOrders,
-                totalFoodItems,
-                totalAds,
-                totalRevenue: revenueData[0]?.totalRevenue || 0
-            }
-        });
+        const stats = await overviewCache.resolve(buildOverview)
+        res.status(200).json({ stats })
     } catch (error) {
         console.error('Dashboard stats error:', error);
         res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+}
+
+/**
+ * Cheap poll target for the live indicator: metadata counters plus the newest
+ * order. No aggregation, so a 5s poll from many admins stays flat-cost.
+ */
+async function getDashboardLive(req, res) {
+    try {
+        const live = await liveCache.resolve(async () => {
+            const [users, partners, orders, foodItems, latest] = await Promise.all([
+                userModel.estimatedDocumentCount(),
+                foodPartnerModel.estimatedDocumentCount(),
+                orderModel.estimatedDocumentCount(),
+                foodModel.estimatedDocumentCount({ postType: 'food' }),
+                orderModel.findOne().sort({ createdAt: -1 }).select('_id status createdAt pricing.totalAmount').lean(),
+            ])
+
+            return {
+                counts: { users, partners, orders, foodItems },
+                latestOrder: latest
+                    ? {
+                        id: latest._id,
+                        status: latest.status,
+                        createdAt: latest.createdAt,
+                        totalAmount: latest.pricing?.totalAmount || 0,
+                    }
+                    : null,
+                serverTime: new Date().toISOString(),
+            }
+        })
+
+        res.status(200).json({ live })
+    } catch (error) {
+        console.error('Dashboard live error:', error);
+        res.status(500).json({ error: "Failed to fetch live counters" });
+    }
+}
+
+/**
+ * Daily buckets for the trend chart. Range-limited and matched on an indexed
+ * `createdAt`, so cost scales with the window, not with table size.
+ */
+async function getDashboardTimeseries(req, res) {
+    try {
+        const rangeKey = SERIES_RANGES[req.query.range] ? req.query.range : '7d'
+        const days = SERIES_RANGES[rangeKey]
+
+        const series = await getSeriesCache(rangeKey).resolve(async () => {
+            const from = startOfDay(new Date(Date.now() - (days - 1) * DAY_MS))
+
+            const rows = await orderModel.aggregate([
+                { $match: { createdAt: { $gte: from } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Kolkata' } },
+                        orders: { $sum: 1 },
+                        revenue: { $sum: '$pricing.totalAmount' },
+                    },
+                },
+                { $sort: { _id: 1 } },
+            ])
+
+            const byDate = new Map(rows.map((r) => [r._id, r]))
+            const series = []
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(Date.now() - i * DAY_MS)
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                const row = byDate.get(key)
+                series.push({
+                    date: key,
+                    label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+                    orders: row?.orders || 0,
+                    revenue: row?.revenue || 0,
+                })
+            }
+            return series
+        })
+
+        res.status(200).json({ range: rangeKey, series })
+    } catch (error) {
+        console.error('Dashboard timeseries error:', error);
+        res.status(500).json({ error: "Failed to fetch trend data" });
     }
 }
 
@@ -144,7 +321,14 @@ async function getAllUsers(req, res) {
         const { page = 1, limit = 10, search = '' } = req.query;
         const skip = (page - 1) * limit;
         
-        const query = search ? { $or: [{ email: new RegExp(search, 'i') }, { name: new RegExp(search, 'i') }] } : {};
+        const query = search ? {
+            $or: [
+                { email: new RegExp(search, 'i') },
+                { firstName: new RegExp(search, 'i') },
+                { lastName: new RegExp(search, 'i') },
+                { username: new RegExp(search, 'i') }
+            ]
+        } : {};
         
         const users = await userModel.find(query)
             .select('-password')
@@ -191,6 +375,7 @@ async function toggleUserBlock(req, res) {
         
         user.isBlocked = !user.isBlocked;
         await user.save();
+        invalidateDashboardCaches();
         
         res.status(200).json({
             message: `User ${user.isBlocked ? 'blocked' : 'unblocked'} successfully`,
@@ -209,6 +394,7 @@ async function toggleUserBlock(req, res) {
 async function deleteUser(req, res) {
     try {
         const user = await userModel.findByIdAndDelete(req.params.userId);
+        invalidateDashboardCaches();
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
@@ -284,6 +470,7 @@ async function togglePartnerVerification(req, res) {
         
         partner.verified = !partner.verified;
         await partner.save();
+        invalidateDashboardCaches();
         
         res.status(200).json({
             message: `Partner ${partner.verified ? 'verified' : 'unverified'} successfully`,
@@ -325,6 +512,7 @@ async function togglePartnerBlock(req, res) {
         
         partner.isBlocked = !partner.isBlocked;
         await partner.save();
+        invalidateDashboardCaches();
         
         res.status(200).json({
             message: `Partner ${partner.isBlocked ? 'blocked' : 'unblocked'} successfully`,
@@ -343,6 +531,7 @@ async function togglePartnerBlock(req, res) {
 async function deletePartner(req, res) {
     try {
         const partner = await foodPartnerModel.findByIdAndDelete(req.params.partnerId);
+        invalidateDashboardCaches();
         if (!partner) {
             return res.status(404).json({ error: "Partner not found" });
         }
@@ -418,6 +607,7 @@ async function approveFoodItem(req, res) {
         
         foodItem.isActive = approve;
         await foodItem.save();
+        invalidateDashboardCaches();
         
         res.status(200).json({
             message: `Food item ${approve ? 'approved' : 'rejected'} successfully`,
@@ -436,6 +626,7 @@ async function approveFoodItem(req, res) {
 async function deleteFoodItem(req, res) {
     try {
         const foodItem = await foodModel.findByIdAndDelete(req.params.foodId);
+        invalidateDashboardCaches();
         if (!foodItem) {
             return res.status(404).json({ error: "Food item not found" });
         }
@@ -494,6 +685,7 @@ async function approveAdvertisement(req, res) {
         
         ad.isActive = approve;
         await ad.save();
+        invalidateDashboardCaches();
         
         res.status(200).json({
             message: `Advertisement ${approve ? 'approved' : 'rejected'} successfully`,
@@ -512,6 +704,7 @@ async function approveAdvertisement(req, res) {
 async function deleteAdvertisement(req, res) {
     try {
         const ad = await advertisementModel.findByIdAndDelete(req.params.adId);
+        invalidateDashboardCaches();
         if (!ad) {
             return res.status(404).json({ error: "Advertisement not found" });
         }
@@ -557,6 +750,7 @@ async function getAllReviews(req, res) {
 async function deleteReview(req, res) {
     try {
         const review = await reviewModel.findByIdAndDelete(req.params.reviewId);
+        invalidateDashboardCaches();
         if (!review) {
             return res.status(404).json({ error: "Review not found" });
         }
@@ -751,5 +945,8 @@ export default {
     getPartnerAnalytics,
     // Support
     getSupportTickets,
-    updateSupportTicket
+    updateSupportTicket,
+    // Live dashboard
+    getDashboardLive,
+    getDashboardTimeseries
 };

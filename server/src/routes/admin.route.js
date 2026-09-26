@@ -1,6 +1,7 @@
 import express from 'express';
 import adminController from '../controllers/admin.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
+import { adminRateLimiter } from '../middlewares/rateLimiter.js';
 
 const router = express.Router();
 
@@ -19,7 +20,13 @@ router.get('/profile', isAdmin, adminController.getAdminProfile);
 
 // ============ DASHBOARD ROUTES ============
 // GET /api/admin/dashboard - Get dashboard statistics
-router.get('/dashboard', isAdmin, adminController.getDashboardStats);
+router.get('/dashboard', isAdmin, adminRateLimiter, adminController.getDashboardStats);
+
+// Live poll target: metadata counters + newest order only (no aggregation)
+router.get('/dashboard/live', isAdmin, adminRateLimiter, adminController.getDashboardLive);
+
+// Daily revenue/order buckets for the trend chart (range=7d|30d|90d)
+router.get('/dashboard/timeseries', isAdmin, adminRateLimiter, adminController.getDashboardTimeseries);
 
 // ============ USER MANAGEMENT ROUTES ============
 // GET /api/admin/users - Get all users

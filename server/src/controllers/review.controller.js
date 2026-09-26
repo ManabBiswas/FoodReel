@@ -49,24 +49,34 @@ export const createReview = async (req, res) => {
             });
         }
 
-        // Check if user has already reviewed this combination (prefer foodItem if available)
-        // const existingReviewQuery = {
-        //     user: userId,
-        //     isActive: true
-        // };
-        // if (foodItemId) {
-        //     existingReviewQuery.foodItem = foodItemId;
-        // } else {
-        //     existingReviewQuery.foodPartner = resolvedFoodPartnerId;
-        // }
+        // Sanitize detailed ratings: schema requires 1..5, so sending 0 for an
 
-        // const existingReview = await reviewModel.findOne(existingReviewQuery);
-        // // if (existingReview) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "You have already reviewed this"
-        //     });
-        // }
+        let sanitizedRatings = {};
+        if (ratings && typeof ratings === 'object') {
+            for (const key of ['food', 'service', 'ambiance', 'value']) {
+                const v = Number(ratings[key]);
+                if (Number.isFinite(v) && v >= 1 && v <= 5) sanitizedRatings[key] = v;
+            }
+        }
+
+        // Check if user has already reviewed this combination (prefer foodItem if available)
+        const existingReviewQuery = {
+            user: userId,
+            isActive: true
+        };
+        if (foodItemId) {
+            existingReviewQuery.foodItem = foodItemId;
+        } else {
+            existingReviewQuery.foodPartner = resolvedFoodPartnerId;
+        }
+
+        const existingReview = await reviewModel.findOne(existingReviewQuery);
+        if (existingReview) {
+            return res.status(400).json({
+                success: false,
+                message: "You have already reviewed this"
+            });
+        }
 
         // Check if verified purchase (if order ID provided)
         let isVerifiedPurchase = false;
@@ -88,7 +98,7 @@ export const createReview = async (req, res) => {
             rating,
             comment,
             images: images || [],
-            ratings: ratings || {},
+            ratings: sanitizedRatings,
             isVerifiedPurchase,
             status: 'approved'
         });
@@ -511,10 +521,11 @@ export const addReviewReply = async (req, res) => {
 export const respondToReview = async (req, res) => {
     try {
         const { reviewId } = req.params;
-        const { text } = req.body;
-        const foodPartnerId = req.user._id; // Assuming food partner is logged in
+        const { text, response } = req.body;
+        const responseText = typeof text === 'string' ? text : response;
+        const foodPartnerId = req.foodPartner._id;
 
-        if (!text || text.trim().length === 0) {
+        if (!responseText || responseText.trim().length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "Response text is required"
@@ -534,7 +545,7 @@ export const respondToReview = async (req, res) => {
         }
 
         review.response = {
-            text: text.trim(),
+            text: responseText.trim(),
             respondedAt: new Date(),
             respondedBy: foodPartnerId
         };

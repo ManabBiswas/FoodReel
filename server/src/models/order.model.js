@@ -184,7 +184,7 @@ const orderSchema = new mongoose.Schema({
         reason: String,
         refundStatus: {
             type: String,
-            enum: ['not_applicable', 'pending', 'processing', 'completed'],
+            enum: ['not_applicable', 'pending', 'processing', 'completed', 'failed'],
             default: 'not_applicable'
         },
         refundAmount: Number
@@ -195,6 +195,7 @@ const orderSchema = new mongoose.Schema({
 
 // Add indexes for better query performance
 orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ createdAt: -1 }); // dashboard time-series range scans
 orderSchema.index({ 'items.foodPartner': 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ 'paymentDetails.status': 1 });
