@@ -249,9 +249,43 @@ const OrderConfirmation = () => {
                             Cancelled on {fmtDate(order.cancellation.cancelledAt)}
                           </p>
                         )}
+                        {/*
+                          refundStatus states, per the backend refund policy:
+                            pending          - customer/admin cancel, refund starting
+                            processing       - claimed and sent to the gateway
+                            pending_approval - partner cancelled, waiting for approval
+                            completed        - money returned
+                            failed           - gateway refused; safe to retry
+                            not_applicable   - nothing was ever paid
+                        */}
                         {order.cancellation.refundStatus === 'pending' && (
                           <p className="mt-1.5 text-xs font-sans text-red-600">
                             Your refund is being processed (5–7 business days).
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'processing' && (
+                          <p className="mt-1.5 text-xs font-sans text-red-600">
+                            Your refund has been sent to the payment provider (5–7 business days).
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'completed' && (
+                          <p className="mt-1.5 text-xs font-sans text-green-700">
+                            Your refund of {order.cancellation.refundAmount} has been completed.
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'pending_approval' && (
+                          <p className="mt-1.5 text-xs font-sans text-amber-700">
+                            The restaurant cancelled this order, so your refund of {order.cancellation.refundAmount} is awaiting approval.
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'failed' && (
+                          <p className="mt-1.5 text-xs font-sans text-amber-700">
+                            We could not start your refund. It is safe to retry, or contact support if it keeps failing.
+                          </p>
+                        )}
+                        {order.cancellation.refundStatus === 'rejected' && (
+                          <p className="mt-1.5 text-xs font-sans text-amber-700">
+                            This refund was declined. Please contact support if you believe that is a mistake.
                           </p>
                         )}
                         {order.cancellation.refundStatus === 'not_applicable' && (

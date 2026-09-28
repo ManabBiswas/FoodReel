@@ -1,0 +1,36 @@
+# Netlify configuration for the FoodReel frontend.
+#
+# The app is a single-page application: every path that is not a real file or a
+# build asset has to serve index.html, or a hard refresh on a client-side route
+# returns 404.
+[build]
+  base = "Client"
+  command = "npm run build"
+  publish = "dist"
+
+# Hashed asset filenames are immutable, so they can be cached indefinitely.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# index.html must never be cached, or a deploy leaves clients loading a stale
+# bundle reference.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# SPA fallback. Order matters: this must come last so real files still win.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Never rewrite API calls to the SPA. The backend is cross-origin, but if it is
+# ever proxied through the same host this rule keeps that working.
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+  force = true
