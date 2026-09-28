@@ -1,7 +1,12 @@
 import rateLimit from 'express-rate-limit';
 
-// Rate limiting is a production concern only. Local development churns through limits fast (checkAuth fires 3 verify calls per page load, plus cart/partner context fetches), and NODE_ENV is usually unset locally — without this skip, dev hits 429 within a few page loads.
-const skipInDev = () => process.env.NODE_ENV !== 'production';
+// Rate limiting is skipped ONLY when the environment explicitly says it is a
+// throwaway dev/test context. The previous check (`!== 'production'`) failed
+// OPEN: with NODE_ENV unset — the default, and what the Render service was
+// actually running — every limiter in the app was disabled. Set
+// NODE_ENV=development in .env to get the old local-dev behaviour.
+const RATE_LIMIT_EXEMPT_ENVS = new Set(['development', 'test']);
+const skipInDev = () => RATE_LIMIT_EXEMPT_ENVS.has(process.env.NODE_ENV);
 
 export const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

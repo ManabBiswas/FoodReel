@@ -123,7 +123,11 @@ const foodSchema = new mongoose.Schema({
 
 const foodModel = mongoose.model("food", foodSchema);
 
+// The public feed filters on isActive/isAvailable/postType and sorts by createdAt or price, and a partner's own posts filter by foodPartner. Without these the whole feed is a collection scan — the data sweep found `foods` with only the _id index.ugh on its own).
 
 
+foodSchema.index({ isActive: 1, postType: 1, createdAt: -1 });
+foodSchema.index({ foodPartner: 1, createdAt: -1 });
+foodSchema.index({ price: 1 });
 
 export default foodModel;
