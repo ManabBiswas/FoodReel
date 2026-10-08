@@ -1,5 +1,6 @@
 import express from 'express';
 import adminController from '../controllers/admin.controller.js';
+import { getPendingRefunds, decidePendingRefund } from '../controllers/adminRefund.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
 import { adminRateLimiter } from '../middlewares/rateLimiter.js';
 
@@ -110,4 +111,16 @@ router.get('/support-tickets', isAdmin, adminController.getSupportTickets);
 // PUT /api/admin/support-tickets/:ticketId - Update support ticket status
 router.put('/support-tickets/:ticketId', isAdmin, adminController.updateSupportTicket);
 
-export default router
+router.put('/support-tickets/:ticketId', isAdmin, adminController.updateSupportTicket);
+
+// ============ REFUND APPROVAL ROUTES ============
+// A partner cancellation parks the refund in pending_approval. These are the only ways out, so they must exist or the customer's money is stranded.
+
+// GET /api/admin/refunds/pending - Refunds awaiting a decision (oldest first)
+router.get('/refunds/pending', isAdmin, adminRateLimiter, getPendingRefunds);
+
+// POST /api/admin/orders/:orderId/refund/decision - Approve or reject a refund
+// body: { decision: 'approve' | 'reject', note?: string }
+router.post('/orders/:orderId/refund/decision', isAdmin, adminRateLimiter, decidePendingRefund);
+
+export default router;

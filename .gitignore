@@ -5,16 +5,23 @@ node_modules/
 # Ignore all Markdown files
 *.md
 
-# Ignore local server jsconfig (use jsconfig.example.json in repo)
-server/jsconfig.json
 
-# But do NOT ignore these specific ones
 !README.md
-!FOOD_VS_ADVERTISEMENT_SYSTEM.md
+!Client/README.md
+# !docs/architecture/*.md
+# !docs/architecture/**/*.md
+
 !FOOD_VS_ADVERTISEMENT_SYSTEM.md
 !BUSINESS_MODEL.md
 
+# Ignore local server jsconfig (use jsconfig.example.json in repo)
+server/jsconfig.json
+
 .env.production
+
+# Data-repair backups contain real order and user documents. Generated locally,
+# never committed.
+server/scripts/data-repair-backup.json
 
 *.log
 *.err

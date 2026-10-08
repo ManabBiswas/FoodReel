@@ -2,15 +2,19 @@ import express from 'express';
 import orderController from '../controllers/order.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
+import { withIdempotency } from '../services/idempotency.js';
 
 const router = express.Router();
 
 // User routes
 // POST /api/orders - Create new order (only for food items, not advertisements)
-router.post('/',
+  router.post('/',
     isLoggedin,
+    // A retried checkout must not create a second order (and a second charge).
+    // No header = no idempotency, so existing clients are unaffected.
+    withIdempotency('order.create'),
     orderController.createOrder
-);
+  );
 
 // GET /api/orders - Get user's orders
 router.get('/',
@@ -61,9 +65,9 @@ router.post('/:orderId/cancel',
 );
 
 // DEV-ONLY: POST /api/orders/dev/:orderId/status - Update order status and send email (for testing after DB changes)
-// Never registered in production (controller has a second NODE_ENV guard as defense-in-depth).
-if (process.env.NODE_ENV !== 'production') {
-    router.post('/dev/:orderId/status',
+// Registered ONLY when NODE_ENV is exactly 'development'. The previous `!== 'production'` check failed OPEN: with NODE_ENV unset — which is the default, and what Render was running — the route was live in production.
+if (process.env.NODE_ENV === 'development') {
+  router.post('/dev/:orderId/status',
         orderController.devUpdateOrderStatusAndEmail
     );
 }
