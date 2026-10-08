@@ -1,4 +1,5 @@
 import foodModel from "../models/food.model.js";
+import { resolveSort, FOOD_SORT_FIELDS } from '../utils/sortQuery.js';
 import storageService from "../services/storage.service.js";
 import { v4 as uuid } from "uuid";
 import mongoose from "mongoose";
@@ -158,8 +159,7 @@ const getFoodItems = async (req, res) => {
             filter.postType = postType;
         }
 
-        const sortObj = {};
-        sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
+        const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: FOOD_SORT_FIELDS });
 
         const foods = await foodModel
             .find(filter)
@@ -363,8 +363,7 @@ const getAllFoods = async (req, res) => {
 
         const validLimit = Math.min(parseInt(limit), 100);
         const skip = (parseInt(page) - 1) * validLimit;
-        const sortObj = {};
-        sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
+        const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: FOOD_SORT_FIELDS });
 
         const foods = await foodModel
             .find(filter)

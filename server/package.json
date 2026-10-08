@@ -9,7 +9,12 @@
         "test": "node --test",
         "test:watch": "node --test --watch",
         "check:imports": "node check-imports.cjs src",
-        "sweep": "node scripts/data-sweep.mjs"
+        "sweep": "node scripts/data-sweep.mjs",
+        "exploit:repro": "node scripts/exploit-repro.mjs",
+        "webhook:repro": "node scripts/webhook-repro.mjs",
+        "test:refund-race": "node scripts/refund-race.mjs",
+        "test:cancel-refund": "node scripts/cancel-autorefund.mjs",
+        "test:gap-closure": "node scripts/gap-closure.mjs"
     },
   "keywords": [],
   "author": "Manab Biswas",
@@ -40,3 +45,4 @@
     "xss": "^1.0.15"
   }
 }
+

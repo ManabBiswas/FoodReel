@@ -70,6 +70,8 @@ const orderSchema = new mongoose.Schema({
         razorpayOrderId: String,
         razorpayPaymentId: String,
         razorpaySignature: String,
+        razorpayAmount: Number,
+        razorpayOrderCreatedAt: Date,
         transactionId: String,
         paidAt: Date,
         status: {
@@ -184,10 +186,19 @@ const orderSchema = new mongoose.Schema({
         reason: String,
         refundStatus: {
             type: String,
-            enum: ['not_applicable', 'pending', 'processing', 'completed', 'failed'],
+            // pending_approval: a partner cancelled, so the refund waits for a human
+            // rejected: an admin declined the refund (the customer must be told)
+            enum: ['not_applicable', 'pending', 'pending_approval', 'processing', 'completed', 'failed', 'rejected'],
             default: 'not_applicable'
         },
-        refundAmount: Number
+        refundAmount: Number,
+        // Set when a refund is claimed, so a stuck claim can be found and retried
+        refundInitiatedAt: Date,
+        refundInitiatedBy: {
+            type: String,
+            enum: ['user', 'partner', 'admin', 'system'],
+        },
+        refundId: String,
     }
 }, {
     timestamps: true

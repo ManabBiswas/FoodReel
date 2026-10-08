@@ -311,7 +311,7 @@ See `server/.env.example` for the full list with placeholders.
 
 **Deployment:**
 - **Backend (Render):** `render.yaml` at the repo root defines the service (`rootDir: server`, `/health` check). Secret values are prompted by Render, never committed.
-- **Frontend (Vercel):** set the project **Root Directory = `Client`** in the dashboard; `Client/.env.production` carries `VITE_API_BASE_URL` (read at build time), and `Client/vercel.json` provides the SPA rewrite. Set `FRONTEND_URL` on Render to your Vercel origin (CORS allowlist).
+- **Frontend (Netlify):** set the **base directory = `Client`** in the dashboard. `Client/netlify.toml` sets the build command, publish directory, cache headers and the SPA rewrite. `Client/.env.production` carries `VITE_API_BASE_URL` (read at build time). Set `FRONTEND_URL` on Render to your Netlify origin so the CORS allowlist matches.
 - **Keeping Render awake:** Render's free tier idles the service after ~15 minutes, and the first request then pays a cold start (measured 33s vs 0.7s warm). `.github/workflows/keep-render-warm.yml` pings `/health` every 5 minutes to hold it open. Optionally set the repo secret `RENDER_HEALTH_URL` (Settings → Secrets and variables → Actions) to override the default production URL. Note that GitHub disables scheduled workflows in public repos after 60 days of inactivity.
 
 ### Automation
@@ -321,7 +321,9 @@ See `server/.env.example` for the full list with placeholders.
 | `.github/workflows/ci.yml` | push / PR to `main` | Server import + app-load check, `npm test`, client lint + build, dependency audit |
 | `.github/workflows/keep-render-warm.yml` | every 5 min / manual | Pings Render `/health` so the free instance never spins down |
 
-Server tests run locally with `cd server && npm test` (Node's built-in runner — no test framework installed).
+Server tests run locally with `cd server && npm test` (Node's built-in runner — no test framework installed). `npm run sweep` prints a read-only data consistency report.
+
+**For a new maintainer:** start with [docs/architecture/TECHNICAL_HANDOVER.md](docs/architecture/TECHNICAL_HANDOVER.md) — what works, what is verified, and what is inherited.
 
 ### 3) Install & run
 

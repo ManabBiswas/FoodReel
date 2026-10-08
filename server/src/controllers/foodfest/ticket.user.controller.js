@@ -2,6 +2,8 @@ import FoodFestEvent from "../../models/FoodFestEvent.model.js";
 import FoodFestTier from "../../models/FoodFestTier.model.js";
 import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import paymentService from "../../services/payment.service.js";
+import { verifyTicketPaymentBinding } from "../../services/payment.verification.js";
+import { finalizeTicketPayment } from "../../services/foodfest.ticket.service.js";
 import mongoose from "mongoose";
 
 export const browseEvents = async (req, res) => {
@@ -104,6 +106,10 @@ export const purchaseTicket = async (req, res) => {
                 throw new Error("Failed to create payment order");
             }
 
+            ticket.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
+            ticket.paymentDetails.razorpayAmount = razorpayOrder.amount;
+            await ticket.save({ session });
+
             await session.commitTransaction();
 
             res.status(201).json({
@@ -123,6 +129,113 @@ export const purchaseTicket = async (req, res) => {
     } catch (error) {
         console.error("Purchase ticket error:", error);
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Verify a FoodFest ticket payment.
+ */
+export const verifyTicketPayment = async (req, res) => {
+    try {
+        const {
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            ticketId
+        } = req.body;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !ticketId) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required payment parameters"
+            });
+        }
+
+        const signatureValid = paymentService.verifyPaymentSignature(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        );
+
+        if (!signatureValid) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid payment signature"
+            });
+        }
+
+        const ticket = await FoodFestTicket.findById(ticketId);
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: "Ticket not found" });
+        }
+
+        if (ticket.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "This ticket belongs to another user" });
+        }
+
+        // Ask the gateway what was actually paid; never trust client values.
+        let gatewayPayment = null;
+        try {
+            const fetched = await paymentService.getPaymentDetails(razorpay_payment_id);
+            gatewayPayment = fetched?.payment ?? null;
+        } catch (err) {
+            console.error(`Razorpay ticket payment fetch failed for ${razorpay_payment_id}:`, err.message);
+            return res.status(502).json({
+                success: false,
+                message: "Could not confirm the payment with the payment gateway. Please retry."
+            });
+        }
+
+        const binding = verifyTicketPaymentBinding({
+            ticket,
+            razorpayOrderId: razorpay_order_id,
+            gatewayPayment
+        });
+
+        if (!binding.ok) {
+            console.error(
+                `Ticket payment binding rejected for ticket ${ticket._id}: ${binding.code}`
+            );
+            return res.status(binding.status).json({
+                success: false,
+                message: binding.message,
+                code: binding.code
+            });
+        }
+
+        const result = await finalizeTicketPayment(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        );
+
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                message: result.message || "Could not finalise this ticket",
+                code: result.code
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: result.alreadyFinalised
+                ? "Ticket was already verified"
+                : "Ticket payment verified successfully",
+            alreadyFinalised: !!result.alreadyFinalised,
+            ticket: {
+                id: result.ticket._id,
+                status: result.ticket.status,
+                qrToken: result.ticket.qrToken,
+                qrImageUrl: result.ticket.qrImageUrl
+            }
+        });
+    } catch (error) {
+        console.error("Ticket payment verification error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Ticket payment verification failed"
+        });
     }
 };
 

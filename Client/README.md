@@ -223,10 +223,8 @@ npm run preview
 ```
 
 Build output is in the `dist/` directory, ready for deployment to:
-- Vercel
-- Netlify
-- AWS S3 + CloudFront
-- Any static hosting service
+- Netlify (configured via `netlify.toml` in this directory)
+
 
 ## 🤝 Contributing
 

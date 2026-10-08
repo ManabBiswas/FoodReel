@@ -33,6 +33,7 @@ const foodFestTicketSchema = new mongoose.Schema({
     paymentDetails: {
         razorpayOrderId: String,
         razorpayPaymentId: String,
+        razorpayAmount: Number,
         paidAt: Date
     },
     priceAtPurchase: {
@@ -66,8 +67,7 @@ const foodFestTicketSchema = new mongoose.Schema({
     timestamps: true
 });
 
-foodFestTicketSchema.index({ eventId: 1, status: 1 });
-foodFestTicketSchema.index({ user: 1, eventId: 1 });
-foodFestTicketSchema.index({ qrToken: 1 });
+  foodFestTicketSchema.index({ eventId: 1, status: 1 });
+  foodFestTicketSchema.index({ user: 1, eventId: 1 });
 
 export default mongoose.model('FoodFestTicket', foodFestTicketSchema);

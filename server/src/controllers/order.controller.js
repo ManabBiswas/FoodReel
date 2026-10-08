@@ -3,6 +3,8 @@ import foodModel from "../models/food.model.js";
 import userModel from "../models/user.Model.js";
 import paymentService from "../services/payment.service.js";
 import emailService from "../services/email.service.js";
+import { decideRefundOnCancellation, decideFulfilmentAllowed, OUTCOME } from "../services/refund.policy.js";
+import { initiateClaimedRefund } from "../services/refund.service.js";
 
 const createOrder = async (req, res) => {
   try {
@@ -288,6 +290,18 @@ const updateOrderStatus = async (req, res) => {
             });
         }
 
+        // Payment gate: an order paid online must not advance past pending until
+        // the money is actually captured. The data sweep found 5 orders already in
+        // this state, so this is not theoretical. COD is exempt — there is no
+        // payment to complete, the money is collected on delivery.
+        const gate = decideFulfilmentAllowed({ order, nextStatus: status });
+        if (!gate.allowed) {
+            return res.status(409).json({
+                error: gate.message,
+                code: gate.code
+            });
+        }
+
         // Prevent invalid status transitions
         const validTransitions = {
             'pending': ['confirmed', 'cancelled'],
@@ -525,14 +539,19 @@ const cancelOrder = async (req, res) => {
             });
         }
 
+        // Decide what happens to the money before touching the document.
+        // A customer cancellation refunds automatically; nothing to refund for COD
+        // or an unpaid order.
+        const refundDecision = decideRefundOnCancellation({ order, actor: 'user' });
+
         // Update cancellation info
         order.cancellation = {
             isCancelled: true,
             cancelledBy: 'user',
             cancelledAt: new Date(),
             reason: reason || 'Customer requested cancellation',
-            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending',
-            refundAmount: order.paymentDetails.status === 'completed' ? order.pricing.totalAmount : 0
+            refundStatus: refundDecision.refundStatus,
+            refundAmount: refundDecision.amount
         };
         order.status = 'cancelled';
 
@@ -544,12 +563,38 @@ const cancelOrder = async (req, res) => {
 
         await order.save();
 
+        // Auto-refund: the customer cancelled, so the money goes back without
+        // them having to ask. Claimed atomically, so a duplicate request here
+        // cannot produce a second refund.
+        let refundResult = null;
+        if (refundDecision.outcome === OUTCOME.AUTO_REFUND) {
+            const initiated = await initiateClaimedRefund({
+                orderId: order._id,
+                amount: refundDecision.amount,
+                initiatedBy: 'system',
+                reason: order.cancellation.reason
+            });
+            if (initiated.ok) {
+                refundResult = initiated.refund;
+            } else {
+                // The order is still cancelled, but the customer must be told the
+                // refund did not start rather than silently leaving them unpaid.
+                console.error(`[req:${req.id}] Auto-refund failed for order ${order._id}: ${initiated.code} ${initiated.message}`);
+            }
+        }
+
         res.status(200).json({
             success: true,
-            message: "Order cancelled successfully",
+            message: refundResult
+                ? "Order cancelled and refund initiated"
+                : "Order cancelled successfully",
             order,
-            refundInfo: order.cancellation.refundStatus !== 'not_applicable' 
-                ? { status: order.cancellation.refundStatus, amount: order.cancellation.refundAmount }
+            refundInfo: order.cancellation.refundStatus !== 'not_applicable'
+                ? {
+                    status: order.cancellation.refundStatus,
+                    amount: order.cancellation.refundAmount,
+                    ...(refundResult ? { refundId: refundResult.refundId } : {})
+                }
                 : null
         });
 
@@ -617,20 +662,26 @@ const partnerCancelOrder = async (req, res) => {
             });
         }
 
+        // A partner cancellation does NOT auto-refund: it goes to pending_approval
+        // and waits for a human. Only an admin should release that money.
+        const refundDecision = decideRefundOnCancellation({ order, actor: 'partner' });
+
         // Update cancellation info
         order.cancellation = {
             isCancelled: true,
             cancelledBy: 'partner',
             cancelledAt: new Date(),
             reason: reason || 'Cancelled by food partner',
-            refundStatus: order.paymentDetails.method === 'cod' ? 'not_applicable' : 'pending',
-            refundAmount: order.paymentDetails.status === 'completed' ? order.pricing.totalAmount : 0
+            refundStatus: refundDecision.refundStatus,
+            refundAmount: refundDecision.amount
         };
         order.status = 'cancelled';
 
         // Add cancellation note
         order.orderNotes.push({
-            note: `Order cancelled by partner. Reason: ${reason || 'Cancelled by food partner'}`,
+            note: refundDecision.outcome === OUTCOME.AWAIT_APPROVAL
+                ? `Order cancelled by partner. Refund of ₹${refundDecision.amount} requires approval. Reason: ${reason || 'Cancelled by food partner'}`
+                : `Order cancelled by partner. Reason: ${reason || 'Cancelled by food partner'}`,
             addedBy: 'partner'
         });
 
@@ -638,9 +689,11 @@ const partnerCancelOrder = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Order cancelled successfully by partner",
+            message: refundDecision.outcome === OUTCOME.AWAIT_APPROVAL
+                ? "Order cancelled. Refund requires approval"
+                : "Order cancelled successfully by partner",
             order,
-            refundInfo: order.cancellation.refundStatus !== 'not_applicable' 
+            refundInfo: order.cancellation.refundStatus !== 'not_applicable'
                 ? { status: order.cancellation.refundStatus, amount: order.cancellation.refundAmount }
                 : null
         });
@@ -675,7 +728,10 @@ const partnerCancelOrder = async (req, res) => {
 
 // DEV-ONLY: Manually update order status and send email (for testing after direct DB changes)
 const devUpdateOrderStatusAndEmail = async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
+  // Fail closed: blocked unless the environment explicitly declares itself a
+  // throwaway dev context. Previously this allowed the request whenever
+  // NODE_ENV was merely not 'production', which is the unset default.
+  if (process.env.NODE_ENV !== 'development') {
     return res.status(403).json({ error: 'This endpoint is only available in development mode' });
   }
   

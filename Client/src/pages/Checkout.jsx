@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
@@ -54,6 +54,18 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null)
   const [useSavedAddress, setUseSavedAddress] = useState(true)
   const [loadingAddresses, setLoadingAddresses] = useState(true)
+  // One key per checkout attempt. Held in a ref (not state) so a retry of the
+  // same attempt reuses it and the server replays the first response instead of
+  // creating a second order. A genuinely new attempt generates a new one.
+  const idempotencyKeyRef = useRef(null)
+  const getIdempotencyKey = () => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        (globalThis.crypto?.randomUUID?.() ??
+         `k-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    }
+    return idempotencyKeyRef.current
+  }
 
   // Map a saved address record onto the checkout form shape. The address
   // subdocument uses addressLine1/pincode, the manual form uses address/pincode.
@@ -201,8 +213,7 @@ const Checkout = () => {
 
   // Handle Razorpay Payment
   const handleRazorpayPayment = async (orderId) => {
-    // Ad-blockers leave window.Razorpay undefined — bail with a clear message
-    // before creating a Razorpay order we can't open (M24).
+    // Ad-blockers leave window.Razorpay undefined — bail with a clear message before creating a Razorpay order we can't open (M24).
     if (typeof window.Razorpay !== 'function') {
       showError('Payment gateway could not load. Please try Cash on Delivery or disable your ad blocker.')
       setLoading(false)
@@ -322,7 +333,15 @@ const Checkout = () => {
       const response = await axios.post(
         API_ENDPOINTS.order.create,
         orderPayload,
-        axiosConfig
+        {
+          ...axiosConfig,
+          headers: {
+            ...(axiosConfig?.headers || {}),
+            // Makes a retried submit replay the first response rather than
+            // creating a second order and a second charge.
+            'Idempotency-Key': getIdempotencyKey()
+          }
+        }
       )
 
       if (!response.data) {

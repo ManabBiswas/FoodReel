@@ -19,9 +19,10 @@ services:
       # --- Required at startup (server.js exits if missing) ---
       - key: NODE_ENV
         value: production
-      # Vercel production URL — update when the frontend domain changes (F3).
+
       - key: FRONTEND_URL
-        value: https://foodreel.vercel.app
+        value: https://foodreel.netlify.app 
+        sync: false
       - key: MONGODB_URL
         sync: false
       - key: JWT_SECRET
