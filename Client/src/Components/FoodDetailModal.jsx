@@ -6,6 +6,12 @@ import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useCart } from '../hooks/useCart'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
 
+// Reviewer display name. Deliberately does NOT fall back to email: /food/:id/reviews
+// is unauthenticated, and the old email fallback was the reason it had to populate
+// every reviewer's address into a public response.
+const reviewerName = (user) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'User'
+
 const FoodDetailModal = ({ food, onClose }) => {
   const [reviews, setReviews] = useState([])
   // review input stored in `comment` state
@@ -297,10 +303,10 @@ const FoodDetailModal = ({ food, onClose }) => {
                 reviews.map((r) => (
                   <div key={r._id || r.id || `${r.user?.id || ''}-${r.createdAt}`} className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
-                      {r.user?.name?.charAt(0) || (r.user?.email?.charAt(0)) || 'U'}
+                      {reviewerName(r.user).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{r.user?.name || r.user?.email || 'User'}</div>
+                      <div className="text-sm font-semibold text-gray-900">{reviewerName(r.user)}</div>
                       <div className="text-sm text-gray-700">{r.comment || r.text || ''}</div>
                       <div className="text-xs text-gray-400 mt-1">{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</div>
                     </div>
