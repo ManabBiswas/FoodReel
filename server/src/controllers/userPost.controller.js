@@ -4,6 +4,7 @@ import foodModel from '../models/food.model.js'
 import FoodPartner from '../models/foodPartner.Model.js'
 import mongoose from 'mongoose'
 import { v4 as uuid } from 'uuid'
+import { resolveSort, POST_SORT_FIELDS } from '../utils/sortQuery.js'
 
 const createUserPost = async (req, res) => {
   try {
@@ -84,12 +85,13 @@ const getAllUserPosts = async (req, res) => {
     const { limit = 50, page = 1, sortBy = 'createdAt', sortOrder = 'desc' } = req.query
     const validLimit = Math.min(parseInt(limit), 100)
     const skip = (parseInt(page) - 1) * validLimit
-    const sortObj = { [sortBy]: sortOrder === 'asc' ? 1 : -1 }
+    const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: POST_SORT_FIELDS })
 
     const posts = await UserPost
       .find({ isActive: true })
-      .populate('postedBy', 'firstName lastName email')
-      .populate('taggedPartner', 'companyName email')
+      // firstName/lastName only prevent email exposure   
+      .populate('postedBy', 'firstName lastName profileImage')
+      .populate('taggedPartner', 'companyName')
       .populate('taggedFood', 'name price preparationTime isAvailable description')
       .populate('likes', '_id')
       .sort(sortObj)
@@ -123,7 +125,8 @@ const getUserPostsByUserId = async (req, res) => {
 
     const posts = await UserPost
       .find({ postedBy: userId, isActive: true })
-      .populate('taggedPartner', 'companyName email')
+      // companyName only: `GET /api/food/user/:userId` has no auth middleware.
+      .populate('taggedPartner', 'companyName')
       .populate('taggedFood', 'name price preparationTime isAvailable description')
       .sort({ createdAt: -1 })
       .lean()
@@ -177,7 +180,7 @@ const addComment = async (req, res) => {
     post.comments.push({ user: req.user._id, text: text.trim(), createdAt: new Date() })
     post.commentCount += 1
     await post.save()
-    await post.populate('comments.user', 'firstName lastName email')
+    await post.populate('comments.user', 'firstName lastName profileImage')
 
     res.status(201).json({
       message: 'Comment added successfully',
@@ -198,7 +201,7 @@ const getComments = async (req, res) => {
     const skip = (parseInt(page) - 1) * validLimit
 
     const post = await UserPost.findById(id)
-      .populate({ path: 'comments.user', select: 'firstName lastName email' })
+     .populate({ path: 'comments.user', select: 'firstName lastName profileImage' })
       .lean()
 
     if (!post) return res.status(404).json({ error: 'Post not found' })

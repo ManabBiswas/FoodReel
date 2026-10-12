@@ -26,4 +26,7 @@ const userPostSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
+userPostSchema.index({ isActive: 1, createdAt: -1 });
+userPostSchema.index({ postedBy: 1, createdAt: -1 });
+
 export default mongoose.model('UserPost', userPostSchema);

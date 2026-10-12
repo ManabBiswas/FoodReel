@@ -3,62 +3,114 @@ import FoodFestTier from "../models/FoodFestTier.model.js";
 import mongoose from "mongoose";
 
 let sweeperInterval = null;
+let isRunning = false;
+
+// Multi-document transactions need a replica set. Render+Atlas has one; a
+// local standalone mongod does not, and startTransaction() there throws
+// "Transaction numbers are only allowed on a replica set member or mongos" on
+// the first write. Cache the answer so a standalone dev database still expires
+// tickets (without transactional isolation) instead of failing every run.
+let transactionsSupported = null;
+
+const supportsTransactions = async () => {
+    if (transactionsSupported !== null) return transactionsSupported;
+    try {
+        const hello = await mongoose.connection.db.admin().command({ hello: 1 });
+        transactionsSupported = Boolean(hello.setName);
+    } catch {
+        transactionsSupported = false;
+    }
+    return transactionsSupported;
+};
 
 export const startTicketSweeper = () => {
-    // Run every 60 seconds
-    sweeperInterval = setInterval(async () => {
-        try {
-            await expirePendingTickets();
-        } catch (error) {
-            console.error("Ticket sweeper error:", error);
-        }
+    if (sweeperInterval) return;
+
+    // Every 60 seconds. The callback is deliberately not async-wrapped by
+    // setInterval: isRunning is checked first so a slow sweep never overlaps
+    // itself, which is what let two runs claim the same ticket.
+    sweeperInterval = setInterval(() => {
+        if (isRunning) return;
+        isRunning = true;
+        expirePendingTickets()
+            .catch((error) => console.error("Ticket sweeper error:", error))
+            .finally(() => { isRunning = false; });
     }, 60 * 1000);
-    
+
     console.log("Ticket sweeper scheduled every 60s");
 };
 
 export const stopTicketSweeper = () => {
-    if (sweeperInterval) clearInterval(sweeperInterval);
+    if (sweeperInterval) {
+        clearInterval(sweeperInterval);
+        sweeperInterval = null;
+    }
 };
+
+/** Test seam: run one sweep directly without waiting on the interval. */
+export const sweepOnce = () => expirePendingTickets();
 
 const expirePendingTickets = async () => {
     const expiryThreshold = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
 
     // Find tickets stuck in pending_payment older than 15 mins
-    const expiredTickets = await FoodFestTicket.find({
+    const staleTickets = await FoodFestTicket.find({
         status: 'pending_payment',
         createdAt: { $lt: expiryThreshold }
-    });
+    }).select('_id tierId');
 
-    if (expiredTickets.length === 0) return;
+    if (staleTickets.length === 0) return { expired: 0 };
 
-    console.log(`🧹 Sweeper: Expiring ${expiredTickets.length} pending tickets`);
+    const useTransaction = await supportsTransactions();
+    console.log(`🧹 Sweeper: expiring ${staleTickets.length} pending ticket(s)`);
 
-    for (const ticket of expiredTickets) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
+    let expired = 0;
+
+    for (const ticket of staleTickets) {
+        const session = useTransaction ? await mongoose.startSession() : null;
 
         try {
-            // 1. Update ticket status to expired
-            await FoodFestTicket.findByIdAndUpdate(
-                ticket._id,
-                { status: 'expired' },
-                { session }
+            if (session) session.startTransaction();
+
+            // The claim. Only the sweep that flips pending_payment -> expired
+            // gets the ticket back, so each is released exactly once no matter
+            // how many sweeps see it. The original wrote `{ status: 'expired' }`
+            // filtered on `_id` alone — no precondition on the current status —
+            // so an overlapping sweep re-matched an already-expired ticket and
+            // decremented reserved a second time, driving it negative and
+            // overselling (inventory is checked as sold + reserved < quantity).
+            const claimed = await FoodFestTicket.findOneAndUpdate(
+                { _id: ticket._id, status: 'pending_payment' },
+                { $set: { status: 'expired' } },
+                { session, new: true }
             );
 
-            // 2. Release tier reservation
-            await FoodFestTier.findByIdAndUpdate(
-                ticket.tierId,
-                { $inc: { reserved: -1 } },
-                { session }
-            );
+            if (claimed) {
+                // Floor at 1 so reserved can never go below zero. It is already
+                // 0 when the reservation was released elsewhere, in which case
+                // there is nothing to release and the $inc must not run.
+                const released = await FoodFestTier.updateOne(
+                    { _id: ticket.tierId, reserved: { $gte: 1 } },
+                    { $inc: { reserved: -1 } },
+                    { session }
+                );
+                if (released.modifiedCount) expired++;
+                else {
+                    console.warn(`Sweeper: tier ${ticket.tierId} already at reserved=0 for ticket ${ticket._id}`);
+                }
+            }
 
-            await session.commitTransaction();
+            if (session) {
+                if (claimed) await session.commitTransaction();
+                else await session.abortTransaction();
+            }
         } catch (err) {
-            await session.abortTransaction();
+            if (session) await session.abortTransaction().catch(() => {});
             console.error(`Failed to expire ticket ${ticket._id}:`, err);
         } finally {
-            session.endSession();
+            if (session) session.endSession();
         }
     }
+
+    return { expired };
 };

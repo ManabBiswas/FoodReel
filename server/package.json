@@ -14,7 +14,8 @@
         "webhook:repro": "node scripts/webhook-repro.mjs",
         "test:refund-race": "node scripts/refund-race.mjs",
         "test:cancel-refund": "node scripts/cancel-autorefund.mjs",
-        "test:gap-closure": "node scripts/gap-closure.mjs"
+        "test:gap-closure": "node scripts/gap-closure.mjs",
+        "test:sweeper": "node scripts/sweeper-repro.mjs"
     },
   "keywords": [],
   "author": "Manab Biswas",

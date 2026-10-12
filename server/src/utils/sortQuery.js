@@ -51,3 +51,10 @@ export const FOOD_SORT_FIELDS = [
     'totalLikes',
     'averageRating',
 ];
+
+/** Sort fields the public user-post feed may use. */
+export const POST_SORT_FIELDS = [
+    'createdAt',
+    'likeCount',
+    'commentCount',
+];

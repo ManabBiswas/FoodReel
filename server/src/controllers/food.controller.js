@@ -469,7 +469,7 @@ const getReviews = async (req, res) => {
 
         const reviews = await reviewModel
             .find({ foodItem: id, isActive: true })
-            .populate('user', 'username name email')
+            .populate('user', 'firstName lastName profileImage')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(validLimit)
@@ -519,7 +519,7 @@ const addReview = async (req, res) => {
             comment: comment.trim()
         });
 
-        await newReview.populate('user', 'username name email');
+        await newReview.populate('user', 'firstName lastName profileImage');
         res.status(201).json({ message: "Review added successfully", review: newReview });
     } catch (error) {
         console.error("Error adding review:", error);

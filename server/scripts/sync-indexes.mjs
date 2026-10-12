@@ -16,35 +16,24 @@
  *   node scripts/sync-indexes.mjs --apply   # make the changes
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 
-// Importing the models registers their schemas, which is where the declared
-// indexes come from. Referencing mongoose.model() without this throws.
-import '../src/models/order.model.js';
-import '../src/models/food.model.js';
-import '../src/models/user.Model.js';
-import '../src/models/review.model.js';
-import '../src/models/cart.model.js';
-import '../src/models/foodPartner.Model.js';
-import '../src/models/FoodFestTicket.model.js';
-import '../src/models/FoodFestTier.model.js';
-import '../src/models/FoodFestEvent.model.js';
+
+
+const MODELS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/models');
+for (const file of fs.readdirSync(MODELS_DIR)) {
+    if (!file.endsWith('.js')) continue;
+    await import(pathToFileURL(path.join(MODELS_DIR, file)).href);
+}
 
 const APPLY = process.argv.includes('--apply');
 
-/** Collections whose declared indexes we manage. */
-const MODELS = () => [
-    mongoose.model('Order'),
-    mongoose.model('food'),
-    mongoose.model('User'),
-    mongoose.model('Review'),
-    mongoose.model('Cart'),
-    mongoose.model('FoodPartner'),
-    mongoose.model('FoodFestTicket'),
-    mongoose.model('FoodFestTier'),
-    mongoose.model('FoodFestEvent'),
-];
+/** Every registered model. Ordered by name so output is stable across runs. */
+const MODELS = () => mongoose.modelNames().sort().map((name) => mongoose.model(name));
 
 const spec = (index) => ({
     unique: index.unique === true,
