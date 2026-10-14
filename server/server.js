@@ -2,10 +2,12 @@
 // decisions) reads process.env at import time.
 import 'dotenv/config';
 import { createServer } from 'http';
+import mongoose from 'mongoose';
 import app from './src/app.js';
 import connectDB from './src/db/db.js';
+import { syncIndexes } from './src/services/indexSync.service.js';
 import { initSocketIO } from './src/services/foodfest.socket.service.js';
-import { startTicketSweeper } from './src/services/foodfest.sweeper.js';
+import { startTicketSweeper, stopTicketSweeper } from './src/services/foodfest.sweeper.js';
 
 const port = process.env.PORT || 3000;
 
@@ -45,10 +47,19 @@ if (!(process.env.FRONTEND_URL || '').startsWith('https://')) {
 
 console.log('✅ All environment variables validated');
 
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection:', reason);
+    process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
+    process.exit(1);
+});
+
 const httpServer = createServer(app);
 
 // Initialize Socket.io
-initSocketIO(httpServer);
+const io = initSocketIO(httpServer);
 console.log('🔌 Socket.io initialized');
 
 // Start Ticket Expiry Sweeper
@@ -58,7 +69,22 @@ console.log('🧹 Ticket expiry sweeper started');
 httpServer.listen(port, () => {
     console.log(`\n🚀 FoodReel Server running on port ${port}`);
     // Connect to database with error handling
-    connectDB().catch(err => {
+    connectDB().then(async () => {
+        if (process.env.NODE_ENV === 'production') {
+            try {
+                const summary = await syncIndexes({
+                    apply: true,
+                    log: (line) => console.log(`[indexes]${line}`),
+                });
+                console.log(
+                    `[indexes] ${summary.ok} ok, ${summary.created} created, ` +
+                    `${summary.rebuilt} rebuilt${summary.failed ? `, ${summary.failed} FAILED` : ''}`
+                );
+            } catch (err) {
+                console.error('[indexes] sync failed (continuing):', err.message);
+            }
+        }
+    }).catch(err => {
         console.error('Failed to connect to database:', err);
         process.exit(1);
     });
@@ -66,3 +92,41 @@ httpServer.listen(port, () => {
     console.error('Failed to start server:', err);
     process.exit(1);
 });
+
+// Graceful shutdown. Render sends SIGTERM on every deploy; without this the
+// process is killed mid-request and in-flight checkouts/orders are dropped.
+let shuttingDown = false;
+const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\n${signal} received — shutting down gracefully...`);
+
+    stopTicketSweeper(); // Stop the ticket expiry sweeper for graceful shutdown
+
+    // Hard deadline: open keep-alive/websocket sockets can otherwise hold the process open indefinitely.
+    const forceExit = setTimeout(() => {
+        console.error('Forced shutdown after 10s');
+        process.exit(1);
+    }, 10000);
+    forceExit.unref();
+
+    // Terminates live socket.io connections so httpServer.close can finish.
+    try { io.close(); } catch { /* already closed */ }
+
+    httpServer.close(async (err) => {
+        try {
+            await mongoose.connection.close();
+        } catch (dbErr) {
+            console.error('Error closing Mongo connection:', dbErr.message);
+        }
+        if (err) {
+            console.error('Error closing HTTP server:', err.message);
+            process.exit(1);
+        }
+        console.log('Shutdown complete');
+        process.exit(0);
+    });
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

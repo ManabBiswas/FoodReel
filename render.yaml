@@ -21,12 +21,12 @@ services:
         value: production
 
       - key: FRONTEND_URL
-        value: https://foodreel.netlify.app 
+        value: https://foodreel.netlify.app
         sync: false
       - key: MONGODB_URL
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: EMAIL_SERVICE
         sync: false
       - key: EMAIL_USER
@@ -43,6 +43,5 @@ services:
         sync: false
       - key: IMAGEKIT_URL_ENDPOINT
         sync: false
-      # --- Optional but important (warnings at startup if missing) ---
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false

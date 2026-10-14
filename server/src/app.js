@@ -20,6 +20,7 @@ import emailRoutes from './routes/email.route.js';
 import contactRoutes from './routes/contact.route.js';
 import cors from 'cors';
 import helmet from "helmet";
+import mongoose from 'mongoose';
 import { globalRateLimiter } from './middlewares/rateLimiter.js';
 import { sanitizeInput } from './middlewares/sanitization.js';
 import { requestId, accessLog } from './middlewares/requestId.js';
@@ -50,10 +51,25 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie'],
+  // Idempotency-Key is sent by Checkout.jsx on POST /api/orders - without it in the preflight allowlist the browser blocks every production checkout.
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key'],
   maxAge: 86400 // 24 hours
 }))
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (req.path.startsWith('/api/payment/webhook')) return next();
+
+  const origin = req.get('Origin');
+  if (origin) {
+    if (allowedOrigins.includes(origin.replace(/\/$/, ''))) return next();
+    return res.status(403).json({ error: 'Cross-site request blocked' });
+  }
+
+  if (req.get('Cookie') && process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Cross-site request blocked' });
+  }
+  next();
+});
  
 // Correlation id + one structured access-log line per request. Mounted first so
 // every later middleware and controller can reference req.id.
@@ -66,7 +82,7 @@ app.use(globalRateLimiter);  // Global rate limiter
 // webhook route BEFORE express.json() consumes the stream. body-parser sets
 // req._body after parsing, so express.json() below skips this route.
 app.use('/api/payment/webhook', express.raw({ type: '*/*' }));
-app.use(express.json({ limit: '10mb' })); // 10mb max because of food images
+app.use(express.json({ limit: '64kb' }));
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(sanitizeInput);
 
@@ -114,8 +130,28 @@ app.use('/api/emails',emailRoutes);
 app.use('/api/contact', contactRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+let healthCache = { at: 0, mongo: false };
+const HEALTH_CACHE_MS = 5000;
+
+app.get('/health', async (req, res) => {
+  const now = Date.now();
+  if (now - healthCache.at > HEALTH_CACHE_MS) {
+    let mongoUp = false;
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.db.admin().ping();
+        mongoUp = true;
+      }
+    } catch {
+      mongoUp = false;
+    }
+    healthCache = { at: now, mongo: mongoUp };
+  }
+  res.status(200).json({
+    status: healthCache.mongo ? 'ok' : 'degraded',
+    mongo: healthCache.mongo ? 'up' : 'down',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Root endpoint
