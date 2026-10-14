@@ -2,7 +2,9 @@ import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import storageService from './storage.service.js';
 
-const QR_SERVICE_SECRET = process.env.JWT_SECRET || 'foodfest-qr-secret';
+// JWT_SECRET is validated at boot (server.js). Deliberately NO hardcoded
+// fallback: a known literal would let anyone forge entry QR tokens offline.
+const QR_SERVICE_SECRET = process.env.JWT_SECRET;
 
 export const generateQRToken = (ticketId, eventId, eventEndTime) => {
     // Token bound to event end time

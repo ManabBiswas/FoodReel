@@ -1,5 +1,6 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import { timingSafeStringEqual } from '../utils/secureCompare.js';
 
 class PaymentService {
     constructor() {
@@ -63,7 +64,8 @@ class PaymentService {
                 .update(text)
                 .digest('hex');
 
-            const isValid = generatedSignature === signature;
+            // Constant-time compare: a plain === leaks HMAC-comparison timing
+            const isValid = timingSafeStringEqual(generatedSignature, signature);
 
             if (!isValid) {
                 console.error('Payment signature verification failed');

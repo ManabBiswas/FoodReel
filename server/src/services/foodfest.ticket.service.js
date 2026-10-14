@@ -4,6 +4,7 @@ import FoodFestTier from "../models/FoodFestTier.model.js";
 import FoodFestEvent from "../models/FoodFestEvent.model.js";
 import qrService from "../services/foodfest.qr.service.js";
 import emailService from "../services/email.service.js";
+import { supportsTransactions } from "./transactionSupport.js";
 
 /**
  * Turn a paid FoodFest ticket into a valid one.
@@ -22,8 +23,13 @@ import emailService from "../services/email.service.js";
  */
 export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signature, session = null) => {
     const ownsTransaction = !session;
-    const tx = session || (await mongoose.startSession());
-    if (ownsTransaction) tx.startTransaction();
+
+    let tx = session;   // Will be null if !ownsTransaction 
+    if (ownsTransaction && (await supportsTransactions())) {
+        tx = await mongoose.startSession();
+        tx.startTransaction();  //This prevents double‑finalisation
+    }
+    const ownsTxn = ownsTransaction && tx !== null;
 
     try {
         // 1. Claim the ticket: pending_payment -> valid, in one atomic step.
@@ -49,11 +55,11 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
             }).session(tx);
 
             if (!existing) {
-                if (ownsTransaction) await tx.abortTransaction();
+                if (ownsTxn) await tx.abortTransaction();
                 console.error(`No FoodFestTicket found for razorpayOrderId: ${razorpayOrderId}`);
                 return { success: false, code: "TICKET_NOT_FOUND", message: "Ticket not found for this payment" };
             }
-            if (ownsTransaction) await tx.abortTransaction();
+            if (ownsTxn) await tx.abortTransaction();
             return { success: true, alreadyFinalised: true, ticket: existing };
         }
 
@@ -82,20 +88,20 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
         ticket.qrImageUrl = qrImageUrl;
         await ticket.save({ session: tx });
 
-        if (ownsTransaction) await tx.commitTransaction();
+        if (ownsTxn) await tx.commitTransaction();
 
         // 4. Confirmation email is non-blocking and OUTSIDE the transaction
         sendTicketConfirmation(ticket, event, qrImageUrl);
 
         return { success: true, ticket };
     } catch (error) {
-        if (ownsTransaction && tx.inTransaction()) {
+        if (ownsTxn && tx.inTransaction()) {
             await tx.abortTransaction().catch(() => {});
         }
         console.error("Finalize ticket payment error:", error);
         throw error;
     } finally {
-        if (ownsTransaction) await tx.endSession();
+        if (ownsTxn) await tx.endSession();
     }
 };
 

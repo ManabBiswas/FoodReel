@@ -1,27 +1,10 @@
 import FoodFestTicket from "../models/FoodFestTicket.model.js";
 import FoodFestTier from "../models/FoodFestTier.model.js";
 import mongoose from "mongoose";
+import { supportsTransactions } from "./transactionSupport.js";
 
 let sweeperInterval = null;
 let isRunning = false;
-
-// Multi-document transactions need a replica set. Render+Atlas has one; a
-// local standalone mongod does not, and startTransaction() there throws
-// "Transaction numbers are only allowed on a replica set member or mongos" on
-// the first write. Cache the answer so a standalone dev database still expires
-// tickets (without transactional isolation) instead of failing every run.
-let transactionsSupported = null;
-
-const supportsTransactions = async () => {
-    if (transactionsSupported !== null) return transactionsSupported;
-    try {
-        const hello = await mongoose.connection.db.admin().command({ hello: 1 });
-        transactionsSupported = Boolean(hello.setName);
-    } catch {
-        transactionsSupported = false;
-    }
-    return transactionsSupported;
-};
 
 export const startTicketSweeper = () => {
     if (sweeperInterval) return;
@@ -72,13 +55,6 @@ const expirePendingTickets = async () => {
         try {
             if (session) session.startTransaction();
 
-            // The claim. Only the sweep that flips pending_payment -> expired
-            // gets the ticket back, so each is released exactly once no matter
-            // how many sweeps see it. The original wrote `{ status: 'expired' }`
-            // filtered on `_id` alone — no precondition on the current status —
-            // so an overlapping sweep re-matched an already-expired ticket and
-            // decremented reserved a second time, driving it negative and
-            // overselling (inventory is checked as sold + reserved < quantity).
             const claimed = await FoodFestTicket.findOneAndUpdate(
                 { _id: ticket._id, status: 'pending_payment' },
                 { $set: { status: 'expired' } },
@@ -86,9 +62,7 @@ const expirePendingTickets = async () => {
             );
 
             if (claimed) {
-                // Floor at 1 so reserved can never go below zero. It is already
-                // 0 when the reservation was released elsewhere, in which case
-                // there is nothing to release and the $inc must not run.
+            // Floor at 1 so reserved can never go below zero. It is already 0 when the reservation was released elsewhere, in which case there is nothing to release and the $inc must not run.
                 const released = await FoodFestTier.updateOne(
                     { _id: ticket.tierId, reserved: { $gte: 1 } },
                     { $inc: { reserved: -1 } },
