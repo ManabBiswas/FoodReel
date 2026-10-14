@@ -4,6 +4,8 @@ import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import paymentService from "../../services/payment.service.js";
 import { verifyTicketPaymentBinding } from "../../services/payment.verification.js";
 import { finalizeTicketPayment } from "../../services/foodfest.ticket.service.js";
+import { supportsTransactions } from "../../services/transactionSupport.js";
+import { serverFail } from "../../utils/apiError.js";
 import mongoose from "mongoose";
 
 export const browseEvents = async (req, res) => {
@@ -14,7 +16,7 @@ export const browseEvents = async (req, res) => {
         
         res.status(200).json({ success: true, events });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -32,11 +34,12 @@ export const getEventDetails = async (req, res) => {
             tiers 
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const purchaseTicket = async (req, res) => {
+    let session = null;
     try {
         const { eventId, tierId } = req.body;
         const userId = req.user._id;
@@ -45,53 +48,68 @@ export const purchaseTicket = async (req, res) => {
             return res.status(400).json({ success: false, message: "eventId and tierId are required" });
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // Phase 1: reserve inventory + create the pending ticket. Runs as one
+        // transaction on a replica set or single node.
+        if (await supportsTransactions()) {
+            session = await mongoose.startSession();
+            session.startTransaction();
+        }
 
+        // Atomic decrement of inventory (reserve)
+        const tier = await FoodFestTier.findOneAndUpdate(
+            {
+                _id: tierId,
+                eventId,
+                $expr: { $lt: [{ $add: ['$sold', '$reserved'] }, '$quantity'] }
+            },
+            { $inc: { reserved: 1 } },
+            { session, new: true }
+        );
+
+        if (!tier) {
+            if (session) await session.abortTransaction();
+            return res.status(409).json({ success: false, message: "Ticket tier is sold out or unavailable" });
+        }
+
+        const eventQuery = FoodFestEvent.findById(eventId);
+        if (session) eventQuery.session(session);
+        const event = await eventQuery;
+        if (!event) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        // Validate sales window
+        const now = new Date();
+        if (now < event.salesStart || now > event.salesEnd) {
+            if (session) await session.abortTransaction();
+            return res.status(400).json({ success: false, message: "Tickets are not currently on sale" });
+        }
+
+        // Create ticket in pending_payment status. Array input resolves to an
+        // array of docs — `await Model.create([...])[0]` indexes the *promise*
+        // (member access binds tighter than await) and silently yields
+        // undefined, which then crashed the handler below.
+        const [ticket] = await FoodFestTicket.create([
+            {
+                eventId,
+                tierId,
+                user: userId,
+                status: 'pending_payment',
+                priceAtPurchase: tier.price,
+                currency: tier.currency
+            }
+        ], { session });
+
+        if (session) {
+            await session.commitTransaction();
+            session.endSession();
+            session = null;
+        }
+
+        let razorpayOrder;
         try {
-            // Atomic decrement of inventory (reserve)
-            const tier = await FoodFestTier.findOneAndUpdate(
-                { 
-                    _id: tierId, 
-                    eventId,
-                    $expr: { $lt: [{ $add: ['$sold', '$reserved'] }, '$quantity'] } 
-                },
-                { $inc: { reserved: 1 } },
-                { session, new: true }
-            );
-
-            if (!tier) {
-                await session.abortTransaction();
-                return res.status(409).json({ success: false, message: "Ticket tier is sold out or unavailable" });
-            }
-
-            const event = await FoodFestEvent.findById(eventId).session(session);
-            if (!event) {
-                await session.abortTransaction();
-                return res.status(404).json({ success: false, message: "Event not found" });
-            }
-
-            // Validate sales window
-            const now = new Date();
-            if (now < event.salesStart || now > event.salesEnd) {
-                await session.abortTransaction();
-                return res.status(400).json({ success: false, message: "Tickets are not currently on sale" });
-            }
-
-            // Create ticket in pending_payment status
-            const ticket = await FoodFestTicket.create([
-                {
-                    eventId,
-                    tierId,
-                    user: userId,
-                    status: 'pending_payment',
-                    priceAtPurchase: tier.price,
-                    currency: tier.currency
-                }
-            ], { session })[0];
-
-            // Create Razorpay Order
-            const razorpayOrder = await paymentService.createOrder(
+            razorpayOrder = await paymentService.createOrder(
                 tier.price,
                 tier.currency,
                 `ticket_${ticket._id}`,
@@ -108,27 +126,39 @@ export const purchaseTicket = async (req, res) => {
 
             ticket.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
             ticket.paymentDetails.razorpayAmount = razorpayOrder.amount;
-            await ticket.save({ session });
-
-            await session.commitTransaction();
-
-            res.status(201).json({
-                success: true,
-                razorpayOrderId: razorpayOrder.order_id,
-                amount: razorpayOrder.amount / 100,
-                currency: razorpayOrder.currency,
-                ticketId: ticket._id,
-                keyId: paymentService.getKeyId()
-            });
-        } catch (err) {
-            await session.abortTransaction();
-            throw err;
-        } finally {
-            session.endSession();
+            await ticket.save();
+        } catch (gatewayErr) {
+            // Release the reserved ticket
+            try {
+                const claimed = await FoodFestTicket.findOneAndUpdate(
+                    { _id: ticket._id, status: 'pending_payment' },
+                    { $set: { status: 'expired' } }
+                );
+                if (claimed) {
+                    await FoodFestTier.updateOne(
+                        { _id: tierId, reserved: { $gte: 1 } },
+                        { $inc: { reserved: -1 } }
+                    );
+                }
+            } catch (releaseErr) {
+                console.error(`Failed to release reservation for ticket ${ticket._id}:`, releaseErr);
+            }
+            throw gatewayErr;
         }
+
+        res.status(201).json({
+            success: true,
+            razorpayOrderId: razorpayOrder.order_id,
+            amount: razorpayOrder.amount / 100,
+            currency: razorpayOrder.currency,
+            ticketId: ticket._id,
+            keyId: paymentService.getKeyId()
+        });
     } catch (error) {
-        console.error("Purchase ticket error:", error);
-        res.status(500).json({ success: false, message: error.message });
+        if (session) await session.abortTransaction().catch(() => {});
+        serverFail(res, error, "Could not start the ticket purchase");
+    } finally {
+        if (session) session.endSession();
     }
 };
 
@@ -232,10 +262,7 @@ export const verifyTicketPayment = async (req, res) => {
         });
     } catch (error) {
         console.error("Ticket payment verification error:", error);
-        res.status(500).json({
-            success: false,
-            message: error.message || "Ticket payment verification failed"
-        });
+        serverFail(res, error, "Ticket payment verification failed");
     }
 };
 
@@ -248,6 +275,6 @@ export const getMyTickets = async (req, res) => {
         
         res.status(200).json({ success: true, tickets });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };

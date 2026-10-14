@@ -1,6 +1,24 @@
 import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import { serverFail } from "../../utils/apiError.js";
 import FoodFestZone from "../../models/FoodFestZone.model.js";
 import FoodFestTier from "../../models/FoodFestTier.model.js";
+import FoodFestTicket from "../../models/FoodFestTicket.model.js";
+import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
+
+const EVENT_UPDATABLE = ['name', 'description', 'venue', 'startTime', 'endTime', 'salesStart', 'salesEnd', 'bannerImage'];
+const ZONE_UPDATABLE = ['name', 'capacity', 'warningThreshold', 'criticalThreshold', 'tracksExit'];
+const TIER_UPDATABLE = ['name', 'price', 'currency', 'quantity', 'active', 'salesStart', 'salesEnd'];
+
+const pickFields = (body, allowed) => { //pick fields means only the ones that are allowed
+    const out = {}; //out means 
+    for (const key of allowed) {
+        if (body[key] !== undefined) out[key] = body[key];
+    }
+    return out;
+};
+
+// Ticket states that represent real buyers
+const LIVE_TICKET_STATUSES = ['pending_payment', 'valid', 'used'];
 
 export const createEvent = async (req, res) => {
     try {
@@ -33,7 +51,7 @@ export const createEvent = async (req, res) => {
         });
     } catch (error) {
         console.error("Create event error:", error);
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -46,14 +64,18 @@ export const getEvent = async (req, res) => {
         }
         res.status(200).json({ success: true, event });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const updateEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
-        const updates = req.body;
+        const updates = pickFields(req.body, EVENT_UPDATABLE);
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: "No updatable fields provided" });
+        }
 
         const event = await FoodFestEvent.findByIdAndUpdate(
             eventId,
@@ -67,13 +89,24 @@ export const updateEvent = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Event updated successfully", event });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const deleteEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
+        const liveTickets = await FoodFestTicket.countDocuments({
+            eventId,
+            status: { $in: LIVE_TICKET_STATUSES }
+        });
+        if (liveTickets > 0) {
+            return res.status(409).json({   //409 for conflict
+                success: false,
+                message: `Cannot delete: ${liveTickets} ticket(s) are outstanding. Cancel and refund them first.`
+            });
+        }
+
         const event = await FoodFestEvent.findByIdAndDelete(eventId);
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
@@ -84,7 +117,7 @@ export const deleteEvent = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Event and associated zones/tiers deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -104,64 +137,94 @@ export const createZone = async (req, res) => {
 
         res.status(201).json({ success: true, zone });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const updateZone = async (req, res) => {
     try {
         const { zoneId } = req.params;
-        const zone = await FoodFestZone.findByIdAndUpdate(zoneId, req.body, { new: true });
+        const updates = pickFields(req.body, ZONE_UPDATABLE);
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: "No updatable fields provided" });
+        }
+        const zone = await FoodFestZone.findByIdAndUpdate(zoneId, { $set: updates }, { new: true, runValidators: true });
         if (!zone) return res.status(404).json({ success: false, message: "Zone not found" });
         res.status(200).json({ success: true, zone });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const deleteZone = async (req, res) => {
     try {
         const { zoneId } = req.params;
+ // Guard: check-ins reference the zone; deleting it orphans the entry audit trail for people physically inside the venue.
+        const checkIns = await FoodFestCheckIn.countDocuments({ zoneId });
+        if (checkIns > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `Cannot delete: ${checkIns} check-in(s) reference this zone.`
+            });
+        }
+
         const zone = await FoodFestZone.findByIdAndDelete(zoneId);
         if (!zone) return res.status(404).json({ success: false, message: "Zone not found" });
         res.status(200).json({ success: true, message: "Zone deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const createTier = async (req, res) => {
     try {
         const { eventId } = req.params;
+//  Whitelist (no spread of req.body): sold/reserved start at their schema defaults and can only be moved by the ticket flows.
         const tier = await FoodFestTier.create({
             eventId,
-            ...req.body
+            ...pickFields(req.body, TIER_UPDATABLE)
         });
         res.status(201).json({ success: true, tier });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const updateTier = async (req, res) => {
     try {
         const { tierId } = req.params;
-        const tier = await FoodFestTier.findByIdAndUpdate(tierId, req.body, { new: true });
+        const updates = pickFields(req.body, TIER_UPDATABLE);
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: "No updatable fields provided" });
+        }
+        const tier = await FoodFestTier.findByIdAndUpdate(tierId, { $set: updates }, { new: true, runValidators: true });
         if (!tier) return res.status(404).json({ success: false, message: "Tier not found" });
         res.status(200).json({ success: true, tier });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const deleteTier = async (req, res) => {
     try {
         const { tierId } = req.params;
+// Guard: deleting a tier with sales strands its buyers (and would silently zero the availability check for tickets already held).
+        const liveTickets = await FoodFestTicket.countDocuments({
+            tierId,
+            status: { $in: LIVE_TICKET_STATUSES }
+        });
+        if (liveTickets > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `Cannot delete: ${liveTickets} ticket(s) were sold on this tier.`
+            });
+        }
+
         const tier = await FoodFestTier.findByIdAndDelete(tierId);
         if (!tier) return res.status(404).json({ success: false, message: "Tier not found" });
         res.status(200).json({ success: true, message: "Tier deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -185,7 +248,7 @@ export const checkCapacity = async (req, res) => {
             overshootBy: Math.max(0, overshootBy)
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -220,7 +283,7 @@ export const publishEvent = async (req, res) => {
             warnings 
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -244,7 +307,7 @@ export const goLiveEvent = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Event is now LIVE", event });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -259,6 +322,6 @@ export const completeEvent = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Event marked as completed", event });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };

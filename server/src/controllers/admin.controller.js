@@ -9,9 +9,16 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
 import { authCookieOptions } from "../utils/cookies.js";
+import { timingSafeStringEqual } from "../utils/secureCompare.js";
 import { createCache } from "../utils/cache.js";
+import { updateFoodPartnerRatings } from "./review.controller.js";
 
 // AUTH CONTROLLERS
+
+// Escape user-supplied search text before it is embedded in a RegExp.
+// Without this, input like "(a+)+$" throws SyntaxError or (worse) backtracks
+// catastrophically (ReDoS) while building the admin list query.
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 async function login(req, res) {
     try {
         const { email, code } = req.body;
@@ -30,8 +37,8 @@ async function login(req, res) {
             });
         }
 
-        // Compare code
-        if (admin.code !== code) {
+        // Compare code in constant time (a plain !== leaks comparison timing)
+        if (!timingSafeStringEqual(admin.code, code)) {
             return res.status(400).json({
                 error: "Invalid email or code"
             });
@@ -323,10 +330,10 @@ async function getAllUsers(req, res) {
         
         const query = search ? {
             $or: [
-                { email: new RegExp(search, 'i') },
-                { firstName: new RegExp(search, 'i') },
-                { lastName: new RegExp(search, 'i') },
-                { username: new RegExp(search, 'i') }
+                { email: new RegExp(escapeRegex(search), 'i') },
+                { firstName: new RegExp(escapeRegex(search), 'i') },
+                { lastName: new RegExp(escapeRegex(search), 'i') },
+                { username: new RegExp(escapeRegex(search), 'i') }
             ]
         } : {};
         
@@ -415,7 +422,7 @@ async function getAllPartners(req, res) {
         const { page = 1, limit = 10, search = '' } = req.query;
         const skip = (page - 1) * limit;
         
-        const query = search ? { companyName: new RegExp(search, 'i') } : {};
+        const query = search ? { companyName: new RegExp(escapeRegex(search), 'i') } : {};
         
         const partners = await foodPartnerModel.find(query)
             .select('-password')
@@ -765,6 +772,48 @@ async function deleteReview(req, res) {
     }
 }
 
+const REVIEW_STATUSES = ['pending', 'approved', 'rejected', 'flagged'];
+
+// PATCH /api/admin/reviews/:reviewId/status - Moderation. 
+async function updateReviewStatus(req, res) {
+    try {
+        const { status } = req.body;
+        if (!REVIEW_STATUSES.includes(status)) {
+            return res.status(400).json({
+                error: `Status must be one of: ${REVIEW_STATUSES.join(', ')}`
+            });
+        }
+
+        const review = await reviewModel.findById(req.params.reviewId);
+        if (!review) {
+            return res.status(404).json({ error: "Review not found" });
+        }
+
+        const statusChanged = review.status !== status;
+        review.status = status;
+        await review.save();
+
+        if (statusChanged) {
+            // Ratings only count approved reviews - recalculating keeps the
+            // partner's average consistent with what the public sees.
+            try {
+                await updateFoodPartnerRatings(review.foodPartner);
+            } catch (ratingError) {
+                console.error('Failed to recalculate partner ratings after status change:', ratingError);
+            }
+        }
+
+        res.status(200).json({
+            message: "Review status updated",
+            reviewId: review._id,
+            status: review.status
+        });
+    } catch (error) {
+        console.error('Update review status error:', error);
+        res.status(500).json({ error: "Failed to update review status" });
+    }
+}
+
 // ORDERS MANAGEMENT CONTROLLERS
 async function getAllOrders(req, res) {
     try {
@@ -936,6 +985,7 @@ export default {
     // Reviews
     getAllReviews,
     deleteReview,
+    updateReviewStatus,
     // Orders
     getAllOrders,
     getOrderDetails,

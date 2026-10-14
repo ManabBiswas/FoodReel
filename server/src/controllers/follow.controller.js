@@ -113,7 +113,7 @@ export const followUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to follow user",
-            error: error.message
+
         });
     }
 };
@@ -184,7 +184,7 @@ export const unfollowUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to unfollow user",
-            error: error.message
+
         });
     }
 };
@@ -203,7 +203,7 @@ export const getFollowers = async (req, res) => {
                 followingModel: userType,
                 isActive: true
             })
-            .populate('follower', 'firstName lastName username email profileImage')
+            .populate('follower', 'firstName lastName username profileImage')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
@@ -230,7 +230,7 @@ export const getFollowers = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get followers",
-            error: error.message
+
         });
     }
 };
@@ -249,7 +249,7 @@ export const getFollowing = async (req, res) => {
                 followerModel: userType,
                 isActive: true
             })
-            .populate('following', 'firstName lastName username email profileImage companyName')
+            .populate('following', 'firstName lastName username profileImage companyName')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
@@ -276,7 +276,7 @@ export const getFollowing = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get following list",
-            error: error.message
+
         });
     }
 };
@@ -315,7 +315,7 @@ export const checkFollowing = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to check following status",
-            error: error.message
+
         });
     }
 };
@@ -361,7 +361,7 @@ export const getSuggestedFollows = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get suggested follows",
-            error: error.message
+
         });
     }
 };

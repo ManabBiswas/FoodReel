@@ -1,4 +1,5 @@
 import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import { serverFail } from "../../utils/apiError.js";
 import FoodFestStallApplication from "../../models/FoodFestStallApplication.model.js";
 import foodModel from "../../models/food.model.js";
 import emailService from "../../services/email.service.js";
@@ -17,17 +18,25 @@ export const getAvailableEvents = async (req, res) => {
 
         res.status(200).json({ success: true, events });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
 export const applyForStall = async (req, res) => {
     try {
-        const { eventId, proposedItems } = req.body;
+
+        const { eventId } = req.params;
+        const { proposedItems } = req.body;
         const partnerId = req.foodPartner._id;
 
         if (!eventId || !proposedItems || !Array.isArray(proposedItems)) {
-            return res.status(400).json({ success: false, message: "eventId and proposedItems (array) are required" });
+            return res.status(400).json({ success: false, message: "proposedItems (array) is required" });
+        }
+
+        // Applications are only valid against a real, published event
+        const event = await FoodFestEvent.findOne({ _id: eventId, status: 'published' });
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found or not open for applications" });
         }
 
         // Validate that all proposed items belong to the partner and are actual food items
@@ -53,7 +62,7 @@ export const applyForStall = async (req, res) => {
         if (error.code === 11000) {
             return res.status(400).json({ success: false, message: "You have already applied for a stall at this event" });
         }
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -73,7 +82,7 @@ export const toggleStallOpen = async (req, res) => {
 
         res.status(200).json({ success: true, isOpen: application.isOpen });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -85,6 +94,6 @@ export const getMyApplications = async (req, res) => {
         
         res.status(200).json({ success: true, applications });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };

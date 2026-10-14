@@ -1,4 +1,5 @@
 import paymentService from '../services/payment.service.js';
+import { serverFail } from '../utils/apiError.js';
 import orderModel from '../models/order.model.js';
 import emailService from '../services/email.service.js';
 import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
@@ -109,10 +110,7 @@ export const createPaymentOrder = async (req, res) => {
 
   } catch (error) {
     console.error('Create payment order error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to create payment order'
-    });
+    serverFail(res, error, 'Failed to create payment order');
   }
 };
 
@@ -262,10 +260,7 @@ export const verifyPayment = async (req, res) => {
 
   } catch (error) {
     console.error('Payment verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Payment verification failed'
-    });
+    serverFail(res, error, 'Payment verification failed');
   }
 };
 
@@ -371,15 +366,16 @@ export const initiateRefund = async (req, res) => {
 
   } catch (error) {
     console.error(`[req:${req.id}] Refund initiation error:`, error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to process refund request'
-    });
+    serverFail(res, error, 'Failed to process refund request');
   }
 };
 
 // Handle Razorpay webhooks
 export const razorpayWebhook = async (req, res) => {
+  // Declared OUTSIDE the try: the catch block reads it to record the failure,
+  // and a `const` inside the try would be in the temporal dead zone if an
+  // error fired before its declaration (e.g. JSON.parse).
+  let eventId = null;
   try {
     const webhookSignature = req.headers['x-razorpay-signature'];
     // express.raw delivers the exact bytes Razorpay signed (Buffer).
@@ -410,7 +406,7 @@ export const razorpayWebhook = async (req, res) => {
     const event = webhookBody.event;
     const payload = webhookBody.payload;
     // Razorpay sends a stable id per event; it is what makes retries idempotent.
-    const eventId = req.get('x-razorpay-event-id') || null;
+    eventId = req.get('x-razorpay-event-id') || null;
 
     console.log(`Razorpay webhook received: ${event} (${eventId ?? 'no event id'})`);
 

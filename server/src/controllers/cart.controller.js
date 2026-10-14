@@ -17,7 +17,7 @@ const getCart = async (req, res) => {
             })
             .populate({
                 path: 'items.foodPartner',
-                select: 'companyName email mobile'
+                select: 'companyName'
             })
             .populate('activeRestaurant', 'companyName');
 
@@ -38,7 +38,6 @@ const getCart = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to get cart',
-            details: error.message
         });
     }
 };
@@ -50,12 +49,17 @@ const addToCart = async (req, res) => {
         const { foodItemId, quantity = 1, specialInstructions } = req.body;
 
         const normalizedQty = Number.parseInt(quantity, 10);
-        if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
+        if (!Number.isFinite(normalizedQty) || normalizedQty <= 0 || normalizedQty > 99) {
             return res.status(400).json({
                 success: false,
-                error: 'Quantity must be a positive integer'
+                error: 'Quantity must be between 1 and 99'
             });
         }
+
+        const instructions =
+            typeof specialInstructions === 'string' && specialInstructions.trim()
+                ? specialInstructions.trim().slice(0, 200)
+                : undefined;
 
         if (!foodItemId) {
             return res.status(400).json({
@@ -122,30 +126,85 @@ const addToCart = async (req, res) => {
             });
         }
 
-        // Check if item already exists in cart
-        const existingItemIndex = cart.items.findIndex(
-            item => item.foodItem.toString() === foodItemId
+        const existingLine = cart.items.find(
+            (item) => item.foodItem.toString() === foodItem._id.toString()
         );
-
-        if (existingItemIndex >= 0) {
-            // Update quantity
-            cart.items[existingItemIndex].quantity += normalizedQty;
-            cart.items[existingItemIndex].priceAtAdd = foodItem.price;
-        } else {
-            // Add new item
-            cart.items.push({
-                foodItem: foodItem._id,
-                quantity: normalizedQty,
-                priceAtAdd: foodItem.price,
-                foodPartner: foodItem.foodPartner._id,
-                specialInstructions,
-                addedAt: new Date()
+        if (existingLine && existingLine.quantity + normalizedQty > 99) {
+            return res.status(400).json({
+                success: false,
+                error: 'Quantity must be between 1 and 99'
             });
-            
-            // Set active restaurant if first item
-            if (cart.items.length === 1) {
-                cart.activeRestaurant = foodItem.foodPartner._id;
+        }
+
+        // Atomic line-item mutation. If line already exists, increment quantity.
+        const lineMatch = { _id: cart._id, 'items.foodItem': foodItem._id };
+        const incrementLine = {
+            $inc: { 'items.$.quantity': normalizedQty },
+            $set: { 'items.$.priceAtAdd': foodItem.price }
+        };
+        if (instructions !== undefined) {
+            incrementLine.$set['items.$.specialInstructions'] = instructions;
+        }
+
+        let updated = await cartModel.findOneAndUpdate(lineMatch, incrementLine, { new: true });
+
+        if (!updated) {
+            updated = await cartModel.findOneAndUpdate(
+                {
+                    _id: cart._id,
+                    'items.foodItem': { $ne: foodItem._id },
+                    // Reject the push if a concurrent add claimed the cart for another restaurant (closes the check-then-push race).
+                    $or: [
+                        { activeRestaurant: null },
+                        { activeRestaurant: foodItem.foodPartner._id }
+                    ]
+                },
+                {
+                    $push: {
+                        items: {
+                            foodItem: foodItem._id,
+                            quantity: normalizedQty,
+                            priceAtAdd: foodItem.price,
+                            foodPartner: foodItem.foodPartner._id,
+                            specialInstructions: instructions,
+                            addedAt: new Date()
+                        }
+                    }
+                },
+                { new: true }
+            );
+            if (updated && updated.items.length === 1) {
+                // First item wins the active restaurant (only if still unset)
+                await cartModel.updateOne(
+                    { _id: cart._id, activeRestaurant: null },
+                    { $set: { activeRestaurant: foodItem.foodPartner._id } }
+                );
             }
+        }
+
+        if (!updated) {
+            // Either the line was added concurrently, or another restaurant's item won the activeRestaurant race - re-check before proceeding.
+            cart = await cartModel.findOne({ user: userId });
+            if (!cart) {
+                return res.status(404).json({ success: false, error: 'Cart not found' });
+            }
+            if (cart.items.length > 0 && cart.activeRestaurant &&
+                cart.activeRestaurant.toString() !== foodItem.foodPartner._id.toString()) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Cart contains items from a different restaurant',
+                    code: 'DIFFERENT_RESTAURANT',
+                    currentRestaurant: cart.activeRestaurant,
+                    newRestaurant: foodItem.foodPartner._id,
+                    message: 'Your cart contains items from another restaurant. Would you like to clear your cart and add this item?'
+                });
+            }
+            updated = await cartModel.findOneAndUpdate(lineMatch, incrementLine, { new: true });
+        }
+
+        cart = updated ?? (await cartModel.findOne({ user: userId }));
+        if (!cart) {
+            return res.status(404).json({ success: false, error: 'Cart not found' });
         }
 
         // Calculate totals
@@ -155,7 +214,7 @@ const addToCart = async (req, res) => {
         // Populate and return
         await cart.populate([
             { path: 'items.foodItem', select: 'name description image video price currency postType isAvailable' },
-            { path: 'items.foodPartner', select: 'companyName email mobile' },
+            { path: 'items.foodPartner', select: 'companyName' },
             { path: 'activeRestaurant', select: 'companyName' }
         ]);
 
@@ -170,7 +229,6 @@ const addToCart = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to add item to cart',
-            details: error.message
         });
     }
 };
@@ -183,14 +241,14 @@ const updateQuantity = async (req, res) => {
         const { quantity } = req.body;
 
         const normalizedQty = Number.parseInt(quantity, 10);
-        if (!Number.isFinite(normalizedQty) || normalizedQty < 0) {
+        if (!Number.isFinite(normalizedQty) || normalizedQty < 0 || normalizedQty > 99) {
             return res.status(400).json({
                 success: false,
-                error: 'Valid quantity is required'
+                error: 'Quantity must be between 0 and 99'
             });
         }
 
-        const cart = await cartModel.findOne({ user: userId });
+        let cart = await cartModel.findOne({ user: userId });
 
         if (!cart) {
             return res.status(404).json({
@@ -210,17 +268,31 @@ const updateQuantity = async (req, res) => {
             });
         }
 
+        // Atomic per-line update instead of read-modify-save
         if (normalizedQty === 0) {
             // Remove item if quantity is 0
-            cart.items.splice(itemIndex, 1);
-            
-            // Clear active restaurant if cart is empty
-            if (cart.items.length === 0) {
+            cart = await cartModel.findOneAndUpdate(
+                { user: userId, 'items._id': itemId },
+                { $pull: { items: { _id: itemId } } },
+                { new: true }
+            );
+            if (cart && cart.items.length === 0) {
                 cart.activeRestaurant = null;
             }
         } else {
-            // Update quantity
-            cart.items[itemIndex].quantity = normalizedQty;
+            cart = await cartModel.findOneAndUpdate(
+                { user: userId, 'items._id': itemId },
+                { $set: { 'items.$.quantity': normalizedQty } },
+                { new: true }
+            );
+        }
+
+        if (!cart) {
+            // Item disappeared between the existence check and the update
+            return res.status(404).json({
+                success: false,
+                error: 'Item not found in cart'
+            });
         }
 
         await calculateCartTotals(cart);
@@ -228,7 +300,7 @@ const updateQuantity = async (req, res) => {
 
         await cart.populate([
             { path: 'items.foodItem', select: 'name description image video price currency postType isAvailable' },
-            { path: 'items.foodPartner', select: 'companyName email mobile' },
+            { path: 'items.foodPartner', select: 'companyName' },
             { path: 'activeRestaurant', select: 'companyName' }
         ]);
 
@@ -243,7 +315,6 @@ const updateQuantity = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to update cart',
-            details: error.message
         });
     }
 };
@@ -254,19 +325,31 @@ const removeItem = async (req, res) => {
         const userId = req.user._id;
         const { itemId } = req.params;
 
-        const cart = await cartModel.findOne({ user: userId });
+        const existing = await cartModel.findOne({ user: userId });
 
-        if (!cart) {
+        if (!existing) {
             return res.status(404).json({
                 success: false,
                 error: 'Cart not found'
             });
         }
 
-        const initialLength = cart.items.length;
-        cart.items = cart.items.filter(item => item._id.toString() !== itemId);
+        const hadItem = existing.items.some(item => item._id.toString() === itemId);
+        if (!hadItem) {
+            return res.status(404).json({
+                success: false,
+                error: 'Item not found in cart'
+            });
+        }
 
-        if (cart.items.length === initialLength) {
+        // Atomic remove
+        const cart = await cartModel.findOneAndUpdate(
+            { user: userId, 'items._id': itemId },
+            { $pull: { items: { _id: itemId } } },
+            { new: true }
+        );
+
+        if (!cart) {
             return res.status(404).json({
                 success: false,
                 error: 'Item not found in cart'
@@ -283,7 +366,7 @@ const removeItem = async (req, res) => {
 
         await cart.populate([
             { path: 'items.foodItem', select: 'name description image video price currency postType isAvailable' },
-            { path: 'items.foodPartner', select: 'companyName email mobile' },
+            { path: 'items.foodPartner', select: 'companyName' },
             { path: 'activeRestaurant', select: 'companyName' }
         ]);
 
@@ -298,7 +381,6 @@ const removeItem = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to remove item',
-            details: error.message
         });
     }
 };
@@ -342,7 +424,6 @@ const clearCart = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to clear cart',
-            details: error.message
         });
     }
 };
@@ -357,7 +438,7 @@ const validateCart = async (req, res) => {
             .populate('items.foodItem')
             .populate('activeRestaurant', 'companyName profileImage');
 
-        if (!cart || cart.items.length === 0) {
+        if (!cart) {
             return res.status(200).json({
                 success: true,
                 valid: true,
@@ -365,7 +446,18 @@ const validateCart = async (req, res) => {
             });
         }
 
-        const issues = auditCartIssues(cart);
+        const deadIssues = pruneDeletedItems(cart);
+        if (deadIssues.length) await cart.save();
+
+        if (cart.items.length === 0) {
+            return res.status(200).json({
+                success: true,
+                valid: deadIssues.length === 0,
+                issues: deadIssues
+            });
+        }
+
+        const issues = [...deadIssues, ...auditCartIssues(cart)];
 
         // Keep totals in sync even when no issues
         await calculateCartTotals(cart);
@@ -383,7 +475,6 @@ const validateCart = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to validate cart',
-            details: error.message
         });
     }
 };
@@ -394,11 +485,30 @@ const checkout = async (req, res) => {
         const userId = req.user._id;
         const { deliveryAddress, paymentMethod = 'cod', specialInstructions } = req.body;
 
-        if (!deliveryAddress) {
+        if (!deliveryAddress || typeof deliveryAddress !== 'object') {
             return res.status(400).json({
                 success: false,
                 error: 'Delivery address is required'
             });
+        }
+
+        // Same contract as POST /api/orders - validate here so a bad payload
+        // is a 400, not a Mongoose ValidationError escaping as a 500.
+        const { fullName, phone, addressLine1, city, state, pincode } = deliveryAddress;
+        if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
+            return res.status(400).json({
+                success: false,
+                error: 'Complete delivery address is required (fullName, phone, addressLine1, city, state, pincode)'
+            });
+        }
+        if (!/^0?[6-9]\d{9}$/.test(String(phone).trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'Phone must be a valid 10-digit Indian mobile number'
+            });
+        }
+        if (!['razorpay', 'cod'].includes(paymentMethod)) {
+            return res.status(400).json({ success: false, error: `Invalid payment method: ${paymentMethod}` });
         }
 
         // Get cart
@@ -413,8 +523,19 @@ const checkout = async (req, res) => {
             });
         }
 
+        // Deleted food items can never be ordered - drop them before audit so a single deleted item does not block checkout forever.
+        const deadIssues = pruneDeletedItems(cart);
+        if (deadIssues.length) await cart.save();
+
+        if (cart.items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cart is empty'
+            });
+        }
+
         // Validate cart before checkout (handles price changes too)
-        const issues = auditCartIssues(cart);
+        const issues = [...deadIssues, ...auditCartIssues(cart)];
         await calculateCartTotals(cart);
         await cart.save();
 
@@ -426,22 +547,7 @@ const checkout = async (req, res) => {
             });
         }
 
-        // Create order from cart
-        const orderItems = cart.items.map(item => ({
-            foodItemId: item.foodItem._id,
-            quantity: item.quantity
-        }));
-
-        // Use existing order creation logic
-        const orderPayload = {
-            items: orderItems,
-            deliveryAddress,
-            specialInstructions: specialInstructions || '',
-            orderSource: 'cart',
-            paymentMethod
-        };
-
-        // Create the order (reuse order controller logic)
+        // Create the order directly from the audited cart
         const orderData = {
             user: userId,
             items: cart.items.map(item => ({
@@ -514,7 +620,7 @@ const checkout = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to process checkout',
-            details: error.message
+
         });
     }
 };
@@ -541,6 +647,19 @@ async function calculateCartTotals(cart) {
     };
 
     return cart.totals;
+}
+
+// Lines whose food item was deleted can never be ordered or re-priced - drop
+// them and report once so checkout is not blocked forever. Run after populate.
+function pruneDeletedItems(cart) {
+    const dead = cart.items.filter((item) => !item.foodItem);
+    if (!dead.length) return [];
+    cart.items = cart.items.filter((item) => item.foodItem);
+    return dead.map((item) => ({
+        itemId: item._id,
+        type: 'NOT_FOUND',
+        message: 'Item no longer exists'
+    }));
 }
 
 // Shared cart audit to surface availability/price issues and keep prices fresh

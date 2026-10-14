@@ -1,4 +1,5 @@
 import FoodFestStallApplication from "../../models/FoodFestStallApplication.model.js";
+import { serverFail } from "../../utils/apiError.js";
 import emailService from "../../services/email.service.js";
 
 export const getApplicationsByEvent = async (req, res) => {
@@ -9,7 +10,7 @@ export const getApplicationsByEvent = async (req, res) => {
         
         res.status(200).json({ success: true, applications });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -41,7 +42,7 @@ export const approveApplication = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Application approved successfully", application });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -78,6 +79,6 @@ export const rejectApplication = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Application rejected successfully", application });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };

@@ -1,4 +1,5 @@
 import Advertisement from '../models/advertisement.model.js'
+import { serverError } from '../utils/apiError.js'
 import storageService from '../services/storage.service.js'
 import { v4 as uuid } from 'uuid'
 
@@ -77,7 +78,7 @@ export const createAdvertisement = async (req, res) => {
     res.status(201).json({ message: 'Advertisement created successfully', advertisement })
   } catch (error) {
     console.error('Create advertisement error:', error)
-    res.status(500).json({ error: error.message || 'Failed to create advertisement' })
+    serverError(res, error, 'Failed to create advertisement')
   }
 }
 
@@ -113,7 +114,7 @@ export const getAdvertisementsAll = async (req, res) => {
     })
   } catch (error) {
     console.error('Get all advertisements error:', error)
-    res.status(500).json({ error: error.message || 'Failed to fetch advertisements' })
+    serverError(res, error, 'Failed to fetch advertisements')
   }
 }
 
@@ -131,7 +132,7 @@ export const getAllAdvertisements = async (req, res) => {
     })
   } catch (error) {
     console.error('Get advertisements error:', error)
-    res.status(500).json({ error: error.message || 'Failed to fetch advertisements' })
+    serverError(res, error, 'Failed to fetch advertisements')
   }
 }
 
@@ -146,7 +147,7 @@ export const getAdvertisementById = async (req, res) => {
     res.status(200).json({ message: "Advertisement retrieved successfully", data: advertisement })
   } catch (error) {
     console.error('Get advertisement error:', error)
-    res.status(500).json({ error: error.message || 'Failed to fetch advertisement' })
+    serverError(res, error, 'Failed to fetch advertisement')
   }
 }
 
@@ -198,7 +199,7 @@ export const updateAdvertisement = async (req, res) => {
     res.status(200).json({ message: 'Advertisement updated successfully', advertisement })
   } catch (error) {
     console.error('Update advertisement error:', error)
-    res.status(500).json({ error: error.message || 'Failed to update advertisement' })
+    serverError(res, error, 'Failed to update advertisement')
   }
 }
 
@@ -215,6 +216,6 @@ export const deleteAdvertisement = async (req, res) => {
     res.status(200).json({ message: 'Advertisement deleted successfully' })
   } catch (error) {
     console.error('Delete advertisement error:', error)
-    res.status(500).json({ error: error.message || 'Failed to delete advertisement' })
+    serverError(res, error, 'Failed to delete advertisement')
   }
 }

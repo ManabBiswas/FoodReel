@@ -1,4 +1,5 @@
 import orderModel from "../models/order.model.js";
+import { serverError } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import userModel from "../models/user.Model.js";
 import paymentService from "../services/payment.service.js";
@@ -52,13 +53,24 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ error: `Invalid payment method: ${paymentMethod}` });
     }
 
-    // Build items array with validation
+    // Build items array with validation. Batch-load every referenced item in a single $in query to avoid N+1 queries. 
+    const requestedIds = items
+      .map(({ foodItemId }) => foodItemId)
+      .filter(Boolean)
+      .map(String);
+    const uniqueIds = [...new Set(requestedIds)];
+
+    const foodItems = uniqueIds.length
+      ? await foodModel.find({ _id: { $in: uniqueIds } }).populate('foodPartner')
+      : [];
+    const foodItemById = new Map(foodItems.map((doc) => [doc._id.toString(), doc]));
+
     const orderItems = [];
     let itemPriceTotal = 0;
     const prepTimes = [];
 
     for (const { foodItemId, quantity = 1 } of items) {
-      const foodItem = await foodModel.findById(foodItemId).populate('foodPartner');
+      const foodItem = foodItemById.get(String(foodItemId));
       if (!foodItem) {
         return res.status(404).json({ error: `Food item ${foodItemId} not found` });
       }
@@ -217,7 +229,7 @@ const getUserOrders = async (req, res) => {
 
     } catch (error) {
         console.error("Error getting user orders:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -259,7 +271,7 @@ const getPartnerOrders = async (req, res) => {
 
     } catch (error) {
         console.error("Error getting partner orders:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -377,7 +389,7 @@ const updateOrderStatus = async (req, res) => {
 
     } catch (error) {
         console.error("Error updating order status:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 const getOrderStatistics = async (req, res) => {
@@ -471,7 +483,7 @@ const getOrderStatistics = async (req, res) => {
 
     } catch (error) {
         console.error("Error getting order statistics:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 const getOrderById = async (req, res) => {
@@ -499,7 +511,7 @@ const getOrderById = async (req, res) => {
 
     } catch (error) {
         console.error("Error getting order:", error);
-        res.status(500).json({ error: 'Failed to retrieve order', details: error.message });
+        serverError(res, error, 'Failed to retrieve order');
     }
 };
 
@@ -623,7 +635,7 @@ const cancelOrder = async (req, res) => {
 
     } catch (error) {
         console.error("Error cancelling order:", error);
-        res.status(500).json({ error: 'Failed to cancel order', details: error.message });
+        serverError(res, error, 'Failed to cancel order');
     }
 };
 
@@ -722,7 +734,7 @@ const partnerCancelOrder = async (req, res) => {
 
     } catch (error) {
         console.error("Error cancelling order (partner):", error);
-        res.status(500).json({ error: 'Failed to cancel order', details: error.message });
+        serverError(res, error, 'Failed to cancel order');
     }
 };
 
@@ -787,7 +799,7 @@ const devUpdateOrderStatusAndEmail = async (req, res) => {
 
   } catch (error) {
     console.error('Dev update order status error:', error);
-    res.status(500).json({ error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -817,7 +829,7 @@ const getPartnerOrderById = async (req, res) => {
 
     } catch (error) {
         console.error("Error getting partner order:", error);
-        res.status(500).json({ error: 'Failed to retrieve order', details: error.message });
+        serverError(res, error, 'Failed to retrieve order');
     }
 };
 

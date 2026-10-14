@@ -1,16 +1,29 @@
 import userModel from "../models/user.Model.js";
+import orderModel from "../models/order.model.js";
+import reviewModel from "../models/review.model.js";
 import bcrypt from "bcrypt";
+import { serverError } from "../utils/apiError.js";
 
 // Get user statistics (orders, favorites, etc.)
 async function getUserStats(req, res) {
     try {
         const userId = req.user._id;
-        
-        // This is a placeholder - you would integrate with your order model when available
+
+        const [totalOrders, spentAgg, favoritePartners, user] = await Promise.all([
+            orderModel.countDocuments({ user: userId }),
+            orderModel.aggregate([
+                { $match: { user: userId, status: { $ne: "cancelled" } } },
+                { $group: { _id: null, total: { $sum: "$pricing.totalAmount" } } }
+            ]),
+            orderModel.distinct("items.foodPartner", { user: userId, status: { $ne: "cancelled" } }),
+            userModel.findById(userId).select("savedFoods")
+        ]);
+
         const stats = {
-            totalOrders: 0,
-            favoriteRestaurants: 0,
-            totalSpent: 0,
+            totalOrders,
+            favoriteRestaurants: favoritePartners.length,
+            totalSpent: spentAgg[0]?.total ?? 0,
+            savedFoods: user?.savedFoods?.length ?? 0,
             memberSince: req.user.createdAt
         };
 
@@ -19,7 +32,8 @@ async function getUserStats(req, res) {
             stats
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error("Error getting user stats:", error);
+        serverError(res, error);
     }
 }
 
@@ -114,35 +128,68 @@ async function updatePreferences(req, res) {
 async function getUserActivity(req, res) {
     try {
         const userId = req.user._id;
-        const { page = 1, limit = 10 } = req.query;
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
+        const skip = (page - 1) * limit;
+        const [orders, reviews] = await Promise.all([
+            orderModel.find({ user: userId })
+                .select("status pricing.totalAmount items.foodItem createdAt")
+                .populate("items.foodItem", "name")
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .lean(),
+            reviewModel.find({ user: userId, isActive: true })
+                .select("rating comment foodPartner foodItem createdAt")
+                .populate("foodPartner", "companyName")
+                .populate("foodItem", "name")
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .lean()
+        ]);
 
-        // This is a placeholder - you would integrate with your order/activity models
-        const activities = [
-            {
-                type: "order",
-                description: "Ordered Pizza from Tony's Pizza",
-                timestamp: new Date(),
-                amount: 25.99
-            },
-            {
-                type: "review",
-                description: "Left a review for Burger Palace",
-                timestamp: new Date(),
-                rating: 5
-            }
-        ];
+        const orderActivities = orders.map(o => ({
+            type: "order",
+            orderId: o._id,
+            status: o.status,
+            description: o.items?.[0]?.foodItem?.name
+                ? `Ordered ${o.items[0].foodItem.name}${o.items.length > 1 ? ` +${o.items.length - 1} more` : ""}`
+                : "Placed an order",
+            amount: o.pricing?.totalAmount,
+            timestamp: o.createdAt
+        }));
+
+        const reviewActivities = reviews.map(r => ({
+            type: "review",
+            reviewId: r._id,
+            rating: r.rating,
+            description: r.foodItem?.name
+                ? `Reviewed ${r.foodItem.name}`
+                : r.foodPartner?.companyName
+                    ? `Reviewed ${r.foodPartner.companyName}`
+                    : "Left a review",
+            timestamp: r.createdAt
+        }));
+
+        const merged = [...orderActivities, ...reviewActivities]
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        const [totalOrders, totalReviews] = await Promise.all([
+            orderModel.countDocuments({ user: userId }),
+            reviewModel.countDocuments({ user: userId, isActive: true })
+        ]);
 
         res.status(200).json({
             message: "User activity retrieved successfully",
-            activities,
+            activities: merged.slice(skip, skip + limit),
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: activities.length
+                page,
+                limit,
+                total: totalOrders + totalReviews
             }
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error("Error getting user activity:", error);
+        serverError(res, error);
     }
 }
 

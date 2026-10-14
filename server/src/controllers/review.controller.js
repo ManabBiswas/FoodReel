@@ -129,7 +129,7 @@ export const createReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to create review",
-            error: error.message
+
         });
     }
 };
@@ -198,7 +198,7 @@ export const getReviewsByFoodPartner = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get reviews",
-            error: error.message
+
         });
     }
 };
@@ -251,7 +251,7 @@ export const getReviewsByFoodItem = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get reviews",
-            error: error.message
+
         });
     }
 };
@@ -296,7 +296,7 @@ export const getUserReviews = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get user reviews",
-            error: error.message
+
         });
     }
 };
@@ -322,7 +322,16 @@ export const updateReview = async (req, res) => {
         }
 
         // Update fields
-        if (rating) review.rating = rating;
+        if (rating !== undefined) {
+            const n = Number(rating);
+            if (!Number.isInteger(n) || n < 1 || n > 5) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Rating must be an integer between 1 and 5"
+                });
+            }
+            review.rating = n;
+        }
         if (comment) review.comment = comment;
         if (images) review.images = images;
         if (ratings) review.ratings = { ...review.ratings, ...ratings };
@@ -348,7 +357,7 @@ export const updateReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to update review",
-            error: error.message
+
         });
     }
 };
@@ -394,7 +403,7 @@ export const deleteReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to delete review",
-            error: error.message
+
         });
     }
 };
@@ -415,34 +424,35 @@ export const markReviewHelpful = async (req, res) => {
             });
         }
 
+        const inHelpful = review.helpful.some(id => id.toString() === userId.toString());
+        const inNotHelpful = review.notHelpful.some(id => id.toString() === userId.toString());
+
         if (helpful) {
-            // Remove from notHelpful if exists
-            review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
-            
-            // Toggle helpful
-            const index = review.helpful.findIndex(id => id.toString() === userId.toString());
-            if (index > -1) {
-                review.helpful.splice(index, 1);
-                review.helpfulCount = Math.max(0, review.helpfulCount - 1);
+            if (inNotHelpful) {
+                review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
+            }
+            if (inHelpful) {
+                review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
             } else {
                 review.helpful.push(userId);
-                review.helpfulCount += 1;
             }
         } else {
-            // Remove from helpful if exists
-            review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
-            
-            // Toggle notHelpful
-            const index = review.notHelpful.findIndex(id => id.toString() === userId.toString());
-            if (index > -1) {
-                review.notHelpful.splice(index, 1);
-                review.notHelpfulCount = Math.max(0, review.notHelpfulCount - 1);
-                if (review.helpfulCount > 0) review.helpfulCount -= 1;
+            if (inHelpful) {
+                review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
+            }
+            if (inNotHelpful) {
+                review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
             } else {
                 review.notHelpful.push(userId);
-                review.notHelpfulCount += 1;
             }
         }
+
+        // Derive counters from the arrays themselves so they can never drift
+        // again. The old logic never decremented notHelpfulCount when a vote
+        // was switched to helpful, and wrongly decremented helpfulCount when
+        // an un-helpful vote was retracted.
+        review.helpfulCount = review.helpful.length;
+        review.notHelpfulCount = review.notHelpful.length;
 
         await review.save();
 
@@ -460,7 +470,7 @@ export const markReviewHelpful = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to update review feedback",
-            error: error.message
+
         });
     }
 };
@@ -512,7 +522,7 @@ export const addReviewReply = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to add reply",
-            error: error.message
+
         });
     }
 };
@@ -568,13 +578,13 @@ export const respondToReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to add response",
-            error: error.message
+
         });
     }
 };
 
 // Helper function to update food partner ratings
-async function updateFoodPartnerRatings(foodPartnerId) {
+export async function updateFoodPartnerRatings(foodPartnerId) {
     try {
         const reviews = await reviewModel.find({
             foodPartner: foodPartnerId,

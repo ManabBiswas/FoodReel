@@ -4,6 +4,11 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
 import { authCookieOptions } from "../utils/cookies.js";
+import { timingSafeStringEqual } from "../utils/secureCompare.js";
+import { serverFail } from "../utils/apiError.js";
+
+const REGISTER_TAKEN_MESSAGE =
+    "Registration could not be completed with these details. If you already have an account, please log in or reset your password.";
 
 async function register(req, res) {
     try {
@@ -18,7 +23,7 @@ async function register(req, res) {
 
         const isUserExist = await userModel.findOne({ email });
         if (isUserExist) {
-            return res.status(400).json({ error: "User already exists" });
+            return res.status(409).json({ error: REGISTER_TAKEN_MESSAGE });
         }
 
         const hashPassword = await bcrypt.hash(password, 10);
@@ -60,7 +65,10 @@ async function register(req, res) {
         // console.log("User created successfully", user);
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(400).json({ error: error.message });
+        if (error?.code === 11000) {
+            return res.status(409).json({ error: REGISTER_TAKEN_MESSAGE });
+        }
+        serverFail(res, error);
     }
 }
 
@@ -328,7 +336,7 @@ async function adminLogin(req, res) {
             });
         }
 
-        if (admin.code !== code) {
+        if (!timingSafeStringEqual(admin.code, code)) {
             return res.status(400).json({
                 error: "Invalid email or code"
             });

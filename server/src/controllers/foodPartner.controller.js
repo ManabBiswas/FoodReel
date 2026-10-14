@@ -1,10 +1,15 @@
 import foodPartnerModel from "../models/foodPartner.Model.js";
+import { serverError, serverFail } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import reviewModel from "../models/review.model.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import emailService from '../services/email.service.js';
 import { authCookieOptions } from '../utils/cookies.js';
+
+// Account-enumeration guard - see register() below.
+const PARTNER_REGISTER_TAKEN_MESSAGE =
+    "Registration could not be completed with these details. If you already have an account, please log in instead."; 
 
 async function register(req,res) {
     try{
@@ -22,7 +27,7 @@ async function register(req,res) {
         
         const isPartnerExist = await foodPartnerModel.findOne({email})
         if(isPartnerExist){
-            res.status(400).json({error: "FoodPartner already exist"})
+            return res.status(409).json({error: PARTNER_REGISTER_TAKEN_MESSAGE});
         }else{
             const hashPassword = await bcrypt.hash(password,10);
             const foodPartner = await foodPartnerModel.create({
@@ -47,7 +52,10 @@ async function register(req,res) {
         }
     }catch(error){
         console.error('Registration error:', error);
-        res.status(400).json({error: error.message});
+        if (error?.code === 11000) {
+            return res.status(409).json({error: PARTNER_REGISTER_TAKEN_MESSAGE});
+        }
+        serverFail(res, error);
     }
 }
 
@@ -136,8 +144,7 @@ async function check(req, res) {
     } catch (error) {
         res.status(401).json({
             isAuthenticated: false,
-            message: "Not authenticated",
-            error: error.message
+            message: "Not authenticated"
         });
     }
 }
@@ -192,13 +199,13 @@ async function getProfile(req, res) {
                 foodItems: partner.foodItemsCount,
                 following: partner.followingCount,
                 verified: partner.verified,
-                profileImage: partner.profileImage ? "/api/partner/profile-image/" + partner._id : "/api/placeholder/150/150"
+                profileImage: partner.profileImage || null
             },
             foodItems: formattedFoodItems
         });
     } catch (error) {
         console.error('Get profile error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -224,7 +231,7 @@ async function updateBio(req, res) {
         });
     } catch (error) {
         console.error('Update bio error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -266,7 +273,7 @@ async function getReviews(req, res) {
         });
     } catch (error) {
         console.error('Get reviews error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 

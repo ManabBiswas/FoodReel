@@ -1,4 +1,5 @@
 import storageService from '../services/storage.service.js'
+import { serverError } from '../utils/apiError.js'
 import UserPost from '../models/userPost.model.js'
 import foodModel from '../models/food.model.js'
 import FoodPartner from '../models/foodPartner.Model.js'
@@ -76,7 +77,7 @@ const createUserPost = async (req, res) => {
     res.status(201).json({ message: 'Post created successfully', post: newPost })
   } catch (error) {
     console.error('Error creating user post:', error)
-    res.status(500).json({ error: 'Failed to create post', details: error.message })
+    serverError(res, error, 'Failed to create post')
   }
 }
 
@@ -114,7 +115,7 @@ const getAllUserPosts = async (req, res) => {
     })
   } catch (error) {
     console.error('Error getting user posts:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 
@@ -134,7 +135,7 @@ const getUserPostsByUserId = async (req, res) => {
     res.status(200).json({ message: 'User posts retrieved successfully', count: posts.length, data: posts })
   } catch (error) {
     console.error('Error getting user posts by ID:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 
@@ -163,7 +164,7 @@ const toggleLike = async (req, res) => {
     })
   } catch (error) {
     console.error('Error toggling like:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 
@@ -189,7 +190,7 @@ const addComment = async (req, res) => {
     })
   } catch (error) {
     console.error('Error adding comment:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 
@@ -218,7 +219,7 @@ const getComments = async (req, res) => {
     })
   } catch (error) {
     console.error('Error getting comments:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 
@@ -243,7 +244,7 @@ const toggleSave = async (req, res) => {
     res.status(200).json({ message: isSaved ? 'Post unsaved' : 'Post saved', isSaved: !isSaved })
   } catch (error) {
     console.error('Error toggling save:', error)
-    res.status(500).json({ error: error.message })
+    serverError(res, error)
   }
 }
 

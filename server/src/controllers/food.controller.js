@@ -1,4 +1,5 @@
 import foodModel from "../models/food.model.js";
+import { serverError } from "../utils/apiError.js";
 import { resolveSort, FOOD_SORT_FIELDS } from '../utils/sortQuery.js';
 import storageService from "../services/storage.service.js";
 import { v4 as uuid } from "uuid";
@@ -146,7 +147,7 @@ const createFood = async (req, res) => {
         });
     } catch (error) {
         console.error("Error creating food/advertisement:", error);
-        res.status(500).json({ error: "Failed to create post", details: error.message });
+        serverError(res, error, "Failed to create post");
     }
 };
 
@@ -183,7 +184,7 @@ const getFoodItems = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting partner foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -214,7 +215,7 @@ const getActiveAdvertisements = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting active advertisements:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -249,7 +250,7 @@ const getFoodItemsWithPricing = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting food items with pricing:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -288,7 +289,7 @@ const getPostStatistics = async (req, res) => {
         res.status(200).json({ message: "Post statistics retrieved successfully", statistics: formattedStats });
     } catch (error) {
         console.error("Error getting post statistics:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -350,7 +351,7 @@ const getTrendingFoods = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting trending foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -390,7 +391,36 @@ const getAllFoods = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting all foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
+    }
+};
+
+// GET /api/food/:id - single post detail. Public like the feed;
+const getFoodById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+
+        const food = await foodModel
+            .findOne({ _id: id, isActive: true, isAvailable: { $ne: false } })
+            .populate('foodPartner', 'companyName email verified profileImage')
+            .populate('likes', '_id')
+            .lean();
+
+        if (!food) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+
+        res.status(200).json({
+            message: "Post retrieved successfully",
+            data: food
+        });
+    } catch (error) {
+        console.error("Error getting food by id:", error);
+        serverError(res, error);
     }
 };
 
@@ -398,28 +428,54 @@ const toggleLike = async (req, res) => {
     try {
         const { id } = req.params;
         if (!req.user?._id) return res.status(401).json({ error: "User not authenticated" });
+        const userId = req.user._id;
 
-        const food = await foodModel.findById(id);
-        if (!food) return res.status(404).json({ error: "Post not found" });
+        const unliked = await foodModel.findOneAndUpdate(
+            { _id: id, likes: userId },
+            { $pull: { likes: userId }, $inc: { likeCount: -1 } },
+            { new: true }
+        );
 
-        const likeIndex = food.likes.indexOf(req.user._id);
-        if (likeIndex > -1) {
-            food.likes.splice(likeIndex, 1);
-            food.likeCount = Math.max(0, food.likeCount - 1);
-        } else {
-            food.likes.push(req.user._id);
-            food.likeCount += 1;
+        if (unliked) {
+            if (unliked.likeCount < 0) {
+                // Data was already drifted below zero; clamp once.
+                await foodModel.updateOne({ _id: id, likeCount: { $lt: 0 } }, { $set: { likeCount: 0 } });
+                unliked.likeCount = 0;
+            }
+            return res.status(200).json({
+                message: "Post unliked",
+                isLiked: false,
+                likeCount: unliked.likeCount
+            });
         }
 
-        await food.save();
+        const liked = await foodModel.findOneAndUpdate(
+            { _id: id, likes: { $ne: userId } },
+            { $addToSet: { likes: userId }, $inc: { likeCount: 1 } },
+            { new: true }
+        );
+
+        if (liked) {
+            return res.status(200).json({
+                message: "Post liked",
+                isLiked: true,
+                likeCount: liked.likeCount
+            });
+        }
+
+        // Either the post vanished or a concurrent request already toggled it;
+        // refetch so the response reflects the true current state.
+        const fresh = await foodModel.findById(id);
+        if (!fresh) return res.status(404).json({ error: "Post not found" });
+        const isLiked = fresh.likes.some((u) => u.toString() === userId.toString());
         res.status(200).json({
-            message: likeIndex > -1 ? "Post unliked" : "Post liked",
-            isLiked: likeIndex === -1,
-            likeCount: food.likeCount
+            message: isLiked ? "Post liked" : "Post unliked",
+            isLiked,
+            likeCount: fresh.likeCount
         });
     } catch (error) {
         console.error("Error toggling like:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -427,34 +483,60 @@ const toggleSave = async (req, res) => {
     try {
         const { id } = req.params;
         if (!req.user?._id) return res.status(401).json({ error: "User not authenticated" });
+        const userId = req.user._id;
 
-        const food = await foodModel.findById(id);
+        const food = await foodModel.findById(id).select('savesCount');
         if (!food) return res.status(404).json({ error: "Post not found" });
 
         const userModel = (await import('../models/user.Model.js')).default;
-        const user = await userModel.findById(req.user._id);
-        if (!user) return res.status(404).json({ error: "User not found" });
 
-        const isSaved = user.savedFoods.includes(id);
-        if (isSaved) {
-            user.savedFoods = user.savedFoods.filter(fId => fId.toString() !== id);
-            food.savesCount = Math.max(0, food.savesCount - 1);
-        } else {
-            user.savedFoods.push(id);
-            food.savesCount += 1;
+
+        const unsaved = await userModel.findOneAndUpdate(
+            { _id: userId, savedFoods: id },
+            { $pull: { savedFoods: id } },
+            { new: true }
+        );
+
+        if (unsaved) {
+            await foodModel.updateOne(
+                { _id: id, savesCount: { $gt: 0 } },
+                { $inc: { savesCount: -1 } }
+            );
+            const fresh = await foodModel.findById(id).select('savesCount');
+            return res.status(200).json({
+                message: "Post unsaved",
+                isSaved: false,
+                savesCount: fresh?.savesCount ?? 0
+            });
         }
 
-        await user.save();
-        await food.save();
+        const saved = await userModel.findOneAndUpdate(
+            { _id: userId, savedFoods: { $ne: id } },
+            { $addToSet: { savedFoods: id } },
+            { new: true }
+        );
 
+        if (saved) {
+            await foodModel.updateOne({ _id: id }, { $inc: { savesCount: 1 } });
+            const fresh = await foodModel.findById(id).select('savesCount');
+            return res.status(200).json({
+                message: "Post saved",
+                isSaved: true,
+                savesCount: fresh?.savesCount ?? 0
+            });
+        }
+
+        // savedFoods already contained the id (concurrent save won) - report
+        // the current state rather than toggling again.
+        const fresh = await foodModel.findById(id).select('savesCount');
         res.status(200).json({
-            message: isSaved ? "Post unsaved" : "Post saved",
-            isSaved: !isSaved,
-            savesCount: food.savesCount
+            message: "Post saved",
+            isSaved: true,
+            savesCount: fresh?.savesCount ?? 0
         });
     } catch (error) {
         console.error("Error toggling save:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -491,7 +573,7 @@ const getReviews = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting reviews:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -523,7 +605,7 @@ const addReview = async (req, res) => {
         res.status(201).json({ message: "Review added successfully", review: newReview });
     } catch (error) {
         console.error("Error adding review:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -537,7 +619,7 @@ const deleteFood = async (req, res) => {
         res.status(200).json({ message: 'Food item deleted successfully', deletedFoodId: id });
     } catch (error) {
         console.error('Error deleting food:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
@@ -586,12 +668,12 @@ const updateFood = async (req, res) => {
         res.status(200).json({ message: 'Food item updated successfully', food });
     } catch (error) {
         console.error('Error updating food:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
 export default {
-    createFood, getFoodItems, getAllFoods, getTrendingFoods,
+    createFood, getFoodItems, getAllFoods, getFoodById, getTrendingFoods,
     getActiveAdvertisements, getFoodItemsWithPricing, getPostStatistics,
     toggleLike, toggleSave, getReviews, addReview, deleteFood, updateFood
 };

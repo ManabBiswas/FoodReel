@@ -1,9 +1,11 @@
 import FoodFestTicket from "../../models/FoodFestTicket.model.js";
+import { serverFail } from "../../utils/apiError.js";
 import FoodFestZone from "../../models/FoodFestZone.model.js";
 import FoodFestEvent from "../../models/FoodFestEvent.model.js";
 import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
 import qrService from "../../services/foodfest.qr.service.js";
 import { emitZoneUpdate, emitZoneAlert } from "../../services/foodfest.socket.service.js";
+import { supportsTransactions } from "../../services/transactionSupport.js";
 import mongoose from "mongoose";
 
 export const scanTicket = async (req, res) => {
@@ -61,8 +63,8 @@ export const scanTicket = async (req, res) => {
         }
 
         // 4. Atomic Admission Transaction
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const session = (await supportsTransactions()) ? await mongoose.startSession() : null;
+        if (session) session.startTransaction();
 
         try {
             // Check Ticket: valid and not used
@@ -87,7 +89,7 @@ export const scanTicket = async (req, res) => {
                     else if (existingTicket.status === 'pending_payment') reason = 'payment_pending';
                     else if (existingTicket.status === 'expired' || existingTicket.status === 'cancelled' || existingTicket.status === 'refunded') reason = 'invalid_token';
                 }
-                await session.abortTransaction();
+                if (session) await session.abortTransaction();
                 
                 await FoodFestCheckIn.create([{
                     ticketId, zoneId, eventId,
@@ -113,7 +115,7 @@ export const scanTicket = async (req, res) => {
             );
 
             if (!updatedZone) {
-                await session.abortTransaction();
+                if (session) await session.abortTransaction();
                 
                 // Revert ticket status (since zone is full)
                 await FoodFestTicket.findByIdAndUpdate(ticketId, { status: 'valid', $unset: { checkedInAt: "", checkedInZoneId: "", checkedInBy: "", checkedInByModel: "" } });
@@ -138,7 +140,7 @@ export const scanTicket = async (req, res) => {
                 action: 'admit', timestamp: new Date()
             }], { session });
 
-            await session.commitTransaction();
+            if (session) await session.commitTransaction();
 
             // Emit Real-time Updates (Non-blocking)
             const newCount = updatedZone.currentCount;
@@ -171,15 +173,15 @@ export const scanTicket = async (req, res) => {
             });
 
         } catch (err) {
-            await session.abortTransaction();
+            if (session) await session.abortTransaction();
             throw err;
         } finally {
-            session.endSession();
+            if (session) session.endSession();
         }
 
     } catch (error) {
         console.error("Scan ticket error:", error);
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
 
@@ -244,6 +246,6 @@ export const checkoutTicket = async (req, res) => {
 
     } catch (error) {
         console.error("Checkout ticket error:", error);
-        res.status(500).json({ success: false, message: error.message });
+        serverFail(res, error);
     }
 };
