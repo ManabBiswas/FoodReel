@@ -3,8 +3,13 @@ import adminController from '../controllers/admin.controller.js';
 import { getPendingRefunds, decidePendingRefund } from '../controllers/adminRefund.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
 import { adminRateLimiter } from '../middlewares/rateLimiter.js';
+import { validateParams, isObjectId } from '../utils/validate.js';
 
 const router = express.Router();
+
+const adminIdParams = validateParams({
+    adminId: { check: isObjectId, message: 'adminId must be a valid id' }
+});
 
 // ============ AUTH ROUTES ============
 // POST /api/admin/login - Admin login (rate-limited: unauthenticated endpoint to stop brute force)
@@ -28,6 +33,9 @@ router.get('/dashboard/live', isAdmin, adminRateLimiter, adminController.getDash
 
 // Daily revenue/order buckets for the trend chart (range=7d|30d|90d)
 router.get('/dashboard/timeseries', isAdmin, adminRateLimiter, adminController.getDashboardTimeseries);
+
+// ============ ADMIN MANAGEMENT ROUTES ============
+router.put('/admins/:adminId/active', isAdmin, adminIdParams, adminController.toggleAdminActive);
 
 // ============ USER MANAGEMENT ROUTES ============
 // GET /api/admin/users - Get all users

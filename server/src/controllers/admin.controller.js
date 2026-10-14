@@ -416,6 +416,50 @@ async function deleteUser(req, res) {
     }
 }
 
+// ============ ADMIN MANAGEMENT ============
+// Deactivate/reactivate an admin account
+async function toggleAdminActive(req, res) {
+    try {
+        const { adminId } = req.params;
+
+        const admin = await adminModel.findById(adminId);
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin not found' });
+        }
+
+        // Determine the next active state
+        const currentlyActive = admin.isActive !== false;
+        const nextActive = !currentlyActive;
+
+        // Guard against locking every admin out of the panel (there must be at least one active admin)  
+        if (!nextActive) {
+            const activeAdmins = await adminModel.countDocuments({
+                isActive: { $ne: false }
+            });
+            if (activeAdmins <= 1) {
+                return res.status(400).json({
+                    error: 'Cannot deactivate the last active admin account'
+                });
+            }
+        }
+
+        admin.isActive = nextActive;
+        await admin.save();
+
+        res.status(200).json({
+            message: `Admin ${nextActive ? 'activated' : 'deactivated'} successfully`,
+            admin: {
+                id: admin._id,
+                email: admin.email,
+                isActive: admin.isActive
+            }
+        });
+    } catch (error) {
+        console.error('Toggle admin active error:', error);
+        res.status(500).json({ error: 'Failed to update admin status' });
+    }
+}
+
 // PARTNER MANAGEMENT CONTROLLERS
 async function getAllPartners(req, res) {
     try {
@@ -961,6 +1005,7 @@ export default {
     logout,
     verifyAdmin,
     getAdminProfile,
+    toggleAdminActive,
     // Dashboard
     getDashboardStats,
     // Users

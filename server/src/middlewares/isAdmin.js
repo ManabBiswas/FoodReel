@@ -18,6 +18,14 @@ async function isAdmin(req, res, next) {
                 message: "Unauthorized - Admin not found"
             });
         }
+        
+        if (admin.isActive === false) {
+            return res.status(403).json({
+                isAuthenticated: false,
+                message: "This admin account has been deactivated"
+            });
+        }
+
         req.admin = admin;
         next();
     } catch (error) {
