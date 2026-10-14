@@ -3,26 +3,26 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-    "scripts": {
-        "dev": "node --watch server.js",
-        "start": "node server.js",
-        "test": "node --test",
-        "test:watch": "node --test --watch",
-        "check:imports": "node check-imports.cjs src",
-        "sweep": "node scripts/data-sweep.mjs",
-        "exploit:repro": "node scripts/exploit-repro.mjs",
-        "webhook:repro": "node scripts/webhook-repro.mjs",
-        "test:refund-race": "node scripts/refund-race.mjs",
-        "test:cancel-refund": "node scripts/cancel-autorefund.mjs",
-        "test:gap-closure": "node scripts/gap-closure.mjs",
-        "test:sweeper": "node scripts/sweeper-repro.mjs"
-    },
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "check:imports": "node check-imports.cjs src",
+    "sweep": "node scripts/data-sweep.mjs",
+    "exploit:repro": "node scripts/exploit-repro.mjs",
+    "webhook:repro": "node scripts/webhook-repro.mjs",
+    "test:refund-race": "node scripts/refund-race.mjs",
+    "test:cancel-refund": "node scripts/cancel-autorefund.mjs",
+    "test:gap-closure": "node scripts/gap-closure.mjs",
+    "test:sweeper": "node scripts/sweeper-repro.mjs"
+  },
   "keywords": [],
   "author": "Manab Biswas",
   "license": "ISC",
   "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -37,13 +37,18 @@
     "jsonwebtoken": "^9.0.2",
     "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.18.1",
-    "multer": "^2.0.2",
-    "nodemailer": "^8.0.1",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.1.1",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.3",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.3",
     "xss": "^1.0.15"
+  },
+  "overrides": {
+    "proxy-addr": "2.0.8",
+    "imagekit": {
+      "uuid": "^11.1.1"
+    }
   }
 }
-

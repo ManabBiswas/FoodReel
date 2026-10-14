@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+mongoose.set('strictQuery', true);
+
 const intEnv = (name, fallback) => {
     const n = parseInt(process.env[name], 10);
     return Number.isFinite(n) && n > 0 ? n : fallback;

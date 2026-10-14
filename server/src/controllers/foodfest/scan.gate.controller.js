@@ -67,9 +67,9 @@ export const scanTicket = async (req, res) => {
         if (session) session.startTransaction();
 
         try {
-            // Check Ticket: valid and not used
+            // Check Ticket: valid, unused, and actually issued for this event.
             const ticket = await FoodFestTicket.findOneAndUpdate(
-                { _id: ticketId, status: 'valid' },
+                { _id: ticketId, eventId, status: 'valid' },
                 { 
                     status: 'used', 
                     checkedInAt: new Date(), 
@@ -208,7 +208,7 @@ export const checkoutTicket = async (req, res) => {
 
         // Atomic Release
         const ticket = await FoodFestTicket.findOneAndUpdate(
-            { _id: ticketId, status: 'used', checkedInZoneId: zoneId },
+            { _id: ticketId, eventId, status: 'used', checkedInZoneId: zoneId },
             { 
                 $unset: { checkedInZoneId: "" }, // Keep status 'used' but clear zone
                 checkedOutAt: new Date(),

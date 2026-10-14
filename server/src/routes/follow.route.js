@@ -8,9 +8,16 @@ import {
     getSuggestedFollows
 } from '../controllers/follow.controller.js';
 import isUserOrPartner from '../middlewares/isUserOrPartner.js';
-import { validateBody, isObjectId } from '../utils/validate.js';
+import { validateBody, validateParams, isObjectId } from '../utils/validate.js';
 
 const router = express.Router();
+
+const TARGET_TYPES = ['User', 'FoodPartner'];
+
+const listParams = validateParams({
+    userId: { check: isObjectId, message: 'userId must be a valid id' },
+    userType: { check: (v) => TARGET_TYPES.includes(v), message: 'userType must be User or FoodPartner' }
+});
 
 // Follow/Unfollow routes - partners can follow too (isLoggedin is user-only)
 router.post('/follow', isUserOrPartner, validateBody({
@@ -21,11 +28,14 @@ router.post('/unfollow', isUserOrPartner, validateBody({
 }), unfollowUser);
 
 // Get followers and following
-router.get('/followers/:userId/:userType', getFollowers);
-router.get('/following/:userId/:userType', getFollowing);
+router.get('/followers/:userId/:userType', listParams, getFollowers);
+router.get('/following/:userId/:userType', listParams, getFollowing);
 
 // Check if following a user
-router.get('/check/:targetId/:targetType', isUserOrPartner, checkFollowing);
+router.get('/check/:targetId/:targetType', isUserOrPartner, validateParams({
+    targetId: { check: isObjectId, message: 'targetId must be a valid id' },
+    targetType: { check: (v) => TARGET_TYPES.includes(v), message: 'targetType must be User or FoodPartner' }
+}), checkFollowing);
 
 // Get suggested users to follow
 router.get('/suggestions', isUserOrPartner, getSuggestedFollows);

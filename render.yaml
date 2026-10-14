@@ -13,6 +13,9 @@ services:
     autoDeploy: true
     envVars:
       # --- Required at startup (server.js exits if missing) ---
+
+      - key: NODE_VERSION
+        value: "22.11.0"
       - key: NODE_ENV
         value: production
 
