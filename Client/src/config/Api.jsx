@@ -26,8 +26,7 @@ export const API_ENDPOINTS = {
     partnerProfile: `${BASE_URL}/auth/partner/profile`,
     partnerBio: `${BASE_URL}/auth/partner/bio`,
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
-    partnerStatistics: `${BASE_URL}/auth/partner/statistics`,
-    // Admin  
+    // Admin
     adminLogin: `${BASE_URL}/auth/admin/login`,
     adminLogout: `${BASE_URL}/auth/admin/logout`,
     adminVerify: `${BASE_URL}/auth/admin/verify`,
@@ -67,6 +66,7 @@ export const API_ENDPOINTS = {
     // Reviews
     reviews: `${BASE_URL}/admin/reviews`,
     deleteReview: (reviewId) => `${BASE_URL}/admin/reviews/${reviewId}`,
+    updateReviewStatus: (reviewId) => `${BASE_URL}/admin/reviews/${reviewId}/status`,
     
     // Orders
     orders: `${BASE_URL}/admin/orders`,
@@ -88,10 +88,7 @@ export const API_ENDPOINTS = {
     activity: `${BASE_URL}/user/activity`,
     profilePicture: `${BASE_URL}/user/profile-picture`,
     preferences: `${BASE_URL}/user/preferences`,
-    favorites: `${BASE_URL}/user/favorites`,  
     bio: `${BASE_URL}/user/bio`,
-    reviews: `${BASE_URL}/user/reviews`,
-    saved: `${BASE_URL}/user/saved`,
     address: `${BASE_URL}/user/address`,
     addAddress: `${BASE_URL}/user/address`,
     addressById: (id) => `${BASE_URL}/user/address/${id}`,
@@ -171,7 +168,6 @@ export const API_ENDPOINTS = {
     verify: `${BASE_URL}/payment/verify`,
     failure: `${BASE_URL}/payment/failure`,
     refund: `${BASE_URL}/payment/refund`,
-    webhook: `${BASE_URL}/payment/webhook`,
   },
   
   // Follow endpoints
@@ -197,11 +193,6 @@ export const API_ENDPOINTS = {
     respond: (reviewId) => `${BASE_URL}/reviews/${reviewId}/respond`,
   },
   
-  // Partner follow endpoint
-  partner: {
-    follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,
-  },
-  
   // Comment endpoints (all routes live under /api/comments)
   comments: {
     create:   `${BASE_URL}/comments/create`,
@@ -217,19 +208,6 @@ export const API_ENDPOINTS = {
   // Contact endpoint
   contact: {
     send: `${BASE_URL}/contact`,
-  },
-
-  // emails endpoint
-  emails: {
-    send: `${BASE_URL}/emails/send`,
-    welcome: `${BASE_URL}/emails/welcome`,
-    passwordReset: `${BASE_URL}/emails/password-reset`,
-    orderConfirmation: `${BASE_URL}/emails/order-confirmation`,
-    orderCancelled: `${BASE_URL}/emails/order-cancelled`,
-    orderShipped: `${BASE_URL}/emails/order-shipped`,
-    partnerApproved: `${BASE_URL}/emails/partner-approved`,
-    partnerRejected: `${BASE_URL}/emails/partner-rejected`,
-    contactResponse: `${BASE_URL}/emails/contact-response`,
   },
 };
 
