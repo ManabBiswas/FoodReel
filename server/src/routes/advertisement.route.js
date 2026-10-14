@@ -2,7 +2,7 @@ import express from 'express'
 import * as advertisementController from '../controllers/advertisement.controller.js'
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js'
 import { sanitizeMultipart } from '../middlewares/sanitization.js'
-import { uploadMedia, enforceMediaSize } from '../middlewares/fileUpload.js'
+import { uploadMedia, enforceMediaSize, verifyFileSignature } from '../middlewares/fileUpload.js'
 import { validateParams, isObjectId } from '../utils/validate.js'
 import multer from 'multer'
 
@@ -41,6 +41,7 @@ router.post('/',
     isFoodPartnerLoggedin, 
     upload.single('file'), enforceMediaSize, 
     sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     advertisementController.createAdvertisement
 )
@@ -63,6 +64,7 @@ router.put('/:id',
     isFoodPartnerLoggedin, 
     upload.single('file'), enforceMediaSize, 
     sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     adIdParams,
     advertisementController.updateAdvertisement

@@ -5,7 +5,7 @@ import isLoggedin from '../middlewares/isLoggedin.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
 import { authRateLimiter } from '../middlewares/rateLimiter.js';
-import { uploadProfile } from '../middlewares/fileUpload.js';
+import { uploadProfile, verifyFileSignature, ALLOWED_MIME_TYPES } from '../middlewares/fileUpload.js';
 import { validateBody, isNonEmptyString, isEmail } from '../utils/validate.js';
 
 const upload = uploadProfile;
@@ -27,7 +27,7 @@ router.post('/user/register', authRateLimiter, upload.single('profileImage'),
     
 })
 router.get('/user/profile', isLoggedin, authController.getProfile);
-router.put('/user/profile', isLoggedin, upload.single('profileImage'), sanitizeMultipart, authController.updateProfile);
+router.put('/user/profile', isLoggedin, upload.single('profileImage'), sanitizeMultipart, verifyFileSignature(ALLOWED_MIME_TYPES.PROFILE), authController.updateProfile);
 router.put('/user/change-password', isLoggedin, authController.changePassword);
 router.delete('/user/account', isLoggedin, authController.deleteAccount);
 

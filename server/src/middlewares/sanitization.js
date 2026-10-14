@@ -3,18 +3,28 @@ import sanitize from 'mongo-sanitize';
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-function sanitizeValue(val) {
-  if (typeof val === 'string') return xss(val);
-  if (Array.isArray(val)) return val.map(sanitizeValue);
-  if (val !== null && typeof val === 'object') {
-    const clean = {};
-    for (const key of Object.keys(val)) {
-      if (DANGEROUS_KEYS.has(key)) continue;
-      clean[key] = sanitizeValue(val[key]);
+// Values that must survive byte-for-byte.
+const RAW_STRING_KEYS = new Set([
+    'password',
+    'currentPassword',
+    'newPassword',
+    'confirmPassword',
+    'code',
+    'qrToken'
+]);
+
+function sanitizeValue(val, key) {
+    if (typeof val === 'string') return RAW_STRING_KEYS.has(key) ? val : xss(val);
+    if (Array.isArray(val)) return val.map((v) => sanitizeValue(v, key));
+    if (val !== null && typeof val === 'object') {
+        const clean = {};
+        for (const k of Object.keys(val)) {
+            if (DANGEROUS_KEYS.has(k)) continue;
+            clean[k] = sanitizeValue(val[k], k);
+        }
+        return clean;
     }
-    return clean;
-  }
-  return val;
+    return val;
 }
 
 function sanitizeObject(obj) {

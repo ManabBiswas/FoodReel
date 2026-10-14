@@ -2,7 +2,7 @@ import express from 'express';
 import userController from '../controllers/user.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
-import { uploadProfile } from '../middlewares/fileUpload.js';
+import { uploadProfile, verifyFileSignature, ALLOWED_MIME_TYPES } from '../middlewares/fileUpload.js';
 
 const upload = uploadProfile;
 
@@ -13,7 +13,7 @@ router.get('/stats', isLoggedin, userController.getUserStats);
 router.get('/activity', isLoggedin, userController.getUserActivity);
 
 // Profile picture management
-router.post('/profile-picture', isLoggedin, upload.single('profileImage'), sanitizeMultipart, userController.uploadProfilePicture);
+router.post('/profile-picture', isLoggedin, upload.single('profileImage'), sanitizeMultipart, verifyFileSignature(ALLOWED_MIME_TYPES.PROFILE), userController.uploadProfilePicture);
 router.delete('/profile-picture', isLoggedin, userController.removeProfilePicture);
 
 // User preferences and address

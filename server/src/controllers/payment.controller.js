@@ -433,6 +433,33 @@ export const razorpayWebhook = async (req, res) => {
         payload?.order?.entity ??
         null;
 
+    // FoodFest tickets are not Orders - they live in their own collection, so
+    // the order lookup below would never find them. Without this branch a ticket
+    // paid over Razorpay stayed pending_payment and the sweeper later expired a
+    // ticket the customer had actually paid for. The marker is written by
+    // purchaseTicket as notes.kind.
+
+    const entityForTickets = payload?.payment?.entity ?? null;
+    if (
+        event === 'payment.captured' &&
+        entityForTickets?.notes?.kind === 'foodfest_ticket'
+    ) {
+        try {
+            const result = await finalizeTicketPayment(
+                entityForTickets.order_id,
+                entityForTickets.id,
+                null // webhook already authenticated the event; no signature to re-check
+            );
+            console.log(`[req:${req.id}] FoodFest ticket finalized from webhook:`, result?.ok);
+            return res.status(200).json({ success: true, handled: 'foodfest_ticket' });
+        } catch (ticketErr) {
+            // Acknowledge so Razorpay stops retrying; the ticket keeps its
+            // pending_payment state and the sweeper releases the reservation.
+            console.error(`[req:${req.id}] FoodFest ticket finalize failed:`, ticketErr.message);
+            return res.status(200).json({ success: true, handled: 'foodfest_ticket_failed' });
+        }
+    }
+
     // Locate the order this event refers to
     const lookup = resolveOrderKey(event, entity);
     let order = null;

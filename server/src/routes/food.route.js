@@ -4,7 +4,7 @@ import foodController from '../controllers/food.controller.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
-import { uploadMedia, enforceMediaSize } from '../middlewares/fileUpload.js';
+import { uploadMedia, enforceMediaSize, verifyFileSignature } from '../middlewares/fileUpload.js';
 import { validateParams, isObjectId } from '../utils/validate.js';
 
 const upload = uploadMedia;
@@ -38,6 +38,7 @@ router.post('/',
     isFoodPartnerLoggedin,
     upload.single('file'), enforceMediaSize, // Changed from 'video' to 'file' to match frontend
     sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     foodController.createFood
 );
@@ -124,6 +125,7 @@ router.put('/:id',
     foodIdParams,
     upload.single('file'), enforceMediaSize,
     sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     foodController.updateFood
 );

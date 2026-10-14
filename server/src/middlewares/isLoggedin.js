@@ -26,9 +26,10 @@ async function isLoggedin(req, res, next) {
                 message: "Your account has been blocked. Please contact support."
             });
         }
+
+        // Session revocation
         
-        // Session revocation 
-        if (typeof decoded.tv === 'number' && decoded.tv !== (user.tokenVersion ?? 0)) {
+        if ((decoded.tv ?? 0) !== (user.tokenVersion ?? 0)) {
             return res.status(401).json({
                 isAuthenticated: false,
                 message: "Session expired, please log in again"

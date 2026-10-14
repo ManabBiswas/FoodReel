@@ -88,6 +88,7 @@ const getAllUserPosts = async (req, res) => {
     const skip = (parseInt(page) - 1) * validLimit
     const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: POST_SORT_FIELDS })
 
+    const filter = { isActive: true }
     // Signed-in users are not shown their own reels in the main feed (they
     // don't come here to watch themselves)
     if (req.user?._id) filter.postedBy = { $ne: req.user._id }

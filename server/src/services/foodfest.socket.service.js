@@ -38,8 +38,10 @@ export const initSocketIO = (httpServer) => {
                 socket.user = { id: decoded.id, type: 'partner' };
                 return next();
             }
-            const admin = await adminModel.findById(decoded.id).select('_id');
+            const admin = await adminModel.findById(decoded.id).select('isActive');
             if (admin) {
+                // Mirror the HTTP plane: a deactivated admin keeps no live socket.
+                if (admin.isActive === false) return next(new Error("Account deactivated"));
                 socket.user = { id: decoded.id, type: 'admin' };
                 return next();
             }

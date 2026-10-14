@@ -44,6 +44,14 @@ async function login(req, res) {
             });
         }
 
+        // Kill switch: a deactivated admin must not be able to mint a fresh
+        // token through this route.
+        if (admin.isActive === false) {
+            return res.status(400).json({
+                error: "Invalid email or code"
+            });
+        }
+
         const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie('token', token, authCookieOptions());
         res.status(200).json({ 
@@ -64,7 +72,7 @@ async function login(req, res) {
 
 async function logout(req, res) {
     try {
-        res.clearCookie('token', { path: '/' });
+        res.clearCookie('token', authCookieOptions(0));
         res.status(200).json({ message: "Logout successful" });
     } catch (error) {
         console.error('Admin logout error:', error);

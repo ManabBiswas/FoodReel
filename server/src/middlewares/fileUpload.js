@@ -34,20 +34,31 @@ const fileFilter = (fileType, allowedTypes) => {
         if (!allowedTypes.includes(file.mimetype)) {
             return cb(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`), false);
         }
-
-        if (!file.buffer || file.buffer.length === 0) {
-            return cb(new Error('Empty upload'), false);
-        }
-
-        if (!isAllowedFileType(file.buffer, allowedTypes)) {
-            return cb(
-                new Error('File content does not match its declared type'),
-                false
-            );
-        }
-
         cb(null, true);
     };
+};
+
+/**
+ * Content-based upload validation 
+ * @param {string[]} [allowedMimes] defaults to image or video by declared type
+ */
+export const verifyFileSignature = (allowedMimes) => (req, res, next) => {
+    const file = req.file;
+    if (!file) return next(); // the upload is optional on this route
+
+    if (!file.buffer || file.buffer.length === 0) {
+        return res.status(400).json({ error: 'Uploaded file was empty' });
+    }
+
+    const allowed = allowedMimes || (
+        file.mimetype.startsWith('video/') ? ALLOWED_MIME_TYPES.VIDEO : ALLOWED_MIME_TYPES.IMAGE
+    );
+
+    if (!isAllowedFileType(file.buffer, allowed)) {
+        return res.status(400).json({ error: 'File content does not match its declared type' });
+    }
+
+    next();
 };
 
 // Create upload middleware for different file types
@@ -80,18 +91,13 @@ export const uploadDocument = multer({
 export const uploadMedia = multer({
     storage,
     fileFilter: (req, file, cb) => {
+        // Declared type only - file.buffer is not populated until after this.
+        // Real bytes are checked by verifyFileSignature, mounted after the upload.
         const allowed = file.mimetype.startsWith('video/')
             ? ALLOWED_MIME_TYPES.VIDEO
             : ALLOWED_MIME_TYPES.IMAGE;
         if (!allowed.includes(file.mimetype)) {
             return cb(new Error(`Invalid file type. Allowed types: ${allowed.join(', ')}`), false);
-        }
-        // Declared type is client-controlled - confirm against real bytes.
-        if (!file.buffer || file.buffer.length === 0) {
-            return cb(new Error('Empty upload'), false);
-        }
-        if (!isAllowedFileType(file.buffer, allowed)) {
-            return cb(new Error('File content does not match its declared type'), false);
         }
         cb(null, true);
     },

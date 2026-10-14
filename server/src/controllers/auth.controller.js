@@ -44,7 +44,7 @@ async function register(req, res) {
 
         const user = await userModel.create(userData);
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie("token", token, authCookieOptions());
 
         res.status(201).json({
@@ -286,7 +286,7 @@ async function deleteAccount(req, res) {
         await userModel.findByIdAndDelete(userId);
 
         // Clear cookie
-        res.clearCookie('token');
+        res.clearCookie('token', authCookieOptions(0));
 
         res.status(200).json({ message: "Account deleted successfully" });
 
@@ -296,7 +296,7 @@ async function deleteAccount(req, res) {
 }
 
 async function logout(req, res) {
-    res.clearCookie('token', { path: '/' });
+    res.clearCookie('token', authCookieOptions(0));
     res.status(200).json({ message: "User logged out successfully" });
 
 }
@@ -374,7 +374,7 @@ async function adminLogin(req, res) {
 
 async function adminLogout(req, res) {
     try {
-        res.clearCookie('token', { path: '/' });
+        res.clearCookie('token', authCookieOptions(0));
         res.status(200).json({ message: "Admin logout successful" });
     } catch (error) {
         console.error('Admin logout error:', error);
@@ -432,8 +432,9 @@ async function adminProfile(req, res) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const admin = await adminModel.findById(decoded.id).select('-code');
         
-        if (!admin) {
-            return res.status(404).json({ error: "Admin not found" });
+        // This route does not run through isAdmin, so the kill switch has to be enforced here too
+        if (!admin || admin.isActive === false) {
+            return res.status(401).json({ error: "Not authenticated" });
         }
         
         res.status(200).json({

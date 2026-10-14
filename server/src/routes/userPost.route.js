@@ -4,7 +4,7 @@ import isLoggedin from '../middlewares/isLoggedin.js';
 import optionalAuth from '../middlewares/optionalAuth.js';
 import userPostController from '../controllers/userPost.controller.js';
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
-import { uploadMedia, enforceMediaSize, FILE_SIZE_LIMITS } from '../middlewares/fileUpload.js';
+import { uploadMedia, enforceMediaSize, FILE_SIZE_LIMITS, verifyFileSignature } from '../middlewares/fileUpload.js';
 import { validateParams, isObjectId } from '../utils/validate.js';
 
 const router = express.Router();
@@ -29,7 +29,7 @@ const handleMulterError = (error, req, res, next) => {
 };
 
 // POST /api/food/user - create a post by a regular user
-router.post('/user', isLoggedin, upload.single('file'), enforceMediaSize, sanitizeMultipart, handleMulterError, userPostController.createUserPost);
+router.post('/user', isLoggedin, upload.single('file'), enforceMediaSize, sanitizeMultipart, verifyFileSignature(), handleMulterError, userPostController.createUserPost);
 
 // GET /api/food/user - get all user posts.
 // optionalAuth personalises the feed for signed-in users (own reels hidden)

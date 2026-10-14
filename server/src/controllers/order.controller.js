@@ -103,6 +103,15 @@ const createOrder = async (req, res) => {
       });
     }
 
+    // Single-restaurant rule.
+ // leter  i will upgrade it.
+    const distinctPartners = new Set(orderItems.map((i) => String(i.foodPartner)));
+    if (distinctPartners.size > 1) {
+        return res.status(400).json({
+            error: 'All items in an order must belong to the same restaurant'
+        });
+    }
+
     // Calculate pricing (subtotal + fees + taxes - discounts)
     const pricing = paymentService.calculatePricing(itemPriceTotal);
 

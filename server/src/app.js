@@ -109,8 +109,10 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
-app.use('/api/food',foodRoutes);
+// userPostRoutes is mounted BEFORE foodRoutes on purpose: both live under
+// /api/food, and foodRoutes declares a catch-all `GET /:id`
 app.use('/api/food', userPostRoutes);
+app.use('/api/food',foodRoutes);
 app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
