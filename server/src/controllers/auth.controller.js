@@ -1,6 +1,7 @@
 import userModel from "../models/user.Model.js";
 import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
+import { hashPassword as hashNewPassword, verifyPassword } from "../utils/password.js";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
 import { authCookieOptions } from "../utils/cookies.js";
@@ -26,7 +27,7 @@ async function register(req, res) {
             return res.status(409).json({ error: REGISTER_TAKEN_MESSAGE });
         }
 
-        const hashPassword = await bcrypt.hash(password, 10);
+        const hashPassword = await hashNewPassword(password);
 
         const userData = {
             firstName,
@@ -96,11 +97,14 @@ async function login(req, res) {
             });
         }
 
-        // Compare password
-        const isPasswordMatched = await bcrypt.compare(password, user.password);
+        // Compare password (upgrades a legacy cost-10 hash on success)
+        const isPasswordMatched = await verifyPassword(password, user.password, async (newHash) => {
+            user.password = newHash;
+            await user.save();
+        });
 
         if (isPasswordMatched) {
-            const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
             res.cookie('token', token, authCookieOptions());
 
             res.status(200).json({
@@ -243,10 +247,13 @@ async function changePassword(req, res) {
         }
 
         // Hash new password
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        const hashedNewPassword = await hashNewPassword(newPassword);
 
         // Update password
-        await userModel.findByIdAndUpdate(userId, { password: hashedNewPassword });
+        await userModel.findByIdAndUpdate(userId, {
+            password: hashedNewPassword,
+            $inc: { tokenVersion: 1 }
+        });
 
         res.status(200).json({ message: "Password changed successfully" });
 
@@ -340,6 +347,12 @@ async function adminLogin(req, res) {
             });
         }
 
+        if (admin.isActive === false) {
+            return res.status(400).json({
+                error: "Invalid email or code"
+            });
+        }
+
         const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie('token', token, authCookieOptions());
         
@@ -382,10 +395,11 @@ async function adminVerify(req, res) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const admin = await adminModel.findById(decoded.id).select('-code');
         
-        if (!admin) {
-            return res.status(404).json({ 
+
+        if (!admin || admin.isActive === false) {
+            return res.status(401).json({
                 isAuthenticated: false,
-                error: "Admin not found" 
+                message: "Not authenticated"
             });
         }
         

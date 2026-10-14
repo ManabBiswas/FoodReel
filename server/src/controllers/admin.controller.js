@@ -446,6 +446,12 @@ async function toggleAdminActive(req, res) {
         admin.isActive = nextActive;
         await admin.save();
 
+        // Audit trail: "who disabled whom, and when" must be logged to the audit log in render
+        console.log(
+            `[admin-killswitch] actor=${req.admin?.email ?? 'unknown'} ` +
+            `target=${admin.email} id=${admin._id} isActive=${nextActive}`
+        );
+
         res.status(200).json({
             message: `Admin ${nextActive ? 'activated' : 'deactivated'} successfully`,
             admin: {

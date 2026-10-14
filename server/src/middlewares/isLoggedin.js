@@ -27,6 +27,14 @@ async function isLoggedin(req, res, next) {
             });
         }
         
+        // Session revocation 
+        if (typeof decoded.tv === 'number' && decoded.tv !== (user.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Session expired, please log in again"
+            });
+        }
+
         req.user = user;
         next();
     } catch (error) {

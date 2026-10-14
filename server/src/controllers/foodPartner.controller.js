@@ -3,6 +3,7 @@ import { serverError, serverFail } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import reviewModel from "../models/review.model.js";
 import bcrypt from 'bcrypt'
+import { hashPassword as hashNewPassword, verifyPassword } from '../utils/password.js'
 import jwt from 'jsonwebtoken'
 import emailService from '../services/email.service.js';
 import { authCookieOptions } from '../utils/cookies.js';
@@ -29,7 +30,7 @@ async function register(req,res) {
         if(isPartnerExist){
             return res.status(409).json({error: PARTNER_REGISTER_TAKEN_MESSAGE});
         }else{
-            const hashPassword = await bcrypt.hash(password,10);
+            const hashPassword = await hashNewPassword(password);
             const foodPartner = await foodPartnerModel.create({
                 companyName,
                 email,
@@ -83,8 +84,12 @@ async function login(req,res){
             });
         }
         
-        // Correct bcrypt.compare usage (returns Promise, no callback needed)
-        const isPasswordMatched = await bcrypt.compare(password, foodPartner.password);
+        // Correct bcrypt.compare usage (returns Promise, no callback needed);
+        // upgrades a legacy cost-10 hash on a successful match
+        const isPasswordMatched = await verifyPassword(password, foodPartner.password, async (newHash) => {
+            foodPartner.password = newHash;
+            await foodPartner.save();
+        });
         
         if(isPasswordMatched){
             const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET, { expiresIn: "7d" });

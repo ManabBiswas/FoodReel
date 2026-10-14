@@ -1,5 +1,6 @@
 import multer from 'multer';
 import path from 'path';
+import { isAllowedFileType } from '../utils/fileSignature.js';
 
 // File size limits (in bytes) — overridable via env (F8: MAX_* were documented
 // but never read; limits were hardcoded). Values must be plain integers.
@@ -27,14 +28,24 @@ export const ALLOWED_MIME_TYPES = {
 const storage = multer.memoryStorage();
 
 // File filter function
+
 const fileFilter = (fileType, allowedTypes) => {
     return (req, file, cb) => {
-        // Check MIME type
         if (!allowedTypes.includes(file.mimetype)) {
             return cb(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`), false);
         }
 
-        // Check file size will be done by multer limits
+        if (!file.buffer || file.buffer.length === 0) {
+            return cb(new Error('Empty upload'), false);
+        }
+
+        if (!isAllowedFileType(file.buffer, allowedTypes)) {
+            return cb(
+                new Error('File content does not match its declared type'),
+                false
+            );
+        }
+
         cb(null, true);
     };
 };
@@ -74,6 +85,13 @@ export const uploadMedia = multer({
             : ALLOWED_MIME_TYPES.IMAGE;
         if (!allowed.includes(file.mimetype)) {
             return cb(new Error(`Invalid file type. Allowed types: ${allowed.join(', ')}`), false);
+        }
+        // Declared type is client-controlled - confirm against real bytes.
+        if (!file.buffer || file.buffer.length === 0) {
+            return cb(new Error('Empty upload'), false);
+        }
+        if (!isAllowedFileType(file.buffer, allowed)) {
+            return cb(new Error('File content does not match its declared type'), false);
         }
         cb(null, true);
     },

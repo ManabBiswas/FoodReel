@@ -1,13 +1,44 @@
 import emailService from "../services/email.service.js";
+import userModel from "../models/user.Model.js";
+import foodPartnerModel from "../models/foodPartner.Model.js";
 import { serverError } from "../utils/apiError.js";
+
+// Arbitrary mail relay guard.
+async function isKnownRecipient(address) {
+    const normalized = String(address || '').trim().toLowerCase();
+    if (!normalized) return false;
+    const [user, partner] = await Promise.all([
+        userModel.exists({ email: normalized }),
+        foodPartnerModel.exists({ email: normalized })
+    ]);
+    return Boolean(user || partner);
+}
 
 const sendEmailController = async (req, res) => {
     const { to, subject, message, html } = req.body;
     try {
+        if (!to || !subject || !message) {
+            return res.status(400).json({ error: 'to, subject and message are required' });
+        }
+
+        // to may be a comma-separated list; every recipient must be known.
+        const recipients = String(to).split(',').map((a) => a.trim()).filter(Boolean);
+        const unknown = [];
+        for (const address of recipients) {
+            if (!(await isKnownRecipient(address))) unknown.push(address);
+        }
+        if (unknown.length > 0) {
+            return res.status(400).json({
+                error: 'Recipient must be an existing user or food partner',
+                unknownRecipients: unknown
+            });
+        }
+
         await emailService.sendEmail(to, subject, message, html);
         res.status(200).json({ message: "Email sent successfully" });
     } catch (error) {
-        res.status(500).json({ error: "Failed to send email" });
+        console.error('Send email error:', error);
+        serverError(res, error, 'Failed to send email');
     }
 };
 

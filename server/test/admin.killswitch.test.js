@@ -23,6 +23,7 @@ const { default: adminController } = await import('../src/controllers/admin.cont
 
 const realFindById = adminModel.findById.bind(adminModel);
 const realCountDocuments = adminModel.countDocuments.bind(adminModel);
+const realFindOne = adminModel.findOne.bind(adminModel);
 
 /** Minimal express-like response double. */
 function fakeRes() {
@@ -42,6 +43,7 @@ before(() => {
 after(() => {
     adminModel.findById = realFindById;
     adminModel.countDocuments = realCountDocuments;
+    adminModel.findOne = realFindOne;
 });
 
 // ---------- middleware ----------
@@ -154,4 +156,79 @@ test('toggleAdminActive 404s for an unknown admin', async () => {
     const res = fakeRes();
     await adminController.toggleAdminActive({ params: { adminId: 'nope' } }, res);
     assert.equal(res.statusCode, 404);
+});
+
+test('toggleAdminActive records an audit line naming actor, target and state', async () => {
+    const doc = { _id: 'admin-9', email: 'target@b.c', isActive: true, save: async () => {} };
+    adminModel.findById = async () => doc;
+    adminModel.countDocuments = async () => 2;
+
+    const logged = [];
+    const realLog = console.log;
+    console.log = (...args) => logged.push(args.join(' '));
+    try {
+        await adminController.toggleAdminActive(
+            { params: { adminId: 'admin-9' }, admin: { email: 'actor@b.c' } },
+            fakeRes()
+        );
+    } finally {
+        console.log = realLog;
+    }
+
+    const line = logged.find((l) => l.includes('admin-killswitch'));
+    assert.ok(line, 'an audit line must be emitted');
+    assert.match(line, /actor=actor@b\.c/);
+    assert.match(line, /target=target@b\.c/);
+    assert.match(line, /isActive=false/);
+});
+
+// ---------- the two holes the middleware check alone did not cover ----------
+
+const { default: authController } = await import('../src/controllers/auth.controller.js');
+
+test('adminLogin refuses a deactivated admin instead of minting a fresh token', async () => {
+    adminModel.findOne = async () => ({ _id: 'a1', email: 'gone@b.c', code: '1234', isActive: false });
+
+    const res = {
+        statusCode: 200, body: null, cookies: {},
+        status(c) { this.statusCode = c; return this; },
+        json(b) { this.body = b; return this; },
+        cookie() { return this; }
+    };
+    await authController.adminLogin({ body: { email: 'gone@b.c', code: '1234' } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(Object.keys(res.cookies), [], 'no token cookie may be set');
+    // Must be indistinguishable from a wrong code, or this becomes a probe for
+    // "does this account exist and is it disabled".
+    assert.equal(res.body.error, 'Invalid email or code');
+});
+
+test('adminLogin still issues a token for an active admin', async () => {
+    adminModel.findOne = async () => ({ _id: 'a2', email: 'ok@b.c', code: '1234', isActive: true });
+
+    let cookieSet = false;
+    const res = {
+        statusCode: 200, body: null,
+        status(c) { this.statusCode = c; return this; },
+        json(b) { this.body = b; return this; },
+        cookie() { cookieSet = true; return this; }
+    };
+    await authController.adminLogin({ body: { email: 'ok@b.c', code: '1234' } }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(cookieSet, true, 'active admins must still be able to log in');
+});
+
+test('adminVerify answers 401 for a deactivated admin', async () => {
+    adminModel.findById = async () => {
+        const chain = { select: () => Promise.resolve({ _id: 'a3', email: 'x@b.c', isActive: false }) };
+        return chain;
+    };
+
+    const res = fakeRes();
+    await authController.adminVerify({ cookies: { token: tokenFor('a3') } }, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.equal(res.body.isAuthenticated, false);
 });
