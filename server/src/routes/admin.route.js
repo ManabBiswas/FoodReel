@@ -1,5 +1,10 @@
 import express from 'express';
 import adminController from '../controllers/admin.controller.js';
+import {
+    listContactMessages,
+    updateContactMessageStatus,
+    replyToContactMessage
+} from '../controllers/contact.controller.js';
 import { getPendingRefunds, decidePendingRefund } from '../controllers/adminRefund.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
 import { adminRateLimiter } from '../middlewares/rateLimiter.js';
@@ -9,6 +14,10 @@ const router = express.Router();
 
 const adminIdParams = validateParams({
     adminId: { check: isObjectId, message: 'adminId must be a valid id' }
+});
+
+const messageIdParams = validateParams({
+    messageId: { check: isObjectId, message: 'messageId must be a valid id' }
 });
 
 // ============ AUTH ROUTES ============
@@ -33,6 +42,13 @@ router.get('/dashboard/live', isAdmin, adminRateLimiter, adminController.getDash
 
 // Daily revenue/order buckets for the trend chart (range=7d|30d|90d)
 router.get('/dashboard/timeseries', isAdmin, adminRateLimiter, adminController.getDashboardTimeseries);
+
+// ============ CONTACT MESSAGE INBOX ============
+router.get('/contact-messages', isAdmin, listContactMessages);
+
+router.patch('/contact-messages/:messageId/status', isAdmin, messageIdParams, updateContactMessageStatus);
+
+router.post('/contact-messages/:messageId/reply', isAdmin, messageIdParams, replyToContactMessage);
 
 // ============ ADMIN MANAGEMENT ROUTES ============
 router.put('/admins/:adminId/active', isAdmin, adminIdParams, adminController.toggleAdminActive);
