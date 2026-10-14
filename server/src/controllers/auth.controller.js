@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
 import { authCookieOptions } from "../utils/cookies.js";
 import { timingSafeStringEqual } from "../utils/secureCompare.js";
-import { serverFail } from "../utils/apiError.js";
+import { serverFail, serverError } from "../utils/apiError.js";
 
 const REGISTER_TAKEN_MESSAGE =
     "Registration could not be completed with these details. If you already have an account, please log in or reset your password.";
@@ -168,8 +168,7 @@ async function getProfile(req, res) {
             updatedAt: user.updatedAt
         });
     } catch (error) {
-        console.error('Error in getProfile:', error);
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to load profile');
     }
 }
 
@@ -215,7 +214,7 @@ async function updateProfile(req, res) {
         });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to update profile');
     }
 }
 
@@ -252,7 +251,7 @@ async function changePassword(req, res) {
         res.status(200).json({ message: "Password changed successfully" });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to change password');
     }
 }
 
@@ -285,7 +284,7 @@ async function deleteAccount(req, res) {
         res.status(200).json({ message: "Account deleted successfully" });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to delete account');
     }
 }
 
@@ -312,8 +311,7 @@ async function verify(req, res) {
     } catch (error) {
         res.status(401).json({
             isAuthenticated: false,
-            message: "Not authenticated",
-            error: error.message
+            message: "Not authenticated"
         });
     }
 }

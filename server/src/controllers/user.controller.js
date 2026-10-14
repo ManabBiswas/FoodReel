@@ -66,7 +66,7 @@ async function uploadProfilePicture(req, res) {
             profileImage: `data:image/jpeg;base64,${updatedUser.profileImage.toString('base64')}`
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -89,7 +89,7 @@ async function removeProfilePicture(req, res) {
             message: "Profile picture removed successfully"
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -119,7 +119,7 @@ async function updatePreferences(req, res) {
             preferences: updatedUser.preferences
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -222,7 +222,7 @@ async function validatePassword(req, res) {
             });
         }
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -263,7 +263,7 @@ async function getAddresses(req, res) {
             addresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -310,7 +310,7 @@ async function addAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -357,7 +357,7 @@ async function updateAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -389,7 +389,7 @@ async function updateProfileAddress(req, res) {
             address: user.address
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -424,7 +424,7 @@ async function deleteAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -457,7 +457,7 @@ async function setDefaultAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 

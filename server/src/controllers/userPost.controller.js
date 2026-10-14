@@ -88,8 +88,12 @@ const getAllUserPosts = async (req, res) => {
     const skip = (parseInt(page) - 1) * validLimit
     const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: POST_SORT_FIELDS })
 
+    // Signed-in users are not shown their own reels in the main feed (they
+    // don't come here to watch themselves)
+    if (req.user?._id) filter.postedBy = { $ne: req.user._id }
+
     const posts = await UserPost
-      .find({ isActive: true })
+      .find(filter)
       // firstName/lastName only prevent email exposure   
       .populate('postedBy', 'firstName lastName profileImage')
       .populate('taggedPartner', 'companyName')
@@ -100,7 +104,7 @@ const getAllUserPosts = async (req, res) => {
       .limit(validLimit)
       .lean()
 
-    const totalCount = await UserPost.countDocuments({ isActive: true })
+    const totalCount = await UserPost.countDocuments(filter)
 
     res.status(200).json({
       message: 'User posts retrieved successfully',

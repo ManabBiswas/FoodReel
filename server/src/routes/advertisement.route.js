@@ -3,11 +3,16 @@ import * as advertisementController from '../controllers/advertisement.controlle
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js'
 import { sanitizeMultipart } from '../middlewares/sanitization.js'
 import { uploadMedia, enforceMediaSize } from '../middlewares/fileUpload.js'
+import { validateParams, isObjectId } from '../utils/validate.js'
 import multer from 'multer'
 
 const router = express.Router()
 
 const upload = uploadMedia
+
+const adIdParams = validateParams({
+    id: { check: isObjectId, message: 'id must be a valid id' }
+})
 
 // Multer error handling middleware
 const handleMulterError = (error, req, res, next) => {
@@ -50,7 +55,7 @@ router.get('/', isFoodPartnerLoggedin, advertisementController.getAllAdvertiseme
 
 // Get advertisement by ID (optional)
 // GET /api/advertisement/:id
-router.get('/:id', advertisementController.getAdvertisementById)
+router.get('/:id', adIdParams, advertisementController.getAdvertisementById)
 
 // Update advertisement (optional)
 // PUT /api/advertisement/:id
@@ -59,11 +64,12 @@ router.put('/:id',
     upload.single('file'), enforceMediaSize, 
     sanitizeMultipart,
     handleMulterError,
+    adIdParams,
     advertisementController.updateAdvertisement
 )
 
 // Delete advertisement (optional)
 // DELETE /api/advertisement/:id
-router.delete('/:id', isFoodPartnerLoggedin, advertisementController.deleteAdvertisement)
+router.delete('/:id', isFoodPartnerLoggedin, adIdParams, advertisementController.deleteAdvertisement)
 
 export default router
