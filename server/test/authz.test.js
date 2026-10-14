@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 
 process.env.NODE_ENV = 'production';
-process.env.FRONTEND_URL = 'https://foodreel.netlify.app';
+process.env.FRONTEND_URL = 'https://foodreel-watch.netlify.app';
 
 const { default: app } = await import('../src/app.js');
 
