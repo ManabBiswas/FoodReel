@@ -6,6 +6,7 @@ import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
 import { authRateLimiter } from '../middlewares/rateLimiter.js';
 import { uploadProfile } from '../middlewares/fileUpload.js';
+import { validateBody, isNonEmptyString, isEmail } from '../utils/validate.js';
 
 const upload = uploadProfile;
 
@@ -14,7 +15,15 @@ const router = express.Router();
 router.post('/user/login', authRateLimiter, authController.login, (req, res) => {
     // res.render('login');
 });
-router.post('/user/register', upload.single('profileImage'), sanitizeMultipart, authController.register, (req, res) => {
+router.post('/user/register', authRateLimiter, upload.single('profileImage'),
+    sanitizeMultipart,
+    validateBody({
+        firstName: { check: (v) => isNonEmptyString(v, 100), message: 'First name is required (max 100 characters)' },
+        lastName: { check: (v) => isNonEmptyString(v, 100), message: 'Last name is required (max 100 characters)' },
+        email: { check: isEmail, message: 'A valid email is required' },
+        password: { check: (v) => typeof v === 'string' && v.length >= 6 && v.length <= 128, message: 'Password must be at least 6 characters' }
+    }),
+    authController.register, (req, res) => {
     
 })
 router.get('/user/profile', isLoggedin, authController.getProfile);
@@ -30,10 +39,16 @@ router.get('/verify', isLoggedin, authController.verify);
 router.post('/partner/login', authRateLimiter, foodPartnerAuthController.login, (req, res) => {
     // res.render('login');
 });
-router.post('/partner/register', foodPartnerAuthController.register, (req, res) => {
+router.post('/partner/register', authRateLimiter,
+    validateBody({
+        companyName: { check: (v) => isNonEmptyString(v, 200), message: 'Company name is required (max 200 characters)' },
+        email: { check: isEmail, message: 'A valid email is required' },
+        password: { check: (v) => typeof v === 'string' && v.length >= 6 && v.length <= 128, message: 'Password must be at least 6 characters' },
+        mobile: { check: (v) => /^\d{10}$/.test(String(v ?? '').trim()), message: 'Mobile must be a 10-digit number' }
+    }),
+    foodPartnerAuthController.register, (req, res) => {
     // console.log(req.body);
 })
-
 router.post('/partner/logout', foodPartnerAuthController.logout);
 
 // Food Partner auth verification endpoint

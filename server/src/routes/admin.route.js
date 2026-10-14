@@ -7,8 +7,8 @@ import { adminRateLimiter } from '../middlewares/rateLimiter.js';
 const router = express.Router();
 
 // ============ AUTH ROUTES ============
-// POST /api/admin/login - Admin login
-router.post('/login', adminController.login);
+// POST /api/admin/login - Admin login (rate-limited: unauthenticated endpoint to stop brute force)
+router.post('/login', adminRateLimiter, adminController.login);
 
 // POST /api/admin/logout - Admin logout
 router.post('/logout', isAdmin, adminController.logout);
@@ -87,6 +87,9 @@ router.get('/reviews', isAdmin, adminController.getAllReviews);
 // DELETE /api/admin/reviews/:reviewId - Delete review
 router.delete('/reviews/:reviewId', isAdmin, adminController.deleteReview);
 
+// PATCH /api/admin/reviews/:reviewId/status - Moderate review (pending/approved/rejected/flagged)
+router.patch('/reviews/:reviewId/status', isAdmin, adminController.updateReviewStatus);
+
 // ============ ORDERS MANAGEMENT ============
 // GET /api/admin/orders - Get all orders
 router.get('/orders', isAdmin, adminController.getAllOrders);
@@ -109,8 +112,6 @@ router.get('/analytics/partners', isAdmin, adminController.getPartnerAnalytics);
 router.get('/support-tickets', isAdmin, adminController.getSupportTickets);
 
 // PUT /api/admin/support-tickets/:ticketId - Update support ticket status
-router.put('/support-tickets/:ticketId', isAdmin, adminController.updateSupportTicket);
-
 router.put('/support-tickets/:ticketId', isAdmin, adminController.updateSupportTicket);
 
 // ============ REFUND APPROVAL ROUTES ============

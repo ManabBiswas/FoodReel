@@ -9,6 +9,7 @@ import {
 import isLoggedin from '../../middlewares/isLoggedin.js';
 import { rateLimiter } from '../../middlewares/rateLimiter.js';
 import { withIdempotency } from '../../services/idempotency.js';
+import { validateBody, isObjectId } from '../../utils/validate.js';
 
 const router = express.Router();
 
@@ -19,7 +20,10 @@ router.get('/events', browseEvents);
 router.get('/events/:eventId', getEventDetails);
 
 // POST /api/foodfest/tickets/purchase  - for purchasing a ticket.
-router.post('/tickets/purchase', isLoggedin, withIdempotency('foodfest.ticket.purchase'), purchaseTicket);
+router.post('/tickets/purchase', isLoggedin, validateBody({
+    eventId: { check: isObjectId, message: 'eventId must be a valid id' },
+    tierId: { check: isObjectId, message: 'tierId must be a valid id' }
+}), withIdempotency('foodfest.ticket.purchase'), purchaseTicket);
 
 // POST /api/foodfest/tickets/verify - for verifying a ticket
 // A ticket is not an order, so it needs its own verification endpoint.
