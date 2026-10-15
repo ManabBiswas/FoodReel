@@ -59,7 +59,7 @@ async function login(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -91,7 +91,7 @@ async function verifyAdmin(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -110,7 +110,7 @@ async function getAdminProfile(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name,
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' '),
                 createdAt: admin.createdAt
             }
         });
@@ -791,7 +791,7 @@ async function getAllReviews(req, res) {
         const skip = (page - 1) * limit;
         
         const reviews = await reviewModel.find()
-            .populate('user', 'name email')
+            .populate('user', 'firstName lastName email')
             .limit(limit)
             .skip(skip)
             .sort({ createdAt: -1 });
@@ -884,7 +884,7 @@ async function getAllOrders(req, res) {
         }
         
         const orders = await orderModel.find(query)
-            .populate('user', 'name email')
+            .populate('user', 'firstName lastName email')
             .populate('items.foodPartner', 'companyName')
             .limit(parseInt(limit))
             .skip(skip)
@@ -909,7 +909,7 @@ async function getAllOrders(req, res) {
 async function getOrderDetails(req, res) {
     try {
         const order = await orderModel.findById(req.params.orderId)
-            .populate('user', 'name email phone')
+            .populate('user', 'firstName lastName email phone')
             .populate('items.foodPartner', 'companyName email');
         
         if (!order) {

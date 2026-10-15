@@ -361,7 +361,7 @@ async function adminLogin(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -408,7 +408,7 @@ async function adminVerify(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -441,7 +441,7 @@ async function adminProfile(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name,
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' '),
                 createdAt: admin.createdAt
             }
         });

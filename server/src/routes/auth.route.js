@@ -17,6 +17,7 @@ router.post('/user/login', authRateLimiter, authController.login, (req, res) => 
 });
 router.post('/user/register', authRateLimiter, upload.single('profileImage'),
     sanitizeMultipart,
+    verifyFileSignature(ALLOWED_MIME_TYPES.PROFILE),
     validateBody({
         firstName: { check: (v) => isNonEmptyString(v, 100), message: 'First name is required (max 100 characters)' },
         lastName: { check: (v) => isNonEmptyString(v, 100), message: 'Last name is required (max 100 characters)' },

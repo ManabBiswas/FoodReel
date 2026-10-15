@@ -444,20 +444,30 @@ export const razorpayWebhook = async (req, res) => {
         event === 'payment.captured' &&
         entityForTickets?.notes?.kind === 'foodfest_ticket'
     ) {
-        try {
-            const result = await finalizeTicketPayment(
-                entityForTickets.order_id,
-                entityForTickets.id,
-                null // webhook already authenticated the event; no signature to re-check
+        const result = await finalizeTicketPayment(
+            entityForTickets.order_id,
+            entityForTickets.id,
+            null // webhook already authenticated the event; no signature to re-check
+        );
+
+        // Record the real outcome. 
+        await recordWebhookOutcome(eventId, {
+            action: result?.success || result?.alreadyFinalised ? ACTION.APPLY : ACTION.REJECT,
+            reason: result?.code || (result?.alreadyFinalised ? 'already_finalised' : 'foodfest_ticket')
+        });
+
+        if (!result?.success && !result?.alreadyFinalised) {
+            console.error(
+                `[req:${req.id}] FoodFest ticket not finalized:`,
+                result?.code || 'unknown'
             );
-            console.log(`[req:${req.id}] FoodFest ticket finalized from webhook:`, result?.ok);
-            return res.status(200).json({ success: true, handled: 'foodfest_ticket' });
-        } catch (ticketErr) {
-            // Acknowledge so Razorpay stops retrying; the ticket keeps its
-            // pending_payment state and the sweeper releases the reservation.
-            console.error(`[req:${req.id}] FoodFest ticket finalize failed:`, ticketErr.message);
-            return res.status(200).json({ success: true, handled: 'foodfest_ticket_failed' });
         }
+
+        return res.status(200).json({
+            success: true,
+            handled: 'foodfest_ticket',
+            finalized: Boolean(result?.success)
+        });
     }
 
     // Locate the order this event refers to

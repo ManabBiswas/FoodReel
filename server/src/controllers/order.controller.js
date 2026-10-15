@@ -74,9 +74,13 @@ const createOrder = async (req, res) => {
       if (!foodItem) {
         return res.status(404).json({ error: `Food item ${foodItemId} not found` });
       }
-      if (foodItem.postType !== 'food') {
-        return res.status(400).json({ error: `${foodItem.name} is not orderable` });
-      }
+if (foodItem.postType !== 'food') {
+            return res.status(400).json({ error: `${foodItem.name} is not orderable` });
+        }
+
+        if (foodItem.isActive === false || foodItem.isAvailable === false) {
+            return res.status(400).json({ error: `${foodItem.name} is currently unavailable` });
+        }
       if (!foodItem.price || foodItem.price <= 0) {
         return res.status(400).json({ error: `${foodItem.name} has no valid price` });
       }
@@ -191,13 +195,10 @@ const createOrder = async (req, res) => {
       ).catch(err => console.error('Failed to send order confirmation email:', err.message));
     }
 
-  } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({
-      error: "Failed to create order",
-      details: error.message
-    });
-  }
+} catch (error) {
+        console.error("Error creating order:", error);                          
+        serverError(res, error, 'Failed to create order');
+    }
 };
 
 const getUserOrders = async (req, res) => {

@@ -33,12 +33,13 @@ export const createQRImage = async (token) => {
         const buffer = Buffer.from(base64Data, 'base64');
         
         // Upload to ImageKit via existing storageService
-        const uploadResponse = await storageService.uploadFile(buffer, `tickets/${Date.now()}.png`, 'image/png');
-        
-        if (!uploadResponse.success) {
-            throw new Error(`Storage upload failed: ${uploadResponse.error}`);
+        const fileName = `tickets/${Date.now()}.png`;
+        const uploadResponse = await storageService.uploadFile(buffer, fileName, 'image/png');
+
+        if (!uploadResponse?.url) {
+            throw new Error(`Storage upload failed: no URL returned for ${fileName}`);
         }
-        
+
         return uploadResponse.url;
     } catch (error) {
         console.error("QR Image Generation Error:", error);

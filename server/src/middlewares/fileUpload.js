@@ -32,7 +32,9 @@ const storage = multer.memoryStorage();
 const fileFilter = (fileType, allowedTypes) => {
     return (req, file, cb) => {
         if (!allowedTypes.includes(file.mimetype)) {
-            return cb(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`), false);
+            const err = new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
+            err.status = 400;
+            return cb(err, false);
         }
         cb(null, true);
     };
@@ -97,7 +99,9 @@ export const uploadMedia = multer({
             ? ALLOWED_MIME_TYPES.VIDEO
             : ALLOWED_MIME_TYPES.IMAGE;
         if (!allowed.includes(file.mimetype)) {
-            return cb(new Error(`Invalid file type. Allowed types: ${allowed.join(', ')}`), false);
+            const err = new Error(`Invalid file type. Allowed types: ${allowed.join(', ')}`);
+            err.status = 400;
+            return cb(err, false);
         }
         cb(null, true);
     },
@@ -149,5 +153,6 @@ export default {
     uploadDocument,
     uploadMedia,
     enforceMediaSize,
+    verifyFileSignature,
     handleUploadError
 };

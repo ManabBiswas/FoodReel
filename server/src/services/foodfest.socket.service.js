@@ -26,9 +26,11 @@ export const initSocketIO = (httpServer) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (!decoded?.id) return next(new Error("Invalid token"));
 
-            const user = await userModel.findById(decoded.id).select('isBlocked');
+            const user = await userModel.findById(decoded.id).select('isBlocked tokenVersion');
             if (user) {
                 if (user.isBlocked) return next(new Error("Account blocked"));
+         // Mirror isLoggedin: a token revoked by a password change must not keep a live socket.
+                if ((decoded.tv ?? 0) !== (user.tokenVersion ?? 0)) return next(new Error("Session expired"));
                 socket.user = { id: decoded.id, type: 'user' };
                 return next();
             }

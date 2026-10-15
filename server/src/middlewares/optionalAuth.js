@@ -6,8 +6,11 @@ async function optionalAuth(req, res, next) {
     if (!token) return next();
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await userModel.findById(decoded.id).select('_id isBlocked');
-        if (user && !user.isBlocked) req.user = user;
+        const user = await userModel.findById(decoded.id).select('_id isBlocked tokenVersion');
+//token version check
+        if (user && !user.isBlocked && (decoded.tv ?? 0) === (user.tokenVersion ?? 0)) {
+            req.user = user;
+        }
     } catch {
         // Invalid/expired/foreign token - treat as anonymous.
     }
