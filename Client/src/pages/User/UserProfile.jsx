@@ -5,6 +5,7 @@ import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { useAuth } from '../../hooks/useAuth'
 import Navbar from '../../Components/Navbar'
+import getProfileImageUrl from '../../utils/profileImage'
 import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
 
 const UserProfile = () => {
@@ -152,8 +153,8 @@ const UserProfile = () => {
               <div className="relative w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 via-yellow-500 to-amber-600 p-0.5 flex-shrink-0">
                 <div className="w-full h-full rounded-full bg-white p-1">
                   <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden relative group">
-                    {user.profileImage ? (
-                      <img src={user.profileImage} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
+                    {getProfileImageUrl(user) ? (
+                      <img src={getProfileImageUrl(user)} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-gray-600" />
                     )}

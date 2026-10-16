@@ -1,5 +1,6 @@
 import React from 'react'
 import { Star, X, Send, User } from 'lucide-react'
+import getProfileImageUrl from '../utils/profileImage'
 
 const ReelReviewModal = ({
   show,
@@ -22,39 +23,7 @@ const ReelReviewModal = ({
     { key: 'service', label: 'Service', icon: '⭐' },
     { key: 'ambiance', label: 'Ambiance', icon: '🎨' },
     { key: 'value', label: 'Value for Money', icon: '💰' }
-  ]
-
-  const getProfileImageUrl = (user) => {
-    if (!user || !user.profileImage) return null
-    
-    const profileImage = user.profileImage
-    
-    // If it's already a string URL, return it
-    if (typeof profileImage === 'string') {
-      return profileImage.startsWith('data:') ? profileImage : profileImage
-    }
-    
-    // Handle Buffer/Uint8Array converted to JSON format
-    if (profileImage.data && Array.isArray(profileImage.data)) {
-      const binaryString = String.fromCharCode.apply(null, profileImage.data)
-      const base64 = btoa(binaryString)
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    // Handle Uint8Array
-    if (profileImage instanceof Uint8Array) {
-      const base64 = btoa(String.fromCharCode.apply(null, profileImage))
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    // Handle ArrayBuffer
-    if (profileImage instanceof ArrayBuffer) {
-      const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(profileImage)))
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    return null
-  }
+]
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in">

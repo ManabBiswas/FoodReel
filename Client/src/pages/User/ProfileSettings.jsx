@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useNavigate, Link } from 'react-router-dom'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig, multipartConfig } from '../../config/Api'
+import getProfileImageUrl from '../../utils/profileImage'
 import { 
   User, Mail, Phone, Save, ArrowLeft, Camera, Upload, 
   Loader2, Eye, EyeOff, Lock, Trash2,  Plus, Edit2, MapPin, SlidersHorizontal
@@ -448,9 +449,9 @@ const ProfileSettings = () => {
               <div className="flex items-center gap-6">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {user?.profileImage ? (
+                    {getProfileImageUrl(user) ? (
                       <img 
-                        src={user.profileImage} 
+                        src={getProfileImageUrl(user)} 
                         alt="Profile" 
                         className="w-full h-full object-cover" 
                       />
