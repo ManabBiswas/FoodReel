@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { ShoppingBag, MapPin, Loader2, Search, Truck, ChevronRight, RefreshCw } from 'lucide-react'
@@ -160,12 +160,14 @@ const OrderHistory = () => {
     return () => { cancelled = true }
   }, [page])
 
-  const filtered = orders.filter(o => {
+  const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase()
-    const matchSearch = o._id?.toLowerCase().includes(q) || o.deliveryAddress?.fullName?.toLowerCase().includes(q)
-    const matchStatus = filterStatus === 'all' || o.status === filterStatus
-    return matchSearch && matchStatus
-  })
+    return orders.filter(o => {
+      const matchSearch = o._id?.toLowerCase().includes(q) || o.deliveryAddress?.fullName?.toLowerCase().includes(q)
+      const matchStatus = filterStatus === 'all' || o.status === filterStatus
+      return matchSearch && matchStatus
+    })
+  }, [orders, searchTerm, filterStatus])
 
   const handleReorder = async (order) => {
     const items = order.items || []

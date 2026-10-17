@@ -129,6 +129,23 @@ reviewSchema.index({ foodItem: 1, isActive: 1 });
 reviewSchema.index({ user: 1 });
 reviewSchema.index({ rating: 1 });
 
+//   - one active food-level review per user per partner            
+reviewSchema.index(
+    { user: 1, foodItem: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { foodItem: { $type: 'objectId' }, isActive: true }
+    }
+);
+//   - one active restaurant-level review per user per partner
+reviewSchema.index(
+    { user: 1, foodPartner: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { foodItem: { $type: 'null' }, isActive: true }
+    }
+);
+
 const reviewModel = mongoose.model("Review", reviewSchema);
 
 export default reviewModel;

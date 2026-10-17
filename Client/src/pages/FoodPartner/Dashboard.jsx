@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { memo, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -8,6 +8,7 @@ import {
 import { showError, showSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
+import CancelOrderDialog from '../../Components/CancelOrderDialog'
 import { usePartnerData } from '../../hooks/usePartnerData'
 import {
   Plus, ShoppingBag, Megaphone, TrendingUp, TrendingDown,
@@ -103,7 +104,7 @@ const ChartTip = ({ active, payload, label }) => {
 }
 
 /* ─── Order row ──────────────────────────────────────────── */
-const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updating }) => {
+const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, updating }) => {
   const customerName = order.user
     ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim() || 'Customer'
     : order.deliveryAddress?.fullName || 'Customer'
@@ -186,7 +187,7 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
             </button>
           )}
           {['pending', 'confirmed', 'preparing'].includes(order.status) && (
-            <button onClick={() => onCancelOrder(order._id)} disabled={updating}
+            <button onClick={() => onCancelOrder(order)} disabled={updating}
               className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
               Cancel
             </button>
@@ -195,7 +196,7 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
       </div>
     </div>
   )
-}
+})
 
 /* ─── Empty state ────────────────────────────────────────── */
 const EmptyState = ({ filtered }) => (
@@ -224,11 +225,39 @@ const Dashboard = () => {
   const [orders, setOrders] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [orderLoading, setOrderLoading] = useState(true)
+  const [ordersLoaded, setOrdersLoaded] = useState(false)
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [updatingOrder, setUpdatingOrder] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Content KPIs are derived from context posts, not from the orders endpoint.
+  // Keeping them out of fetchOrders stops a partner-data refresh from re-triggering the orders fetch through the effect below.
+  const contentStats = useMemo(() => {
+    const foodPosts = posts?.food || []
+    const adPosts = posts?.advertisement || []
+    return {
+      food: {
+        count: foodPosts.length,
+        totalLikes: foodPosts.reduce((s, p) => s + (p.likeCount || p.likes?.length || 0), 0),
+        totalReviews: foodPosts.reduce((s, p) => s + (p.commentCount || p.comments?.length || 0), 0),
+        totalSaves: foodPosts.reduce((s, p) => s + (p.savesCount || p.saves?.length || 0), 0)
+      },
+      advertisement: {
+        count: adPosts.length,
+        totalLikes: adPosts.reduce((s, a) => s + (a.likeCount || a.likes?.length || 0), 0),
+        totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
+      }
+    }
+  }, [posts])
+
+  const contentStatsRef = useRef(contentStats)
+  contentStatsRef.current = contentStats
+
+  useEffect(() => {
+    setStatistics(prev => (prev ? { ...prev, ...contentStats } : prev))
+  }, [contentStats])
 
   // Reviews state
   const [reviews, setReviews] = useState([])
@@ -270,21 +299,8 @@ const Dashboard = () => {
       }
       setRevenueByDay(statsRes.data?.statistics?.revenueByDay || [])
 
-      const foodPosts = posts?.food || []
-      const adPosts = posts?.advertisement || []
-
       setStatistics({
-        food: {
-          count: foodPosts.length,
-          totalLikes: foodPosts.reduce((s, p) => s + (p.likeCount || p.likes?.length || 0), 0),
-          totalReviews: foodPosts.reduce((s, p) => s + (p.commentCount || p.comments?.length || 0), 0),
-          totalSaves: foodPosts.reduce((s, p) => s + (p.savesCount || p.saves?.length || 0), 0)
-        },
-        advertisement: {
-          count: adPosts.length,
-          totalLikes: adPosts.reduce((s, a) => s + (a.likeCount || a.likes?.length || 0), 0),
-          totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
-        },
+        ...contentStatsRef.current,
         orders: {
           total: totalCountAll,
           pending: byStatus.pending || 0,
@@ -309,8 +325,9 @@ const Dashboard = () => {
       }
     } finally {
       setOrderLoading(false)
+      setOrdersLoaded(true)
     }
-  }, [posts, navigate])
+  }, [navigate])
 
   useEffect(() => {
     fetchOrders(orderPage)
@@ -336,14 +353,16 @@ const Dashboard = () => {
 
   const [cancelTarget, setCancelTarget] = useState(null)
   const [cancellingOrder, setCancellingOrder] = useState(false)
+//  callback to open cancel dialog
+  const openCancelDialog = useCallback((order) => setCancelTarget(order), [])
 
   const handleCancelOrder = useCallback(async (reason) => {
     if (!cancelTarget) return
     try {
       setCancellingOrder(true)
-      await axios.post(API_ENDPOINTS.order.partnerCancel(cancelTarget), { reason }, axiosConfig)
+      await axios.post(API_ENDPOINTS.order.partnerCancel(cancelTarget._id), { reason }, axiosConfig)
       setOrders((prev) => prev.map((o) => (
-        o._id === cancelTarget
+        o._id === cancelTarget._id
           ? { ...o, status: 'cancelled', cancellation: { ...(o.cancellation || {}), isCancelled: true, cancelledBy: 'partner', reason } }
           : o
       )))
@@ -460,7 +479,7 @@ const Dashboard = () => {
   const statusPieData = useMemo(() => ordersBarData, [ordersBarData])
 
   /* ── loading skeleton ───────────────────────────────────── */
-  if (loading || orderLoading) {
+  if (loading || (orderLoading && !ordersLoaded)) {
     return (
       <div className="min-h-screen bg-[#F8F9FB]">
         <Navbar />
@@ -726,7 +745,7 @@ const Dashboard = () => {
                         order={order}
                         onViewDetails={handleViewDetails}
                         onStatusUpdate={handleStatusUpdate}
-                        onCancelOrder={handleCancelOrder}
+                        onCancelOrder={openCancelDialog}
                         updating={updatingOrder === order._id}
                       />
                     ))}
@@ -797,7 +816,7 @@ const Dashboard = () => {
                     order={order}
                     onViewDetails={handleViewDetails}
                     onStatusUpdate={handleStatusUpdate}
-                    onCancelOrder={handleCancelOrder}
+                    onCancelOrder={openCancelDialog}
                     updating={updatingOrder === order._id}
                   />
                 ))}

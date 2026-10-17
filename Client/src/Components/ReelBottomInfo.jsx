@@ -1,9 +1,9 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { ChefHat, MapPin, UserPlus, UserCheck, Clock } from 'lucide-react'
 import displayName from '../utils/displayName'
 import getProfileImageUrl from '../utils/profileImage'
 
-const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
+const ReelBottomInfo = ({ item, isFollowing, onFollow, formatDate }) => {
   if (item.type !== 'post') return null
 
   return (
@@ -39,12 +39,12 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
             <button 
               onClick={() => onFollow(item.partnerId._id, 'FoodPartner')}
               className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
-                followingStatus[item.partnerId._id] 
+                isFollowing 
                   ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
                   : 'bg-white text-black hover:bg-white/90'
               }`}
             >
-              {followingStatus[item.partnerId._id] ? (
+              {isFollowing ? (
                 <>
                   <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   Following
@@ -91,12 +91,12 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
             <button 
               onClick={() => onFollow(item.postedBy._id, 'User')}
               className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
-                followingStatus[item.postedBy._id] 
+                isFollowing 
                   ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
                   : 'bg-white text-black hover:bg-white/90'
               }`}
             >
-              {followingStatus[item.postedBy._id] ? (
+              {isFollowing ? (
                 <>
                   <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   Following
@@ -134,4 +134,4 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
   )
 }
 
-export default ReelBottomInfo
+export default memo(ReelBottomInfo)

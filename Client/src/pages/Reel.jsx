@@ -29,7 +29,7 @@ const Reel = () => {
   const [currentReviewItem, setCurrentReviewItem] = useState(null)
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [currentCommentItem, setCurrentCommentItem] = useState(null)
-  const [userHasReviewed, setUserHasReviewed] = useState(false)
+  const [myReview, setMyReview] = useState(null)
   const [reviewData, setReviewData] = useState({
     rating: 0,
     comment: '',
@@ -40,13 +40,23 @@ const Reel = () => {
   const [loadingReviews, setLoadingReviews] = useState(false)
   const [showReviewsList, setShowReviewsList] = useState(true)
   
-  // Store current user ID
-  const [currentUserId, setCurrentUserId] = useState(null)
-  
+  // Store current user ID as a ref
   const containerRef = useRef(null)
   const videoRefs = useRef([])
   const hasInitializedInteractions = useRef(false)
-const currentUserIdRef = useRef(null)
+  const currentUserIdRef = useRef(null)
+
+  // Latest-value mirrors so mutation handlers can stay referentially stable
+  const combinedContentRef = useRef(combinedContent)
+  combinedContentRef.current = combinedContent
+  const followingStatusRef = useRef(followingStatus)
+  followingStatusRef.current = followingStatus
+  const savedPostsRef = useRef(savedPosts)
+  savedPostsRef.current = savedPosts
+  const currentIndexRef = useRef(currentIndex)
+  currentIndexRef.current = currentIndex
+  const playingRef = useRef(playing)
+  playingRef.current = playing
 
   const handleShopToggle = useCallback((postId) => {
     setOpenShopFor(prev => (prev === postId ? null : postId))
@@ -170,24 +180,27 @@ const currentUserIdRef = useRef(null)
     if (ads.length === 0) return posts
     
     const combined = []
-    const adFrequency = 2
-    let adIndex = 0
+    const adFrequency = 2   // frequency of ads: after every 2 posts    
+    let adIndex = 0   // Index to track which ad to insert        
+    let adSeq = 0 // Unique instance ID for ads to avoid key collisions           
     
     posts.forEach((post, index) => {
       combined.push(post)
       
       if ((index + 1) % adFrequency === 0 && adIndex < ads.length) {
-        combined.push(ads[adIndex])
+        combined.push({ ...ads[adIndex], _instanceId: `ad${adSeq++}` })
         adIndex = (adIndex + 1) % ads.length
       }
     })
     
     if (combined.length === posts.length && ads.length > 0) {
-      combined.push(ads[0])
+      combined.push({ ...ads[0], _instanceId: `ad${adSeq++}` })
     }
     
     return combined
   }
+
+  const slideCount = combinedContent.length
 
   useEffect(() => {
     const container = containerRef.current
@@ -208,7 +221,7 @@ const currentUserIdRef = useRef(null)
     slides.forEach(s => observer.observe(s))
 
     return () => observer.disconnect()
-  }, [combinedContent])
+  }, [slideCount])
 
   // Autoplay/pause videos
   useEffect(() => {
@@ -227,7 +240,7 @@ const currentUserIdRef = useRef(null)
         }
       }
     })
-  }, [currentIndex, combinedContent, muted])
+  }, [currentIndex, muted])
 
   const handleLike = useCallback(async (postId, postSource) => {
     try {
@@ -235,11 +248,8 @@ const currentUserIdRef = useRef(null)
         ? API_ENDPOINTS.userPost.like(postId)
         : API_ENDPOINTS.food.like(postId)
       
-      // Store previous state for rollback
-      const wasLiked = likedPosts[postId] || false
-      
-      // Optimistically update UI immediately
-      setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }))
+// Optimistically update UI immediately
+        setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
       
       const response = await axios.post(endpoint, {}, axiosConfig)
       
@@ -253,15 +263,17 @@ const currentUserIdRef = useRef(null)
           
           if (response.data.isLiked) {
             // Add current user to likes array if not already present
-            if (currentUserId && !updatedLikes.includes(currentUserId)) {
-              updatedLikes.push(currentUserId)
+            const viewerId = currentUserIdRef.current
+            if (viewerId && !updatedLikes.includes(viewerId)) {
+              updatedLikes.push(viewerId)
             }
           } else {
             // Remove current user from likes array
-            if (currentUserId) {
+            const viewerId = currentUserIdRef.current
+            if (viewerId) {
               updatedLikes = updatedLikes.filter(id => {
                 const idStr = typeof id === 'string' ? id : id._id?.toString() || id.toString()
-                return idStr !== currentUserId
+                return idStr !== viewerId
               })
             }
           }
@@ -290,14 +302,14 @@ const currentUserIdRef = useRef(null)
         showError(error.response?.data?.error || error.response?.data?.message || 'Failed to like post')
       }
     }
-  }, [likedPosts, currentUserId])
+  }, [])
 
   const handleSave = useCallback(async (postId) => {
     try {
-      const currentItem = combinedContent.find(item => item._id === postId);
-      if (!currentItem) return;
-      
-      const wasSaved = savedPosts[postId];
+const currentItem = combinedContentRef.current.find(item => item._id === postId);
+        if (!currentItem) return;
+  
+        const wasSaved = savedPostsRef.current[postId];
       
       // Optimistically update UI
       setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
@@ -325,13 +337,13 @@ const currentUserIdRef = useRef(null)
         showError(error.response?.data?.error || error.response?.data?.message || 'Failed to save post');
       }
     }
-  }, [savedPosts, combinedContent])
+  }, [])
 
   const handleFollow = useCallback(async (targetId, targetType) => {
     try {
       const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString()
       
-      const isFollowing = followingStatus[targetIdStr]
+      const isFollowing = followingStatusRef.current[targetIdStr]
       
       setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }))
       
@@ -362,13 +374,13 @@ const currentUserIdRef = useRef(null)
         showError(error.response?.data?.error || error.response?.data?.message || 'Failed to update follow status')
       }
     }
-  }, [followingStatus])
+  }, [])
 
   const openReviewModal = useCallback(async (item) => {
     setCurrentReviewItem(item)
     setShowReviewModal(true)
     setShowReviewsList(true)
-    setUserHasReviewed(false)
+    setMyReview(null)
     setReviewData({
       rating: 0,
       comment: '',
@@ -394,18 +406,29 @@ const currentUserIdRef = useRef(null)
         const reviews = response.data.data || response.data.reviews || []
         setExistingReviews(reviews)
 
-        const viewerId = currentUserIdRef.current
-        const hasReviewed = viewerId
-          ? reviews.some(review => review.user?._id?.toString() === viewerId.toString())
-          : false
-        setUserHasReviewed(hasReviewed)
-      } else {
+const viewerId = currentUserIdRef.current
+          const own = viewerId
+            ? reviews.find(review => review.user?._id?.toString() === viewerId.toString())
+            : null
+          setMyReview(own || null)
+          // Show the list of reviews if the viewer has not reviewed yet, or show the form to edit their own review  
+          setShowReviewsList(!own)
+          // Prefill with the viewer's own review so it can be edited instead of dead-ending on "you have already reviewed this item".
+          setReviewData(own
+            ? {
+                rating: own.rating || 0,
+                comment: own.comment || '',
+                ratings: { food: 0, service: 0, ambiance: 0, value: 0, ...(own.ratings || {}) }
+              }
+            : { rating: 0, comment: '', ratings: { food: 0, service: 0, ambiance: 0, value: 0 } })
+        } else {
+          setExistingReviews([])
+          setMyReview(null)
+        }
+} catch (error) {
+        console.error('Error fetching reviews:', error)
         setExistingReviews([])
-        setUserHasReviewed(false)
-      }
-    } catch (error) {
-      console.error('Error fetching reviews:', error)
-      setExistingReviews([])
+        setMyReview(null)
       if (error.response?.status !== 404) {
         showError('Failed to load reviews')
       }
@@ -419,7 +442,7 @@ const currentUserIdRef = useRef(null)
     setCurrentReviewItem(null)
     setExistingReviews([])
     setShowReviewsList(true)
-    setUserHasReviewed(false)
+    setMyReview(null)
     setReviewData({
       rating: 0,
       comment: '',
@@ -444,23 +467,18 @@ const currentUserIdRef = useRef(null)
   }, [])
 
   const handleSubmitReview = async () => {
-    if (userHasReviewed) {
-      showWarning('You have already reviewed this item')
-      return
-    }
-    
     if (reviewData.rating === 0) {
       showWarning('Please select a rating')
       return
     }
-    
+
     if (!reviewData.comment.trim()) {
       showWarning('Please write a comment')
       return
     }
 
     setSubmittingReview(true)
-    
+
     try {
       // Build review payload - include foodPartnerId only if available
       const reviewPayload = {
@@ -470,8 +488,8 @@ const currentUserIdRef = useRef(null)
       }
 
       // Add foodPartnerId if available (partner posts typically have this)
-      const foodPartnerId = currentReviewItem.postSource === 'partner' 
-        ? currentReviewItem.partnerId?._id 
+      const foodPartnerId = currentReviewItem.postSource === 'partner'
+        ? currentReviewItem.partnerId?._id
         : currentReviewItem.taggedPartner?._id
 
       if (foodPartnerId) {
@@ -483,17 +501,27 @@ const currentUserIdRef = useRef(null)
         reviewPayload.foodItemId = currentReviewItem.foodId
       }
 
-      await axios.post(
+      // submit works even if we failed to detect their existing review.
+      const { data } = await axios.post(
         API_ENDPOINTS.reviews.create,
         reviewPayload,
         axiosConfig
       )
 
-      showSuccess('Review submitted successfully!')
-      setUserHasReviewed(true)
-      await fetchReviews(currentReviewItem)
+      const saved = data?.data
+      showSuccess(data?.updated ? 'Review updated successfully!' : 'Review submitted successfully!')
+
+      // Reconcile by _id — if the server updated an existing review, that row is
+      // already in the list, so replace it rather than prepending a duplicate.
+      if (saved) {
+        setExistingReviews(prev => [
+          saved,
+          ...prev.filter(r => String(r._id) !== String(saved._id))
+        ])
+        setMyReview(saved)
+      }
       setShowReviewsList(true)
-      
+
       setReviewData({
         rating: 0,
         comment: '',
@@ -547,7 +575,6 @@ const currentUserIdRef = useRef(null)
         if (!userId) return
         
         // Store user ID for later use
-        setCurrentUserId(userId)
         currentUserIdRef.current = userId
 
         const followingChecks = {}
@@ -688,17 +715,17 @@ const currentUserIdRef = useRef(null)
     })
   }, [])
 
-  const togglePlayPause = useCallback(() => {
-    const video = videoRefs.current[currentIndex]
-    if (video) {
-      if (playing) {
-        video.pause()
-      } else {
-        video.play()
+const togglePlayPause = useCallback(() => {
+      const video = videoRefs.current[currentIndexRef.current]
+      if (video) {
+        if (playingRef.current) {
+          video.pause()
+        } else {
+          video.play()
+        }
+        setPlaying(!playingRef.current)
       }
-      setPlaying(!playing)
-    }
-  }, [currentIndex, playing])
+    }, [])
 
   const formatCount = useCallback((count) => {
     if (!count) return '0'
@@ -756,17 +783,19 @@ const currentUserIdRef = useRef(null)
         }}
       >
         {combinedContent.map((item, index) => (
+// Without !!, the value could be true, false, undefined, or something else.
+// With !!, you guarantee the prop isFollowing is always exactly true or false.
           <ReelArea
-            key={`${item.type}-${item.postSource || 'ad'}-${item._id}-${index}`}
+            key={`${item.type}-${item.postSource || 'ad'}-${item._instanceId || item._id}`}
             item={item}
             index={index}
-            currentIndex={currentIndex}
+            isActive={index === currentIndex}
             muted={muted}
             videoRefs={videoRefs}
-            likedPosts={likedPosts}
-            savedPosts={savedPosts}
-            followingStatus={followingStatus}
-            openShopFor={openShopFor}
+            isLiked={!!likedPosts[item._id]}
+            isSaved={!!savedPosts[item._id]}
+            isFollowing={!!(followingStatus[item.partnerId?._id] || followingStatus[item.postedBy?._id])}
+            isShopOpen={openShopFor === item._id}
             onLike={handleLike}
             onSave={handleSave}
             onShare={handleShare}
@@ -797,6 +826,7 @@ const currentUserIdRef = useRef(null)
         submittingReview={submittingReview}
         showReviewsList={showReviewsList}
         existingReviews={existingReviews}
+            myReview={myReview}
         loadingReviews={loadingReviews}
         onClose={closeReviewModal}
         onSubmit={handleSubmitReview}

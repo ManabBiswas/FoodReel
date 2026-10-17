@@ -29,6 +29,7 @@ const OrderDetail = () => {
 
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [orderLoaded, setOrderLoaded] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
@@ -55,6 +56,7 @@ const OrderDetail = () => {
       showError('Failed to load order')
     } finally {
       setLoading(false)
+      setOrderLoaded(true)
     }
   }, [orderId])
 
@@ -100,7 +102,10 @@ const OrderDetail = () => {
       if (response.data.success || response.status === 200) {
         setShowCancelDialog(false)
         showSuccess('Order cancelled')
-        await fetchOrderDetails()
+        // The cancel response carries the updated order — no refetch needed
+        if (response.data?.order) {
+          setOrder(response.data.order)
+        }
       }
     } catch (err) {
       console.error('Error cancelling order:', err)
@@ -153,7 +158,7 @@ const OrderDetail = () => {
     return statusActions[order.status] || []
   }
 
-  if (loading) {
+  if (loading && !orderLoaded) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />

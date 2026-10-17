@@ -59,26 +59,8 @@ export const createReview = async (req, res) => {
             }
         }
 
-        // Check if user has already reviewed this combination (prefer foodItem if available)
-        const existingReviewQuery = {
-            user: userId,
-            isActive: true
-        };
-        if (foodItemId) {
-            existingReviewQuery.foodItem = foodItemId;
-        } else {
-            existingReviewQuery.foodPartner = resolvedFoodPartnerId;
-        }
-
-        const existingReview = await reviewModel.findOne(existingReviewQuery);
-        if (existingReview) {
-            return res.status(400).json({
-                success: false,
-                message: "You have already reviewed this"
-            });
-        }
-
-        // Check if verified purchase (if order ID provided)
+        // Check if verified purchase (if order ID provided). Needed by both the
+        // create and the update path, so resolve it before either runs.
         let isVerifiedPurchase = false;
         if (orderId) {
             const order = await orderModel.findOne({
@@ -87,6 +69,51 @@ export const createReview = async (req, res) => {
                 status: 'delivered'
             });
             isVerifiedPurchase = !!order;
+        }
+
+        // Find a review the user already left in this scope.
+        let existingReview = null;
+        if (foodItemId) {
+            existingReview = await reviewModel.findOne({
+                user: userId,
+                isActive: true,
+                $or: [
+                    { foodItem: foodItemId },
+                    { foodItem: null, foodPartner: resolvedFoodPartnerId }
+                ]
+            });
+        } else {
+            existingReview = await reviewModel.findOne({
+                user: userId,
+                isActive: true,
+                foodPartner: resolvedFoodPartnerId
+            });
+        }
+
+        // Already reviewed this scope -> update that review instead    
+        if (existingReview) {
+            existingReview.rating = rating;
+            existingReview.comment = comment;
+            existingReview.ratings = sanitizedRatings;
+            if (images !== undefined) existingReview.images = images || [];
+            // A later verified order can upgrade a review submitted earlier.
+            if (isVerifiedPurchase) existingReview.isVerifiedPurchase = true;
+            await existingReview.save();
+
+            // The rating may have moved, so the partner's aggregate must follow.
+            await updateFoodPartnerRatings(existingReview.foodPartner);
+
+            const updatedReview = await reviewModel
+                .findById(existingReview._id)
+                .populate('user', 'firstName lastName profileImage')
+                .populate('foodItem', 'name image');
+
+            return res.status(200).json({
+                success: true,
+                updated: true,
+                message: "Review updated successfully",
+                data: updatedReview
+            });
         }
 
         // Create review
@@ -120,11 +147,52 @@ export const createReview = async (req, res) => {
 
         res.status(201).json({
             success: true,
+            updated: false,
             message: "Review created successfully",
             data: populatedReview
         });
 
     } catch (error) {
+        // Two submits raced past the lookup; the unique index let exactly one
+        // through. Fold this one into the winning review rather than surfacing a
+        // duplicate-key error the user can't act on.
+        if (error?.code === 11000) {
+            try {
+                const scopeQuery = foodItemId
+                    ? {
+                        user: userId,
+                        isActive: true,
+                        $or: [
+                            { foodItem: foodItemId },
+                            { foodItem: null, foodPartner: resolvedFoodPartnerId }
+                        ]
+                    }
+                    : { user: userId, isActive: true, foodPartner: resolvedFoodPartnerId };
+
+                const winner = await reviewModel.findOne(scopeQuery);
+                if (winner) {
+                    winner.rating = rating;
+                    winner.comment = comment;
+                    winner.ratings = sanitizedRatings;
+                    await winner.save();
+                    await updateFoodPartnerRatings(winner.foodPartner);
+
+                    const merged = await reviewModel
+                        .findById(winner._id)
+                        .populate('user', 'firstName lastName profileImage')
+                        .populate('foodItem', 'name image');
+
+                    return res.status(200).json({
+                        success: true,
+                        updated: true,
+                        message: "Review updated successfully",
+                        data: merged
+                    });
+                }
+            } catch (mergeErr) {
+                console.error("Error merging raced review:", mergeErr);
+            }
+        }
         console.error("Error in createReview:", error);
         res.status(500).json({
             success: false,

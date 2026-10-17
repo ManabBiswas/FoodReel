@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
@@ -12,16 +12,23 @@ import { Building2, MapPin, Phone, Mail, Loader2, LogOut, Settings, Plus, Grid3X
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout } = useAuth()
   const { partnerProfile, posts, loading, error, refresh } = usePartnerData()
-  
+
+  const isSettingsRoute = location.pathname.replace(/\/+$/, '') === '/partner-profile/settings'
+
   const [activeTab, setActiveTab] = useState('posts')
   const [postFilter, setPostFilter] = useState('all')
-  const [isEditingBio, setIsEditingBio] = useState(false)
+  const [isEditingBio, setIsEditingBio] = useState(isSettingsRoute)
   const [bioText, setBioText] = useState('')
   const [bioLoading, setBioLoading] = useState(false)
   const [selectedFood, setSelectedFood] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  React.useEffect(() => {
+    setIsEditingBio(isSettingsRoute)
+  }, [isSettingsRoute])
 
   // Initialize bio text when profile loads
   React.useEffect(() => {
@@ -41,7 +48,6 @@ const PartnerProfile = () => {
       )
       setIsEditingBio(false)
       showSuccess('Bio updated successfully!')
-      refresh() // Refresh partner data context
     } catch (error) {
       console.error('Error updating bio:', error)
       showError('Error updating bio')
@@ -346,7 +352,7 @@ const PartnerProfile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 px-4 sm:px-6 lg:px-8">
                   {filteredPosts.map((item) => (
                     <div
-                      key={item.id}
+                      key={item._id}
                       onClick={() => handleFoodClick(item)}
                       className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100 hover:scale-105 transition-transform duration-200"
                     >

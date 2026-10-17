@@ -1,3 +1,4 @@
+import React, { memo } from 'react'
 import ReelMediaPlayer from './ReelMediaPlayer'
 import ReelActionButtons from './ReelActionButtons'
 import ReelBottomInfo from './ReelBottomInfo'
@@ -7,13 +8,13 @@ import ReelAdContent from './ReelAdContent'
 const ReelArea = ({
   item,
   index,
-  currentIndex,
+  isActive,
   muted,
   videoRefs,
-  likedPosts,
-  savedPosts,
-  followingStatus,
-  openShopFor,
+  isLiked,
+  isSaved,
+  isFollowing,
+  isShopOpen,
   onLike,
   onSave,
   // onShare,
@@ -41,7 +42,7 @@ const ReelArea = ({
         <ReelMediaPlayer 
           item={item}
           index={index}
-          currentIndex={currentIndex}
+          isActive={isActive}
           muted={muted}
           onTogglePlayPause={onTogglePlayPause}
           videoRefs={videoRefs}
@@ -66,8 +67,8 @@ const ReelArea = ({
         {isPost && (
           <ReelActionButtons
             item={item}
-            likedPosts={likedPosts}
-            savedPosts={savedPosts}
+            isLiked={isLiked}
+            isSaved={isSaved}
             muted={muted}
             onLike={onLike}
             onSave={onSave}
@@ -81,7 +82,7 @@ const ReelArea = ({
         )}
 
         {/* Order Button for Food Posts - Only for Posts */}
-        {isPost && openShopFor === item._id && (
+        {isPost && isShopOpen && (
           <ReelOrderButton 
             food={item} 
             onOrderClick={onOrderClick}
@@ -92,7 +93,7 @@ const ReelArea = ({
         {isPost && (
           <ReelBottomInfo
             item={item}
-            followingStatus={followingStatus}
+            isFollowing={isFollowing}
             onFollow={onFollow}
             formatDate={formatDate}
           />
@@ -102,4 +103,4 @@ const ReelArea = ({
   )
 }
 
-export default ReelArea
+export default memo(ReelArea)

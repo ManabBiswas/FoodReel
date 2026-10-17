@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { PartnerDataContext } from '../config/contexts'
@@ -73,15 +73,17 @@ export const PartnerDataProvider = ({ children }) => {
     }
   }, [authType, isAuthenticated, fetchPartnerData])
 
-  const value = {
+  const refresh = useCallback(() => fetchPartnerData(true), [fetchPartnerData])
+
+  const value = useMemo(() => ({
     partnerProfile,
     posts, // { food: [], advertisement: [] }
     loading,
     refreshing,
     error,
-    refresh: () => fetchPartnerData(true)
-  }
-
+    refresh       // Function to refresh partner data     
+  }), [partnerProfile, posts, loading, refreshing, error, refresh])
+// Provide the context value to children  
   return (
     <PartnerDataContext.Provider value={value}>
       {children}

@@ -39,10 +39,10 @@ const LoadingScreen = () => (
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAuth = false, allowedType = null }) => {
-  const { authType, isAuthenticated, loading, authChecked } = useAuth()
+  const { authType, isAuthenticated, authChecked } = useAuth()
 
-  // Show loading while checking auth
-  if (!authChecked || loading) {
+  // If auth is not checked               
+  if (!authChecked) {
     return <LoadingScreen />
   }
 

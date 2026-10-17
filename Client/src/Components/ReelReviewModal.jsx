@@ -8,8 +8,9 @@ const ReelReviewModal = ({
   reviewData,
   submittingReview,
   showReviewsList,
-  existingReviews,
-  loadingReviews,
+existingReviews,
+    myReview,
+    loadingReviews,
   onClose,
   onSubmit,
   onRatingChange,
@@ -62,7 +63,7 @@ const ReelReviewModal = ({
                 : 'text-white/60 hover:text-white/80'
             }`}
           >
-            Write Review
+{myReview ? 'Edit Review' : 'Write Review'}
           </button>
         </div>
 
@@ -83,7 +84,7 @@ const ReelReviewModal = ({
                 </div>
               ) : (
                 existingReviews.map((review, idx) => (
-                  <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <div key={review._id || review.id || idx} className="bg-white/5 rounded-xl p-4 border border-white/10">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 flex items-center justify-center ring-2 ring-orange-400/30 flex-shrink-0">
                         {getProfileImageUrl(review.user) ? (
@@ -205,6 +206,17 @@ const ReelReviewModal = ({
           ) : (
             /* Write Review Form */
             <div className="space-y-6">
+              {myReview && (
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                  <span className="text-orange-200 text-sm">
+                    You already reviewed this. Edit your review below.
+                  </span>
+                  <span className="text-white/50 text-xs whitespace-nowrap">
+                    Submitted {new Date(myReview.createdAt).toLocaleDateString('en-IN')}
+                  </span>
+                </div>
+              )}
+
               {/* Overall Rating Display */}
               {reviewData.rating > 0 && (
                 <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
@@ -299,12 +311,12 @@ const ReelReviewModal = ({
                 {submittingReview ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Submitting...
+                    {myReview ? 'Updating...' : 'Submitting...'}
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    Submit Review
+                    {myReview ? 'Update Review' : 'Submit Review'}
                   </>
                 )}
               </button>

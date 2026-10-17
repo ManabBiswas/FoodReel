@@ -6,9 +6,7 @@ import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useCart } from '../hooks/useCart'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
 
-// Reviewer display name. Deliberately does NOT fall back to email: /food/:id/reviews
-// is unauthenticated, and the old email fallback was the reason it had to populate
-// every reviewer's address into a public response.
+// Reviewer display name. If no name, use 'User'    
 const reviewerName = (user) =>
   [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'User'
 
@@ -76,18 +74,25 @@ const FoodDetailModal = ({ food, onClose }) => {
       return
     }
 
+    const id = getFoodId()
+    if (!id) return
+
+    const wasLiked = isLiked
+    const label = wasLiked ? 'Removed from favorites' : 'Added to favorites'
+
+    // Optimistic: flip immediately, roll back on failure
+    setIsLiked(!wasLiked)
+    showSuccess(label)
+
     try {
-      const id = getFoodId()
-      if (!id) return
       await axios.post(
         API_ENDPOINTS.food.like(id),
         {},
         axiosConfig
       )
-      setIsLiked(!isLiked)
-      showSuccess(isLiked ? 'Removed from favorites' : 'Added to favorites')
     } catch (error) {
       console.error('Error liking food:', error)
+      setIsLiked(wasLiked)
       showError('Failed to update favorites')
     }
   }
@@ -107,14 +112,21 @@ const FoodDetailModal = ({ food, onClose }) => {
       setLoading(true)
       const id = getFoodId()
       if (!id) return
-      await axios.post(
+      const { data } = await axios.post(
         API_ENDPOINTS.food.review(id),
         { rating: 5, comment },
         axiosConfig
       )
       setComment('')
-      showSuccess('Review submitted successfully!')
-      await fetchReviews(id)
+      // The endpoint upserts, so this may be an update. Reconcile by _id —
+      // prepending blindly would show the same review twice.
+      if (data?.review) {
+        setReviews(prev => [
+          data.review,
+          ...prev.filter(r => String(r._id) !== String(data.review._id))
+        ])
+      }
+      showSuccess(data?.updated ? 'Review updated successfully!' : 'Review submitted successfully!')
     } catch (err) {
       console.error('Error submitting review:', err)
       showError(err.response?.data?.error || err.response?.data?.message || 'Failed to submit review')
@@ -171,11 +183,12 @@ const FoodDetailModal = ({ food, onClose }) => {
     try {
       const id = getFoodId()
       if (!id) return
-      await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
       setIsSaved(true)
       showSuccess('Food saved to your collection')
+      await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
     } catch (err) {
       console.error('Error saving food:', err)
+      setIsSaved(false)
       showError('Failed to save food')
     }
   }

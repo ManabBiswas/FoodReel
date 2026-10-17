@@ -2,6 +2,7 @@ import foodModel from "../models/food.model.js";
 import { serverError } from "../utils/apiError.js";
 import { resolveSort, FOOD_SORT_FIELDS } from '../utils/sortQuery.js';
 import storageService from "../services/storage.service.js";
+import { updateFoodPartnerRatings } from "./review.controller.js";
 import { v4 as uuid } from "uuid";
 import mongoose from "mongoose";
 
@@ -590,8 +591,25 @@ const addReview = async (req, res) => {
         if (!food) return res.status(404).json({ error: "Post not found" });
 
         const reviewModel = (await import('../models/review.model.js')).default;
-        const existing = await reviewModel.findOne({ user: req.user._id, foodItem: id });
-        if (existing) return res.status(400).json({ error: "You have already reviewed this item" });
+        const existing = await reviewModel.findOne({
+            user: req.user._id,
+            foodItem: id,
+            isActive: true
+        });
+
+        // Already reviewed this item -> overwrite them
+        if (existing) {
+            existing.rating = rating;
+            existing.comment = comment.trim();
+            await existing.save();
+            await updateFoodPartnerRatings(existing.foodPartner);
+            await existing.populate('user', 'firstName lastName profileImage');
+            return res.status(200).json({
+                message: "Review updated successfully",
+                review: existing,
+                updated: true
+            });
+        }
 
         const newReview = await reviewModel.create({
             user: req.user._id,
@@ -601,8 +619,9 @@ const addReview = async (req, res) => {
             comment: comment.trim()
         });
 
+        await updateFoodPartnerRatings(newReview.foodPartner);
         await newReview.populate('user', 'firstName lastName profileImage');
-        res.status(201).json({ message: "Review added successfully", review: newReview });
+        res.status(201).json({ message: "Review added successfully", review: newReview, updated: false });
     } catch (error) {
         console.error("Error adding review:", error);
         serverError(res, error);

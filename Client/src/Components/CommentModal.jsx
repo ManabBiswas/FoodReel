@@ -105,33 +105,50 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       return
     }
 
-    try {
-      const isLiked = likedComments[commentId]
+    const wasLiked = !!likedComments[commentId]
+    const delta = wasLiked ? -1 : 1
 
-      if (isLiked) {
+    // Optimistic: flip the heart and bump the count immediately, no refetch
+    setLikedComments(prev => {
+      const updated = { ...prev }
+      if (wasLiked) delete updated[commentId]
+      else updated[commentId] = true
+      return updated
+    })
+    setComments(prev => prev.map(c => (
+      c._id === commentId
+        ? { ...c, likeCount: Math.max(0, (c.likeCount || 0) + delta) }
+        : c
+    )))
+
+    try {
+      if (wasLiked) {
         await axios.delete(
           API_ENDPOINTS.comments.unlike(commentId),
           axiosConfig
         )
-        setLikedComments(prev => {
-          const updated = { ...prev }
-          delete updated[commentId]
-          return updated
-        })
       } else {
         await axios.post(
           API_ENDPOINTS.comments.like,
           { commentId },
           axiosConfig
         )
-        setLikedComments(prev => ({ ...prev, [commentId]: true }))
       }
-
-      // Refresh to get accurate like counts
-      fetchComments()
     } catch (error) {
       console.error('Failed to like comment:', error)
-      showError('Failed to process like')
+      // Roll back the optimistic update
+      setLikedComments(prev => {
+        const updated = { ...prev }
+        if (wasLiked) updated[commentId] = true
+        else delete updated[commentId]
+        return updated
+      })
+      setComments(prev => prev.map(c => (
+        c._id === commentId
+          ? { ...c, likeCount: Math.max(0, (c.likeCount || 0) - delta) }
+          : c
+      )))
+      showError(error.response?.data?.message || 'Failed to process like')
     }
   }
 

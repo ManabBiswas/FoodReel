@@ -1,12 +1,12 @@
-import { useCallback } from 'react'
+import { memo, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { Heart, MessageCircle, Share2, Bookmark, BookmarkCheck, Star, ShoppingBag, VolumeX, Volume2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ReelActionButtons = ({
     item,
-    likedPosts,
-    savedPosts,
+    isLiked,
+    isSaved,
     muted,
     onLike,
     onSave,
@@ -74,12 +74,12 @@ const ReelActionButtons = ({
   <button
     onClick={handleLike}
     className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
-    aria-label={likedPosts[item._id] ? "Unlike post" : "Like post"}
+    aria-label={isLiked ? "Unlike post" : "Like post"}
   >
-    <div className={`${buttonContainer} ${likedPosts[item._id] ? 'bg-red-500/30' : ''}`}>
+    <div className={`${buttonContainer} ${isLiked ? 'bg-red-500/30' : ''}`}>
       <Heart
         className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 transition-all ${
-          likedPosts[item._id]
+          isLiked
             ? 'fill-red-500 text-red-500 animate-scale-in'
             : 'text-white group-hover:fill-red-500 group-hover:text-red-500'
         }`}
@@ -125,10 +125,10 @@ const ReelActionButtons = ({
   <button
     onClick={handleSave}
     className="flex flex-col items-center gap-0.5 sm:gap-1 group cursor-pointer"
-    aria-label={savedPosts[item._id] ? "Unsave post" : "Save post"}
+    aria-label={isSaved ? "Unsave post" : "Save post"}
   >
-    <div className={`${buttonContainer} ${savedPosts[item._id] ? 'bg-orange-500/30' : ''}`}>
-      {savedPosts[item._id] ? (
+    <div className={`${buttonContainer} ${isSaved ? 'bg-orange-500/30' : ''}`}>
+      {isSaved ? (
         <BookmarkCheck className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-orange-400 fill-orange-400 animate-scale-in" />
       ) : (
         <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white group-hover:fill-green-400 group-hover:text-green-400 transition-all" />
@@ -168,4 +168,4 @@ const ReelActionButtons = ({
     )
 }
 
-export default ReelActionButtons
+export default memo(ReelActionButtons)

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import BackToTop from '../Components/BackToTop'
@@ -247,12 +248,12 @@ const Contact = () => {
                 <p className="text-orange-100 text-sm mb-4 leading-relaxed">
                   Check out our FAQ section for answers to common questions about orders, partnerships, and more.
                 </p>
-                <a 
-                  href="/about" 
+                <Link
+                  to="/about"
                   className="inline-flex items-center gap-2 bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg transition-all"
                 >
                   Learn More
-                </a>
+                </Link>
               </div>
             </div>
           </div>

@@ -77,6 +77,7 @@ const OrderTracking = () => {
   const navigate = useNavigate()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [orderLoaded, setOrderLoaded] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [error, setError] = useState('')
@@ -89,7 +90,7 @@ const OrderTracking = () => {
       setOrder(res.data.order); setError('')
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load order'); showError('Failed to load order')
-    } finally { setLoading(false) }
+    } finally { setLoading(false); setOrderLoaded(true) }
   }, [orderId])
 
   useEffect(() => {
@@ -121,10 +122,13 @@ const OrderTracking = () => {
   const handleCancel = async (reason) => {
     try {
       setCancelLoading(true)
-      await axios.post(API_ENDPOINTS.order.cancel(orderId), { reason }, axiosConfig)
+      const response = await axios.post(API_ENDPOINTS.order.cancel(orderId), { reason }, axiosConfig)
       setShowCancelDialog(false)
       showSuccess('Order cancelled')
-      fetchOrder()
+      // The cancel response carries the updated order — no refetch needed
+      if (response.data?.order) {
+        setOrder(response.data.order)
+      }
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to cancel order')
     } finally { setCancelLoading(false) }
@@ -137,7 +141,7 @@ const OrderTracking = () => {
   }
 
   /* Loading */
-  if (loading) return (
+  if (loading && !orderLoaded) return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
       <Navbar />
       <div className="flex flex-1 items-center justify-center">
