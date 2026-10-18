@@ -30,10 +30,19 @@ const PartnerProfile = () => {
     setIsEditingBio(isSettingsRoute)
   }, [isSettingsRoute])
 
-  // Initialize bio text when profile loads
+  // Initialize bio text from context ONCE.
+  //
+  // handleSaveBio deliberately does not call refresh() — that re-downloaded every
+  // post and ad to update one text field. The consequence is that context keeps
+  // holding the OLD bio, so both the hydration effect and handleCancelBio must
+  // not read it after a save. `savedBioRef` tracks the last persisted value.
+  const bioHydratedRef = React.useRef(false)
+  const savedBioRef = React.useRef('')
   React.useEffect(() => {
-    if (partnerProfile?.bio) {
+    if (partnerProfile?.bio && !bioHydratedRef.current) {
       setBioText(partnerProfile.bio)
+      savedBioRef.current = partnerProfile.bio
+      bioHydratedRef.current = true
     }
   }, [partnerProfile])
 
@@ -46,6 +55,7 @@ const PartnerProfile = () => {
         { bio: bioText },
         axiosConfig
       )
+      savedBioRef.current = bioText
       setIsEditingBio(false)
       showSuccess('Bio updated successfully!')
     } catch (error) {
@@ -69,7 +79,9 @@ const PartnerProfile = () => {
   }
 
   const handleCancelBio = () => {
-    setBioText(partnerProfile?.bio || '')
+    // Revert to the last SAVED bio, not context — context still holds the
+    // pre-save value because handleSaveBio no longer refreshes it.
+    setBioText(savedBioRef.current)
     setIsEditingBio(false)
   }
 

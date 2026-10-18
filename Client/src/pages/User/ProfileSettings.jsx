@@ -957,9 +957,11 @@ const ProfileSettings = () => {
                             )}
                           </div>
                           <p className="text-sm text-gray-700">
-                            {addr.street}
-                            <br />
-                            {addr.city}, {addr.state} {addr.pinCode}
+{/* The server normalizes to addressLine1/pincode (user.controller.js normalizeAddressInput), so reading street/pinCode here rendered blank. Fall back to the legacy names for old records. */}
+
+                              {addr.addressLine1 || addr.street}
+                              <br />
+                              {addr.city}, {addr.state} {addr.pincode || addr.pinCode}
                             <br />
                             {addr.country}
                           </p>

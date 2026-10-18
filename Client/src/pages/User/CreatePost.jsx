@@ -119,7 +119,9 @@ const CreatePost = () => {
     const isVideo = f.type.startsWith('video/')
     if (type === 'image' && !isImage) return showWarning('Please select an image file')
     if (type === 'video' && !isVideo) return showWarning('Please select a video file')
-    if (f.size > 5 * 1024 * 1024) return showWarning('File must be less than 5MB')
+    // follow the server's FILE_SIZE_LIMITS (IMAGE 5MB / VIDEO 10MB).
+    const sizeLimit = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024
+    if (f.size > sizeLimit) return showWarning(`File must be less than ${isVideo ? '10MB' : '5MB'}`)
     setFile(f)
     const reader = new FileReader()
     reader.onload = () => setPreview(reader.result)

@@ -75,14 +75,20 @@ export const PartnerDataProvider = ({ children }) => {
 
   const refresh = useCallback(() => fetchPartnerData(true), [fetchPartnerData])
 
+  // Patch partner profile  
+  const patchPartnerProfile = useCallback((patch) => {
+    setPartnerProfile(prev => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   const value = useMemo(() => ({
     partnerProfile,
     posts, // { food: [], advertisement: [] }
     loading,
     refreshing,
     error,
-    refresh       // Function to refresh partner data     
-  }), [partnerProfile, posts, loading, refreshing, error, refresh])
+    refresh,       // Function to refresh partner data
+    patchPartnerProfile // patchPartnerProfile function to update partner profile in context
+  }), [partnerProfile, posts, loading, refreshing, error, refresh, patchPartnerProfile])
 // Provide the context value to children  
   return (
     <PartnerDataContext.Provider value={value}>

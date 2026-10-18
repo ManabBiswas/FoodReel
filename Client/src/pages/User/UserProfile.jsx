@@ -6,6 +6,8 @@ import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { useAuth } from '../../hooks/useAuth'
 import Navbar from '../../Components/Navbar'
 import getProfileImageUrl from '../../utils/profileImage'
+import FoodMedia from '../../Components/FoodMedia'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 import { LogOut, User, Mail, Phone, Loader2, Settings, Plus, Heart, Bookmark, Grid3X3, Calendar, Edit3, Camera, Shield, MessageCircle } from 'lucide-react'
 
 const UserProfile = () => {
@@ -410,14 +412,15 @@ const UserProfile = () => {
                   {savedItems.map((item) => (
                     <div key={item._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
                       {item.itemType === 'food' ? (
-                        <img
-                          src={item.image || item.video}
+                        <FoodMedia
+                          foodItem={item}
+                          className="w-full h-full"
+                          imgClass="w-full h-full object-cover"
                           alt={item.name}
-                          className="w-full h-full object-cover"
                         />
                       ) : (
                         <img
-                          src={item.image || item.video}
+                          src={getImageKitThumbnail(item.video || item.image) || ''}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />
