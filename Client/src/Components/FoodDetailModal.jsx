@@ -108,10 +108,14 @@ const FoodDetailModal = ({ food, onClose }) => {
       return
     }
 
+    const id = getFoodId()
+    if (!id) {
+      showError('Could not resolve food item')
+      return
+    }
+
     try {
       setLoading(true)
-      const id = getFoodId()
-      if (!id) return
       const { data } = await axios.post(
         API_ENDPOINTS.food.review(id),
         { rating: 5, comment },
@@ -180,15 +184,21 @@ const FoodDetailModal = ({ food, onClose }) => {
 
   const handleSave = async () => {
     if (!user) return navigate('/login')
+
+    const id = getFoodId()
+    if (!id) return
+
+    // Declared before the try so the catch can roll back to the real previous
+    // value (a catch block cannot see anything declared inside try).
+    const wasSaved = isSaved
+
     try {
-      const id = getFoodId()
-      if (!id) return
-      setIsSaved(true)
-      showSuccess('Food saved to your collection')
+      setIsSaved(!wasSaved)
+      showSuccess(wasSaved ? 'Food removed from your collection' : 'Food saved to your collection')
       await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
     } catch (err) {
       console.error('Error saving food:', err)
-      setIsSaved(false)
+      setIsSaved(wasSaved)
       showError('Failed to save food')
     }
   }

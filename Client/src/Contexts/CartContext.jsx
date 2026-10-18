@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { CartContext } from './CartContextBase'
 import { useAuth } from '../hooks/useAuth'
+import { newIdempotencyKey } from '../utils/idempotencyKey'
 
 export const CartProvider = ({ children }) => {
   const { isAuthenticated, authType } = useAuth()
@@ -155,13 +156,16 @@ export const CartProvider = ({ children }) => {
 
   // Checkout
   const checkout = useCallback(async (deliveryAddress, paymentMethod = 'cod', specialInstructions = '') => {
+    // One key per submit attempt. A fresh key is minted for a genuinely new checkout.
+    const idempotencyKey = newIdempotencyKey()
+
     try {
       setLoading(true)
       setError(null)
       const response = await axios.post(
         API_ENDPOINTS.cart.checkout,
         { deliveryAddress, paymentMethod, specialInstructions },
-        axiosConfig
+        { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': idempotencyKey } }
       )
       if (response.data?.order) {
         // Clear cart after successful checkout

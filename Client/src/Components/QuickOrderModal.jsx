@@ -5,6 +5,7 @@ import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
+import { newIdempotencyKey } from '../utils/idempotencyKey'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
@@ -158,6 +159,9 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   }
 
   const handlePlaceOrder = async () => {
+    // Minted once per attempt and reused if this attempt is retried, so a
+    // double-tap cannot place two orders.
+    const idempotencyKey = newIdempotencyKey()
     try {
       setLoading(true)
 
@@ -183,7 +187,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           orderSource: 'reel',
           paymentMethod: paymentMethod
         },
-        axiosConfig
+        // One key for this submit attempt
+        { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': idempotencyKey } }
       )
 
       if (!orderResponse.data.order || !orderResponse.data.order._id) {
