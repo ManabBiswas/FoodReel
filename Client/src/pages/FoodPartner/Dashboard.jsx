@@ -33,11 +33,11 @@ const STATUS_CFG = {
 }
 
 /* ─── KPI Card ───────────────────────────────────────────── */
-const KPICard = ({ title, value, subtitle, from, to, icon, trend }) => (
+const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
   <div className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${from} ${to} text-white shadow-md`}>
     <div className="flex items-start justify-between">
       <div className="bg-white/20 rounded-xl p-2.5">
-        {icon && <icon className="w-5 h-5 text-white" />}
+        {Icon && <Icon className="w-5 h-5 text-white" />}
       </div>
       {trend != null && (
         <div className="flex items-center gap-1 bg-white/20 rounded-full px-2.5 py-1 text-xs font-semibold">
@@ -55,10 +55,10 @@ const KPICard = ({ title, value, subtitle, from, to, icon, trend }) => (
 )
 
 /* ─── Mini stat ──────────────────────────────────────────── */
-const MiniStat = ({ icon, label, value, cls }) => (
+const MiniStat = ({ icon: Icon, label, value, cls }) => (
   <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${cls}`}>
-      {icon && <icon className="w-5 h-5" />}
+      {Icon && <Icon className="w-5 h-5" />}
     </div>
     <div className="min-w-0">
       <p className="text-xs text-gray-500 truncate">{label}</p>

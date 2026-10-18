@@ -95,9 +95,11 @@ const CreateFood = () => {
       return
     }
 
-    // File size validation (5MB limit)
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      showWarning('File size must be less than 5MB')
+    // File size validation — must mirror the server's FILE_SIZE_LIMITS
+    // (IMAGE 5MB / VIDEO 10MB). 
+    const sizeLimit = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024
+    if (selectedFile.size > sizeLimit) {
+      showWarning(`File size must be less than ${isVideo ? '15MB' : '5MB'}`)
       return
     }
 

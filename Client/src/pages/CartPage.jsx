@@ -7,6 +7,7 @@ import {
   ArrowLeft, Lock, CheckCircle, ChevronRight, Tag
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
+import FoodMedia from '../Components/FoodMedia'
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 const fmt = (n) => Number(n ?? 0).toFixed(2)
@@ -99,7 +100,7 @@ const CartPage = () => {
 
           {/* ── Page header ────────────────────────────────────── */}
           <div className="mb-8">
-            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted);' }}
+            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted)' }}
                           onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                           onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
                         >
@@ -208,11 +209,14 @@ const CartPage = () => {
                           boxShadow: 'var(--shadow-sm)',
                         }}
                       >
-                        {/* Food image */}
-                        {item.foodItem?.image && (
-                          <div className="h-28 w-full overflow-hidden rounded-xl bg-gray-100 sm:h-28 sm:w-28 flex-shrink-0">
-                            <img src={item.foodItem.image} alt={item.foodItem.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                          </div>
+                        {/* Food media — FoodMedia so video items get a thumbnail instead of nothing */}
+                        {(item.foodItem?.image || item.foodItem?.video) && (
+                          <FoodMedia
+                            foodItem={item.foodItem}
+                            className="h-28 w-full overflow-hidden rounded-xl bg-gray-100 sm:h-28 sm:w-28 flex-shrink-0"
+                            imgClass="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            alt={item.foodItem?.name}
+                          />
                         )}
 
                         {/* Details */}
