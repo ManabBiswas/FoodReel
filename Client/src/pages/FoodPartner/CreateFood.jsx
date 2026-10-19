@@ -99,7 +99,7 @@ const CreateFood = () => {
     // (IMAGE 5MB / VIDEO 10MB). 
     const sizeLimit = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024
     if (selectedFile.size > sizeLimit) {
-      showWarning(`File size must be less than ${isVideo ? '15MB' : '5MB'}`)
+      showWarning(`File size must be less than ${isVideo ? '10MB' : '5MB'}`)
       return
     }
 
@@ -772,7 +772,7 @@ const CreateFood = () => {
                         Click to upload {formData.type === 'image' ? 'an image' : 'a video'}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formData.type === 'image' ? 'PNG, JPG, GIF up to 5MB' : 'MP4, MOV up to 5MB'}
+                        {formData.type === 'image' ? 'PNG, JPG, GIF up to 5MB' : 'MP4, MOV up to 10MB'}
                       </p>
                     </label>
                   </div>

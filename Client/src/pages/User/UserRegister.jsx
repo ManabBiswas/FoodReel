@@ -3,12 +3,12 @@ import axios from 'axios'
 import { useAuth } from '../../hooks/useAuth'
 import { useNavigate, Link } from 'react-router-dom'
 import { showSuccess, showError } from '../../utils/toast'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
 import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone, Home } from 'lucide-react'
 
 const UserRegister = () => {
 
-  const { loginUser } = useAuth()
+  const { checkAuth } = useAuth()
   const navigate = useNavigate()
 
   const [formData, setFormData] = useState({
@@ -105,24 +105,16 @@ const UserRegister = () => {
       await axios.post(
         API_ENDPOINTS.auth.userRegister,
         submitData,
-        axiosConfig
+        multipartConfig
       )
 
-      showSuccess('Registration successful! Logging you in...')
+      showSuccess('Registration successful!')
 
-      // Automatically log in the user with their credentials
-      const loginResult = await loginUser({
-        email: formData.email,
-        password: formData.password
-      })
-
-      if (loginResult.success) {
-        showSuccess('Welcome!')
-        navigate('/', { replace: true })
-      } else {
-        showError('Registration successful, but auto-login failed. Please login manually.')
-        navigate('/login', { replace: true })
-      }
+      // The register endpoint already mints the JWT and sets the auth cookie on 201
+      // checkAuth(true) reads the session that registration just established, like PartnerRegister does.
+      await checkAuth(true)
+      showSuccess('Welcome!')
+      navigate('/', { replace: true })
 
     } catch (error) {
       console.error('Registration error:', error)

@@ -14,7 +14,7 @@ const PartnerProfile = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { logout } = useAuth()
-  const { partnerProfile, posts, loading, error, refresh } = usePartnerData()
+  const { partnerProfile, posts, loading, error, refresh, patchPartnerProfile } = usePartnerData()
 
   const isSettingsRoute = location.pathname.replace(/\/+$/, '') === '/partner-profile/settings'
 
@@ -30,32 +30,28 @@ const PartnerProfile = () => {
     setIsEditingBio(isSettingsRoute)
   }, [isSettingsRoute])
 
-  // Initialize bio text from context ONCE.
+  // Sync the bio from context.
   //
-  // handleSaveBio deliberately does not call refresh() — that re-downloaded every
-  // post and ad to update one text field. The consequence is that context keeps
-  // holding the OLD bio, so both the hydration effect and handleCancelBio must
-  // not read it after a save. `savedBioRef` tracks the last persisted value.
-  const bioHydratedRef = React.useRef(false)
-  const savedBioRef = React.useRef('')
+  // handleSaveBio does NOT call refresh() — that re-downloaded every post and ad
+  // to update one text field. Instead it patches the cached profile directly, so
+  // context stays the single source of truth.
   React.useEffect(() => {
-    if (partnerProfile?.bio && !bioHydratedRef.current) {
-      setBioText(partnerProfile.bio)
-      savedBioRef.current = partnerProfile.bio
-      bioHydratedRef.current = true
-    }
-  }, [partnerProfile])
+    if (isEditingBio) return
+    setBioText(partnerProfile?.bio || '')
+  }, [partnerProfile, isEditingBio])
 
   // Handle bio editing
   const handleSaveBio = async () => {
     try {
       setBioLoading(true)
-      await axios.put(
+      const { data } = await axios.put(
         API_ENDPOINTS.auth.partnerBio,
         { bio: bioText },
         axiosConfig
       )
-      savedBioRef.current = bioText
+      const savedBio = data?.foodPartner?.bio ?? data?.bio ?? bioText
+      setBioText(savedBio)
+      patchPartnerProfile({ bio: savedBio })
       setIsEditingBio(false)
       showSuccess('Bio updated successfully!')
     } catch (error) {
@@ -79,9 +75,9 @@ const PartnerProfile = () => {
   }
 
   const handleCancelBio = () => {
-    // Revert to the last SAVED bio, not context — context still holds the
-    // pre-save value because handleSaveBio no longer refreshes it.
-    setBioText(savedBioRef.current)
+    // Context is authoritative again (handleSaveBio patches it), so reverting to
+    // partnerProfile.bio is now correct.
+    setBioText(partnerProfile?.bio || '')
     setIsEditingBio(false)
   }
 
