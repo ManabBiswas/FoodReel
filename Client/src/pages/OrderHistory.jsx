@@ -228,7 +228,7 @@ const OrderHistory = () => {
 
           {/* Filters */}
           <div
-            className="mb-8 flex flex-cols-1 gap-4 rounded-2xl p-5 md:flex-cols-2"
+            className="mb-8 flex flex-col sm:flex-row gap-4 rounded-2xl p-5"
             style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}
           >
             <div className="relative flex-2 ">

@@ -48,9 +48,10 @@ const OrderConfirmation = () => {
       setLoading(true)
       const res = await axios.get(API_ENDPOINTS.order.getById(orderId), axiosConfig)
       setOrder(res.data.order)
-    } catch (err) {
-      setError(`Failed to load order details ${err}`);
-      showError('Failed to load order')
+} catch (err) {
+        // Never interpolate the raw error: it renders "Failed to load order details AxiosError: Request failed with status code 404" to the user.
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load order details');
+        showError('Failed to load order')
     } finally { setLoading(false) }
   }, [orderId])
 
@@ -270,12 +271,12 @@ const OrderConfirmation = () => {
                         )}
                         {order.cancellation.refundStatus === 'completed' && (
                           <p className="mt-1.5 text-xs font-sans text-green-700">
-                            Your refund of {order.cancellation.refundAmount} has been completed.
+                            Your refund of ₹{Number(order.cancellation.refundAmount || 0).toFixed(2)} has been completed.
                           </p>
                         )}
                         {order.cancellation.refundStatus === 'pending_approval' && (
                           <p className="mt-1.5 text-xs font-sans text-amber-700">
-                            The restaurant cancelled this order, so your refund of {order.cancellation.refundAmount} is awaiting approval.
+                            The restaurant cancelled this order, so your refund of ₹{Number(order.cancellation.refundAmount || 0).toFixed(2)} is awaiting approval.
                           </p>
                         )}
                         {order.cancellation.refundStatus === 'failed' && (

@@ -20,6 +20,8 @@ const FoodDetailModal = ({ food, onClose }) => {
   const [isMuted, setIsMuted] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
   const [comment, setComment] = useState('')
+  // Real star input. This used to post a hardcoded `rating: 5`,
+  const [rating, setRating] = useState(0)
   const navigate = useNavigate()
   const { addToCart } = useCart()
   const videoRef = React.useRef(null)
@@ -108,6 +110,11 @@ const FoodDetailModal = ({ food, onClose }) => {
       return
     }
 
+    if (rating < 1 || rating > 5) {
+      showWarning('Please select a star rating')
+      return
+    }
+
     const id = getFoodId()
     if (!id) {
       showError('Could not resolve food item')
@@ -118,10 +125,11 @@ const FoodDetailModal = ({ food, onClose }) => {
       setLoading(true)
       const { data } = await axios.post(
         API_ENDPOINTS.food.review(id),
-        { rating: 5, comment },
+        { rating, comment },
         axiosConfig
       )
       setComment('')
+      setRating(0)
       // The endpoint upserts, so this may be an update. Reconcile by _id —
       // prepending blindly would show the same review twice.
       if (data?.review) {
@@ -194,8 +202,15 @@ const FoodDetailModal = ({ food, onClose }) => {
 
     try {
       setIsSaved(!wasSaved)
-      showSuccess(wasSaved ? 'Food removed from your collection' : 'Food saved to your collection')
-      await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
+      const { data } = await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
+      // POST /food/:id/save is a TOGGLE and returns the authoritative isSaved.
+      if (typeof data?.isSaved === 'boolean') {
+        setIsSaved(data.isSaved)
+        showSuccess(data.isSaved ? 'Food saved to your collection' : 'Food removed from your collection')
+      } else {
+        // No authoritative answer came back — describe the state we actually set.
+        showSuccess(!wasSaved ? 'Food saved to your collection' : 'Food removed from your collection')
+      }
     } catch (err) {
       console.error('Error saving food:', err)
       setIsSaved(wasSaved)
@@ -386,23 +401,44 @@ const FoodDetailModal = ({ food, onClose }) => {
             </div>
 
             {/* Comment Input */}
-            <div className="flex items-center gap-2 pt-2 border-t">
-              <input
-                type="text"
-                placeholder="Add a comment..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="flex-1 text-sm outline-none"
-              />
-              {comment && (
-                <button 
-                  onClick={handleSubmitReview}
-                  disabled={loading}
-                  className="text-blue-500 text-sm font-semibold hover:text-blue-700 disabled:opacity-60"
-                >
-                  {loading ? 'Posting...' : 'Post'}
-                </button>
-              )}
+            <div className="pt-2 border-t space-y-2">
+              <div className="flex items-center gap-1" role="radiogroup" aria-label="Your rating">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    role="radio"
+                    aria-checked={rating === star}
+                    onClick={() => setRating(rating === star ? 0 : star)}
+                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    className="p-0.5 cursor-pointer"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${star <= rating ? 'text-amber-400 fill-current' : 'text-gray-300'}`}
+                    />
+                  </button>
+                ))}
+                {rating > 0 && <span className="text-xs text-gray-500 ml-1">{rating}/5</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Add a comment..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="flex-1 text-sm outline-none"
+                />
+                {comment && (
+                  <button
+                    onClick={handleSubmitReview}
+                    // Rating is required, so keep Post disabled until one is chosen
+                    disabled={loading || rating < 1}
+                    className="text-blue-500 text-sm font-semibold hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Posting...' : 'Post'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

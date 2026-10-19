@@ -256,7 +256,9 @@ const Reel = () => {
       // Update combinedContent with new likeCount AND likes array
       setCombinedContent(prev => prev.map(item => {
         if (item._id === postId && item.type === 'post') {
-          const newLikeCount = response.data.likeCount || response.data.likes || item.likeCount
+// response.data.likeCount ??  response.data.likes ?? item.likeCount ||  0 is falsy — so `||` fell through to the previous
+          // count and unliking a 1-like post left the number stuck at 1.
+          const newLikeCount = response.data.likeCount ?? response.data.likes ?? item.likeCount
           
           // Update the likes array to reflect current state
           let updatedLikes = [...(item.likes || [])]

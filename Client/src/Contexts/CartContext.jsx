@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { CartContext } from './CartContextBase'
@@ -43,28 +43,9 @@ export const CartProvider = ({ children }) => {
     }
   }, [authType, isAuthenticated, fetchCart])
 
-  // Add item to cart
-  const addToCart = useCallback(async (foodItemId, quantity = 1, specialInstructions = '') => {
-    try {
-      setLoading(true)
-      setError(null)
-      const response = await axios.post(
-        API_ENDPOINTS.cart.add,
-        { foodItemId, quantity, specialInstructions },
-        axiosConfig
-      )
-      if (response.data?.cart) {
-        setCart(response.data.cart)
-        return { success: true, message: response.data.message }
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message
-      setError(errorMsg)
-      return { success: false, error: errorMsg }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  // NOTE: addToCart is defined below clearCart, because it depends on it and a
+  // useCallback dep array is evaluated at render time — referencing clearCart
+  // before its `const` is initialised would throw on every render.
 
   // Update item quantity
   const updateQuantity = useCallback(async (itemId, quantity) => {
@@ -130,6 +111,46 @@ export const CartProvider = ({ children }) => {
     }
   }, [])
 
+  // Add item to cart
+  // Defined after clearCart (see the note above) because it depends on it.
+  const addToCart = useCallback(async (foodItemId, quantity = 1, specialInstructions = '') => {
+    const send = () => axios.post(
+      API_ENDPOINTS.cart.add,
+      { foodItemId, quantity, specialInstructions },
+      axiosConfig
+    )
+
+    try {
+      setLoading(true)
+      setError(null)
+      let response
+      try {
+        response = await send()
+      } catch (err) {
+        // One restaurant per cart is a hard rule server-side. The backend asks the
+        // question for us; without handling it the user just saw a red toast with
+        // no way out, which also broke "Reorder" on a past order from elsewhere.
+        if (err.response?.data?.code !== 'DIFFERENT_RESTAURANT') throw err
+        if (!window.confirm(err.response.data.message)) {
+          setError('Cart not changed.')
+          return { success: false, error: 'Cart not changed.' }
+        }
+        await clearCart()
+        response = await send()
+      }
+      if (response.data?.cart) {
+        setCart(response.data.cart)
+        return { success: true, message: response.data.message }
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
+    } finally {
+      setLoading(false)
+    }
+  }, [clearCart])
+
   // Validate cart
   const validateCart = useCallback(async () => {
     try {
@@ -155,9 +176,18 @@ export const CartProvider = ({ children }) => {
   }, [])
 
   // Checkout
+  // One key per LOGICAL checkout attempt.
+//
+// Note: nothing in Client/src currently calls this `checkout` — CartPage
+// navigates to /checkout and Checkout.jsx posts to /orders with its own
+// ref-held key. So this is defence-in-depth for the /cart/checkout endpoint
+// rather than the path a user actually takes today. The ref (not a key minted
+// per call) is what makes a retry reuse the order instead of creating another.
+const checkoutKeyRef = useRef(null)
+
   const checkout = useCallback(async (deliveryAddress, paymentMethod = 'cod', specialInstructions = '') => {
-    // One key per submit attempt. A fresh key is minted for a genuinely new checkout.
-    const idempotencyKey = newIdempotencyKey()
+    if (!checkoutKeyRef.current) checkoutKeyRef.current = newIdempotencyKey()
+    const idempotencyKey = checkoutKeyRef.current
 
     try {
       setLoading(true)
@@ -170,6 +200,7 @@ export const CartProvider = ({ children }) => {
       if (response.data?.order) {
         // Clear cart after successful checkout
         setCart(null)
+        checkoutKeyRef.current = null
         return { success: true, order: response.data.order, orderId: response.data.orderId }
       }
     } catch (err) {

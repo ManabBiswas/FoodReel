@@ -158,10 +158,14 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     }
   }
 
-  const handlePlaceOrder = async () => {
-    // Minted once per attempt and reused if this attempt is retried, so a
-    // double-tap cannot place two orders.
-    const idempotencyKey = newIdempotencyKey()
+  // One key per LOGICAL submit attempt, held in a ref.
+const idempotencyKeyRef = React.useRef(null)
+const getIdempotencyKey = () => {
+  if (!idempotencyKeyRef.current) idempotencyKeyRef.current = newIdempotencyKey()
+  return idempotencyKeyRef.current
+}
+
+const handlePlaceOrder = async () => {
     try {
       setLoading(true)
 
@@ -188,7 +192,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           paymentMethod: paymentMethod
         },
         // One key for this submit attempt
-        { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': idempotencyKey } }
+        { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': getIdempotencyKey() } }
       )
 
       if (!orderResponse.data.order || !orderResponse.data.order._id) {
@@ -199,11 +203,15 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       const orderId = orderResponse.data.order._id
 
       if (paymentMethod === 'cod') {
+        // Flow is finished for COD — retire the key so ordering again is allowed.
+        idempotencyKeyRef.current = null
         showSuccess('Order placed successfully!')
         onClose()
         navigate(`/order/confirmation/${orderId}`, { state: { orderId } })
         return
       }
+
+      // The rest of the flow is for online payment. The key is deliberately NOT retired here.
 
       const paymentResponse = await axios.post(
         API_ENDPOINTS.payment.createOrder,
@@ -268,6 +276,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       )
 
       if (response.data.success) {
+// Payment settled — the attempt is genuinely over, so the key can be retired. Every earlier failure kept it so a retry reused this order.
+        idempotencyKeyRef.current = null
         showSuccess('Order placed successfully!')
         onClose()
         navigate(`/order/confirmation/${orderId}`, { state: { orderId } })
@@ -289,6 +299,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       setSelectedAddressId(null)
       setShowNewAddressForm(false)
       setSavedAddresses([])
+// Reopening the modal is a new attempt, so drop any key left over from apayment step that never completed.
+      idempotencyKeyRef.current = null
       setAddress({
         fullName: '',
         phone: '',
