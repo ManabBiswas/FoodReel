@@ -1,4 +1,4 @@
-import orderModel from "../models/order.model.js";
+import orderModel, { ORDER_STATUSES } from "../models/order.model.js";
 import { serverError } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import userModel from "../models/user.Model.js";
@@ -6,6 +6,7 @@ import paymentService from "../services/payment.service.js";
 import emailService from "../services/email.service.js";
 import { decideRefundOnCancellation, decideFulfilmentAllowed, OUTCOME } from "../services/refund.policy.js";
 import { initiateClaimedRefund } from "../services/refund.service.js";
+import { decideCancelRequest } from "../services/cancelRequest.policy.js";
 
 const createOrder = async (req, res) => {
   try {
@@ -207,7 +208,7 @@ const getUserOrders = async (req, res) => {
 
         // Build filter
         const filter = { user: req.user._id };
-        if (status && ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+        if (status && ORDER_STATUSES.includes(status)) {
             filter.status = status;
         }
 
@@ -249,7 +250,7 @@ const getPartnerOrders = async (req, res) => {
 
         // Build filter
         const filter = { 'items.foodPartner': req.foodPartner._id };
-        if (status && ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+        if (status && ORDER_STATUSES.includes(status)) {
             filter.status = status;
         }
 
@@ -290,7 +291,7 @@ const updateOrderStatus = async (req, res) => {
         const { orderId } = req.params;
         const { status, note } = req.body;
 
-        if (!status || !['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+        if (!status || !ORDER_STATUSES.includes(status)) {
             return res.status(400).json({ error: "Valid status is required" });
         }
 
@@ -331,12 +332,17 @@ const updateOrderStatus = async (req, res) => {
             'preparing': ['ready'],
             'ready': ['delivered'],
             'delivered': [],
-            'cancelled': []
+            'cancelled': [],
+            // Locked while an admin reviews a cancellation request. Only the
+            // admin decision endpoint may move it out of this state.
+            'cancel_requested': []
         };
 
         if (!validTransitions[order.status]?.includes(status)) {
-            return res.status(400).json({ 
-                error: `Cannot change status from ${order.status} to ${status}`,
+            return res.status(400).json({
+                error: order.status === 'cancel_requested'
+                    ? 'This order is awaiting a cancellation decision and cannot be updated'
+                    : `Cannot change status from ${order.status} to ${status}`,
                 validTransitions: validTransitions[order.status]
             });
         }
@@ -554,10 +560,13 @@ const cancelOrder = async (req, res) => {
         }
 
         // Check if order can be cancelled (only pending, confirmed, or preparing)
-        if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
-            return res.status(400).json({ 
+        // A 'cancel_requested' order is still a live order — the admin has not
+        // decided yet — so the customer may still cancel it and take the
+        // automatic refund.
+        if (!['pending', 'confirmed', 'preparing', 'cancel_requested'].includes(order.status)) {
+            return res.status(400).json({
                 error: `Cannot cancel order in ${order.status} status`,
-                message: `Orders can only be cancelled when pending, confirmed, or preparing. Current status: ${order.status}` 
+                message: `Orders can only be cancelled when pending, confirmed, or preparing. Current status: ${order.status}`
             });
         }
 
@@ -576,6 +585,16 @@ const cancelOrder = async (req, res) => {
             refundAmount: refundDecision.amount
         };
         order.status = 'cancelled';
+
+        // The customer cancelled while the partner's request was still waiting
+        // for review. Close the request out so the admin queue does not keep
+        // showing an order that is already cancelled.
+        if (order.cancelRequest?.status === 'pending') {
+            order.cancelRequest.status = 'rejected';
+            order.cancelRequest.decidedAt = new Date();
+            order.cancelRequest.decidedBy = 'admin';
+            order.cancelRequest.decisionNote = 'Order was cancelled by the customer before the request was reviewed';
+        }
 
         // Add cancellation note
         order.orderNotes.push({
@@ -678,9 +697,9 @@ const partnerCancelOrder = async (req, res) => {
 
         // Partners can only cancel pending or confirmed orders
         if (!['pending', 'confirmed'].includes(order.status)) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: `Cannot cancel order in ${order.status} status`,
-                message: `Partners can only cancel orders when pending or confirmed. Current status: ${order.status}` 
+                message: `Partners can only cancel orders when pending or confirmed. Current status: ${order.status}`
             });
         }
 
@@ -748,6 +767,71 @@ const partnerCancelOrder = async (req, res) => {
     }
 };
 
+/**
+ * A partner raises a cancellation request for an order it has already started
+ * preparing. The order parks in 'cancel_requested' until an admin approves or
+ * rejects it — the partner cannot cancel a food-in-progress order on its own.
+ */
+const partnerRequestCancel = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { reason, details } = req.body || {};
+
+        const order = await orderModel.findOne({
+            _id: orderId,
+            'items.foodPartner': req.foodPartner._id
+        })
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name price')
+            .populate('items.foodPartner', 'companyName email');
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found or you don't have permission to cancel it" });
+        }
+
+        const decision = decideCancelRequest({ order, reason, details });
+        if (!decision.allowed) {
+            return res.status(decision.status).json({
+                error: decision.message,
+                code: decision.code
+            });
+        }
+
+        // Park the order. It is NOT cancelled yet — the customer is still owed
+        // their food, and the money is still captured, until an admin decides.
+        const statusBeforeRequest = order.status;
+        order.status = 'cancel_requested';
+        order.statusTimestamps = order.statusTimestamps || {};
+        order.statusTimestamps.cancelRequestedAt = new Date();
+        order.cancelRequest = {
+            requestedBy: 'partner',
+            reason: decision.reason,
+            details: decision.details,
+            requestedAt: new Date(),
+            previousStatus: statusBeforeRequest,
+            status: 'pending'
+        };
+
+        order.orderNotes.push({
+            note: `Cancellation requested by partner. Awaiting admin review. Reason: ${decision.reason}`,
+            addedBy: 'partner'
+        });
+
+        await order.save();
+
+        res.status(201).json({
+            success: true,
+            message: "Cancellation request submitted. An admin will review it shortly.",
+            order,
+            cancelRequest: order.cancelRequest
+        });
+
+    } catch (error) {
+        console.error("Error requesting order cancellation (partner):", error);
+        serverError(res, error, 'Failed to submit cancellation request');
+    }
+};
+
 // DEV-ONLY: Manually update order status and send email (for testing after direct DB changes)
 const devUpdateOrderStatusAndEmail = async (req, res) => {
   // Fail closed: blocked unless the environment explicitly declares itself a
@@ -761,8 +845,8 @@ const devUpdateOrderStatusAndEmail = async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body;
 
-    if (!status || !['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: "Valid status required: pending, confirmed, preparing, ready, delivered, or cancelled" });
+    if (!status || !ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Valid status required: ${ORDER_STATUSES.join(', ')}` });
     }
 
     const order = await orderModel.findById(orderId)
@@ -853,5 +937,6 @@ export default {
     getOrderStatistics,
     cancelOrder,
     partnerCancelOrder,
+    partnerRequestCancel,
     devUpdateOrderStatusAndEmail
 };

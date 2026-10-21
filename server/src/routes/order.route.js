@@ -71,6 +71,15 @@ router.post('/partner/:orderId/cancel',
     orderController.partnerCancelOrder
 );
 
+// POST /api/orders/partner/:orderId/cancel-request - Partner asks an admin to
+// cancel an order it has already started preparing. The order parks in
+// 'cancel_requested' until an admin approves or rejects it.
+router.post('/partner/:orderId/cancel-request',
+    isFoodPartnerLoggedin,
+    orderIdParams,
+    orderController.partnerRequestCancel
+);
+
 // GET /api/orders/:orderId - Get order details 
 router.get('/:orderId',
     isLoggedin,

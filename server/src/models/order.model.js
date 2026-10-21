@@ -32,18 +32,18 @@ const orderSchema = new mongoose.Schema({
         enum: ['INR'],
         default: 'INR'
     },
-    status: {
-        type: String,
-        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
-        default: 'pending'
-    },
-    statusTimestamps: {
-        confirmedAt: Date,
-        preparingAt: Date,
-        readyAt: Date,
-        deliveredAt: Date,
-        cancelledAt: Date
-    },
+        status: {
+            type: String,
+            enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'cancel_requested'],
+            default: 'pending'
+        },        statusTimestamps: {
+            confirmedAt: Date,
+            preparingAt: Date,
+            readyAt: Date,
+            deliveredAt: Date,
+            cancelledAt: Date,
+            cancelRequestedAt: Date
+        },
     orderSource: {
         type: String,
         enum: ['reel', 'home', 'menu', 'search', 'cart', 'other', 'foodfest'],
@@ -199,6 +199,41 @@ const orderSchema = new mongoose.Schema({
             enum: ['user', 'partner', 'admin', 'system'],
         },
         refundId: String,
+    },
+    cancelRequest: {
+        requestedBy: {
+            type: String,
+            enum: ['partner']
+        },
+        reason: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        details: {
+            type: String,
+            trim: true,
+            maxlength: 1000
+        },
+        requestedAt: Date,
+        previousStatus: {
+            type: String,
+            enum: ['preparing', 'ready']
+        },
+        status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected']
+        },
+        decidedAt: Date,
+        decidedBy: {
+            type: String,
+            enum: ['admin']
+        },
+        decisionNote: {
+            type: String,
+            trim: true,
+            maxlength: 500
+        }
     }
 }, {
     timestamps: true
@@ -209,6 +244,7 @@ orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ createdAt: -1 }); // dashboard time-series range scans
 orderSchema.index({ 'items.foodPartner': 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ 'cancelRequest.status': 1, 'cancelRequest.requestedAt': 1 }); // admin review queue
 orderSchema.index({ 'paymentDetails.status': 1 });
 orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 }, { unique: true, sparse: true });
 
@@ -231,5 +267,15 @@ orderSchema.set('toJSON', { virtuals: true, getters: true });
 orderSchema.set('toObject', { virtuals: true, getters: true });
 
 const orderModel = mongoose.model("Order", orderSchema);
+
+export const ORDER_STATUSES = [
+    'pending',
+    'confirmed',
+    'preparing',
+    'ready',
+    'delivered',
+    'cancelled',
+    'cancel_requested'
+];
 
 export default orderModel;

@@ -6,6 +6,7 @@ import {
     replyToContactMessage
 } from '../controllers/contact.controller.js';
 import { getPendingRefunds, decidePendingRefund } from '../controllers/adminRefund.controller.js';
+import { getPendingCancelRequests, decideCancelRequest } from '../controllers/adminCancelRequest.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
 import { adminRateLimiter } from '../middlewares/rateLimiter.js';
 import { validateParams, isObjectId } from '../utils/validate.js';
@@ -147,5 +148,16 @@ router.get('/refunds/pending', isAdmin, adminRateLimiter, getPendingRefunds);
 // POST /api/admin/orders/:orderId/refund/decision - Approve or reject a refund
 // body: { decision: 'approve' | 'reject', note?: string }
 router.post('/orders/:orderId/refund/decision', isAdmin, adminRateLimiter, decidePendingRefund);
+
+// ============ PARTNER CANCELLATION REQUESTS ============
+// A partner whose food is already being prepared cannot cancel unilaterally.
+// These requests wait here for a human to approve or reject them.
+
+// GET /api/admin/cancel-requests - Cancellation requests awaiting a decision (oldest first)
+router.get('/cancel-requests', isAdmin, adminRateLimiter, getPendingCancelRequests);
+
+// POST /api/admin/orders/:orderId/cancel-request/decision - Approve or reject a request
+// body: { decision: 'approve' | 'reject', note?: string }
+router.post('/orders/:orderId/cancel-request/decision', isAdmin, adminRateLimiter, decideCancelRequest);
 
 export default router;
