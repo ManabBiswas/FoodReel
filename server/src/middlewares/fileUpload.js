@@ -12,7 +12,7 @@ const envBytes = (name, fallback) => {
 
 export const FILE_SIZE_LIMITS = {
     IMAGE: envBytes('MAX_IMAGE_SIZE', 5 * 1024 * 1024),      // 5MB
-    VIDEO: envBytes('MAX_VIDEO_SIZE', 15 * 1024 * 1024),     // 15MB
+    VIDEO: envBytes('MAX_VIDEO_SIZE', 10 * 1024 * 1024),     // 10MB
     PROFILE: envBytes('MAX_PROFILE_SIZE', 2 * 1024 * 1024),  // 2MB
     DOCUMENT: 10 * 1024 * 1024                                // 10MB
 };

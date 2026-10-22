@@ -7,17 +7,20 @@ import orderModel from "../models/order.model.js";
 
 // Create a review
 export const createReview = async (req, res) => {
+    let userId, foodItemId, rating, comment, sanitizedRatings, resolvedFoodPartnerId, images, isVerifiedPurchase;
+
     try {
-        const userId = req.user._id;
+        userId = req.user._id;
+        const body = req.body || {};
         const {
             foodPartnerId,
-            foodItemId,
             orderId,
-            rating,
-            comment,
-            images,
             ratings // Detailed ratings object
-        } = req.body;
+        } = body;
+        images = body.images;
+        foodItemId = body.foodItemId;
+        rating = body.rating;
+        comment = body.comment;
 
         // Validate required fields
         if (!foodPartnerId || !rating || !comment) {
@@ -36,11 +39,12 @@ export const createReview = async (req, res) => {
         }
 
 
-        let resolvedFoodPartnerId = foodPartnerId;
-        if (!resolvedFoodPartnerId && foodItemId) {
+        let resolvedFoodPartnerIdLocal = foodPartnerId;
+        if (!resolvedFoodPartnerIdLocal && foodItemId) {
             const foodItem = await foodModel.findById(foodItemId).select('foodPartner');
-            resolvedFoodPartnerId = foodItem?.foodPartner;
+            resolvedFoodPartnerIdLocal = foodItem?.foodPartner;
         }
+        resolvedFoodPartnerId = resolvedFoodPartnerIdLocal;
 
         if (!resolvedFoodPartnerId) {
             return res.status(400).json({
@@ -51,17 +55,19 @@ export const createReview = async (req, res) => {
 
         // Sanitize detailed ratings: schema requires 1..5, so sending 0 for an
 
-        let sanitizedRatings = {};
+        let sanitizedRatingsLocal = {};
         if (ratings && typeof ratings === 'object') {
             for (const key of ['food', 'service', 'ambiance', 'value']) {
                 const v = Number(ratings[key]);
-                if (Number.isFinite(v) && v >= 1 && v <= 5) sanitizedRatings[key] = v;
+                if (Number.isFinite(v) && v >= 1 && v <= 5) sanitizedRatingsLocal[key] = v;
             }
         }
+        sanitizedRatings = sanitizedRatingsLocal;
 
         // Check if verified purchase (if order ID provided). Needed by both the
-        // create and the update path, so resolve it before either runs.
-        let isVerifiedPurchase = false;
+        // create path and the duplicate-key merge in the catch, so it is resolved
+        // into the hoisted variable before either runs.
+        isVerifiedPurchase = false;
         if (orderId) {
             const order = await orderModel.findOne({
                 _id: orderId,
@@ -77,20 +83,33 @@ export const createReview = async (req, res) => {
             existingReview = await reviewModel.findOne({
                 user: userId,
                 isActive: true,
-                $or: [
-                    { foodItem: foodItemId },
-                    { foodItem: null, foodPartner: resolvedFoodPartnerId }
-                ]
+                foodItem: foodItemId
             });
+            if (!existingReview) {
+                existingReview = await reviewModel.findOne({
+                    user: userId,
+                    isActive: true,
+                    foodItem: null,
+                    foodPartner: resolvedFoodPartnerId
+                });
+                // Only promote when nothing already claims this item, so the save
+                // cannot collide with uniq_active_user_fooditem.
+                if (existingReview) existingReview.foodItem = foodItemId;
+            }
         } else {
+            // Restaurant-level: match ONLY a restaurant-level review. Without the
+            // foodItem: null filter this also matched item reviews, so a user who
+            // had reviewed any dish could never file a general review — it was
+            // written into their item review instead.
             existingReview = await reviewModel.findOne({
                 user: userId,
                 isActive: true,
+                foodItem: null,
                 foodPartner: resolvedFoodPartnerId
             });
         }
 
-        // Already reviewed this scope -> update that review instead    
+        // Already reviewed this scope -> update that review instead
         if (existingReview) {
             existingReview.rating = rating;
             existingReview.comment = comment;
@@ -158,22 +177,28 @@ export const createReview = async (req, res) => {
         // duplicate-key error the user can't act on.
         if (error?.code === 11000) {
             try {
-                const scopeQuery = foodItemId
-                    ? {
-                        user: userId,
-                        isActive: true,
-                        $or: [
-                            { foodItem: foodItemId },
-                            { foodItem: null, foodPartner: resolvedFoodPartnerId }
-                        ]
-                    }
-                    : { user: userId, isActive: true, foodPartner: resolvedFoodPartnerId };
+                // Deliberately NOT the same two-step lookup as the main path, which falls back
+                // to a restaurant-level row
+                let winner = null;
+                if (foodItemId) {
+                    winner = await reviewModel.findOne({
+                        user: userId, isActive: true, foodItem: foodItemId
+                    });
+                } else {
+                    winner = await reviewModel.findOne({
+                        user: userId, isActive: true,
+                        foodItem: null, foodPartner: resolvedFoodPartnerId
+                    });
+                }
 
-                const winner = await reviewModel.findOne(scopeQuery);
                 if (winner) {
                     winner.rating = rating;
                     winner.comment = comment;
                     winner.ratings = sanitizedRatings;
+                    // Match the main update path: carry images and the verified
+                    // upgrade, which the merge path previously dropped.
+                    if (images !== undefined) winner.images = images || [];
+                    if (isVerifiedPurchase) winner.isVerifiedPurchase = true;
                     await winner.save();
                     await updateFoodPartnerRatings(winner.foodPartner);
 
