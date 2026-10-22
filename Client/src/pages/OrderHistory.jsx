@@ -16,8 +16,9 @@ const STATUS = {
   preparing: { label: 'Preparing', bg: '#F3E8FF', text: '#6B21A8', border: '#C4B5FD' },
   ready: { label: 'Ready', bg: '#DCFCE7', text: '#15803D', border: '#86EFAC' },
   delivered: { label: 'Delivered', bg: '#DCFCE7', text: '#15803D', border: '#86EFAC' },
-  cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
-}
+    cancelled: { label: 'Cancelled', bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
+    cancel_requested: { label: 'Cancellation requested', bg: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
+  }
 
 const getStatus = (s) => STATUS[s] ?? STATUS.pending
 

@@ -12,6 +12,7 @@ import UsersTab from '../../Components/admin/tabs/UsersTab'
 import PartnersTab from '../../Components/admin/tabs/PartnersTab'
 import ContentTab from '../../Components/admin/tabs/ContentTab'
 import OrdersTab from '../../Components/admin/tabs/OrdersTab'
+import CancelRequestsTab from '../../Components/admin/tabs/CancelRequestsTab'
 import ReviewsTab from '../../Components/admin/tabs/ReviewsTab'
 import AnalyticsTab from '../../Components/admin/tabs/AnalyticsTab'
 
@@ -134,6 +135,7 @@ const AdminDashboard = () => {
           {activeTab === 'partners' && <PartnersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'content' && <ContentTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'orders' && <OrdersTab navigate={navigate} setError={setError} />}
+      {activeTab === 'cancels' && <CancelRequestsTab navigate={navigate} setError={setError} />}
           {activeTab === 'reviews' && <ReviewsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'analytics' && <AnalyticsTab navigate={navigate} setError={setError} />}
         </div>

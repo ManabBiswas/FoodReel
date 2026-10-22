@@ -71,7 +71,11 @@ export const API_ENDPOINTS = {
     // Orders
     orders: `${BASE_URL}/admin/orders`,
     orderDetails: (orderId) => `${BASE_URL}/admin/orders/${orderId}`,
-    
+
+    // Partner cancellation requests (food already being prepared)
+    cancelRequests: `${BASE_URL}/admin/cancel-requests`,
+    decideCancelRequest: (orderId) => `${BASE_URL}/admin/orders/${orderId}/cancel-request/decision`,
+
     // Analytics
     revenueAnalytics: `${BASE_URL}/admin/analytics/revenue`,
     userAnalytics: `${BASE_URL}/admin/analytics/users`,
@@ -145,6 +149,7 @@ export const API_ENDPOINTS = {
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
     partnerCancel: (id) => `${BASE_URL}/orders/partner/${id}/cancel`,
+    partnerCancelRequest: (id) => `${BASE_URL}/orders/partner/${id}/cancel-request`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
     getById: (id) => `${BASE_URL}/orders/${id}`,
     partnerGetById: (id) => `${BASE_URL}/orders/partner/${id}`,

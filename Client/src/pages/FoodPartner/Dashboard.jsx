@@ -9,11 +9,12 @@ import { showError, showSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import CancelOrderDialog from '../../Components/CancelOrderDialog'
+import CancelRequestDialog from '../../Components/CancelRequestDialog'
 import { usePartnerData } from '../../hooks/usePartnerData'
 import {
   Plus, ShoppingBag, Megaphone, TrendingUp, TrendingDown,
   IndianRupee, AlertCircle, Package, Clock, ChefHat,
-  CheckCircle, XCircle, RefreshCw, Search,
+    CheckCircle, XCircle, RefreshCw, Search, AlertTriangle,
   List, Heart, MessageCircle, Activity, BarChart2,
   Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react'
@@ -29,8 +30,9 @@ const STATUS_CFG = {
   ready:     { icon: CheckCircle, color: 'text-teal-600',   bg: 'bg-teal-50',    border: 'border-teal-200',   dot: 'bg-teal-500'    },
   delivered: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
   completed: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
-  cancelled: { icon: XCircle,     color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500'     },
-}
+      cancelled: { icon: XCircle,     color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500'     },
+      cancel_requested: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
+    }
 
 /* ─── KPI Card ───────────────────────────────────────────── */
 const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
@@ -104,7 +106,7 @@ const ChartTip = ({ active, payload, label }) => {
 }
 
 /* ─── Order row ──────────────────────────────────────────── */
-const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, updating }) => {
+const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, onRequestCancel, updating }) => {
   const customerName = order.user
     ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim() || 'Customer'
     : order.deliveryAddress?.fullName || 'Customer'
@@ -186,11 +188,31 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, up
               {updating ? '…' : 'Ready'}
             </button>
           )}
-          {['pending', 'confirmed', 'preparing'].includes(order.status) && (
+          {order.status === 'ready' && (
+            <button onClick={() => onStatusUpdate(order._id, 'delivered')} disabled={updating}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
+              {updating ? '…' : 'Delivered'}
+            </button>
+          )}
+         // pending and confirmed orders can be cancelled by the partner
+         {['pending', 'confirmed'].includes(order.status) && (
             <button onClick={() => onCancelOrder(order)} disabled={updating}
               className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
               Cancel
             </button>
+          )}
+         // Once the food is being made the partner cannot cancel outright —
+          // they ask an admin, who approves or rejects the cancellation.
+          {['preparing', 'ready'].includes(order.status) && (
+            <button onClick={() => onRequestCancel(order)} disabled={updating}
+              className="px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
+              Can't serve
+            </button>
+          )}
+          {order.status === 'cancel_requested' && (
+            <span className="px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg">
+              Awaiting admin
+            </span>
           )}
         </div>
       </div>
@@ -309,6 +331,7 @@ const Dashboard = () => {
           ready: byStatus.ready || 0,
           completed: byStatus.delivered || 0,
           cancelled: byStatus.cancelled || 0,
+          cancel_requested: byStatus.cancel_requested || 0,
           revenue: statsRes.data?.statistics?.delivered?.deliveredRevenue || 0,
           totalRevenue: totalRevenueAll
         }
@@ -378,6 +401,41 @@ const Dashboard = () => {
     [navigate]
   )
 
+  /* ── Cancellation request (food already being prepared) ── */
+  const [requestTarget, setRequestTarget] = useState(null)
+  const [requestingCancel, setRequestingCancel] = useState(false)
+  const openRequestDialog = useCallback((order) => setRequestTarget(order), [])
+
+  const handleRequestCancel = useCallback(async (reason, details) => {
+    if (!requestTarget) return
+    try {
+      setRequestingCancel(true)
+      await axios.post(
+        API_ENDPOINTS.order.partnerCancelRequest(requestTarget._id),
+        { reason, details },
+        axiosConfig
+      )
+      setOrders((prev) => prev.map((o) => (
+        o._id === requestTarget._id
+          ? {
+              ...o,
+              status: 'cancel_requested',
+              cancelRequest: {
+                requestedBy: 'partner',
+                reason,
+                details,
+                status: 'pending',
+                requestedAt: new Date().toISOString(),
+              },
+            }
+          : o
+      )))
+      setRequestTarget(null)
+      showSuccess('Request sent. An admin will review it shortly.')
+    } catch (err) {
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to send cancellation request')
+    } finally { setRequestingCancel(false) }
+  }, [requestTarget])
   /* ── Reviews handlers ───────────────────────────────────── */
   const fetchReviews = useCallback(async () => {
     if (!partnerProfile?._id) return
@@ -746,6 +804,7 @@ const Dashboard = () => {
                         onViewDetails={handleViewDetails}
                         onStatusUpdate={handleStatusUpdate}
                         onCancelOrder={openCancelDialog}
+            onRequestCancel={openRequestDialog}
                         updating={updatingOrder === order._id}
                       />
                     ))}
@@ -762,20 +821,21 @@ const Dashboard = () => {
           <div>
             {/* Status summary pills (clickable filter) */}
             {statistics && (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
+              <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 mb-6">
                 {[
-                  { label: 'Total',     val: statistics.orders.total,     borderActive: 'border-gray-400'   },
-                  { label: 'Pending',   val: statistics.orders.pending,   borderActive: 'border-amber-400'  },
-                  { label: 'Confirmed', val: statistics.orders.confirmed, borderActive: 'border-blue-400'   },
-                  { label: 'Preparing', val: statistics.orders.preparing, borderActive: 'border-violet-400' },
-                  { label: 'Completed', val: statistics.orders.completed, borderActive: 'border-green-400'  },
-                  { label: 'Cancelled', val: statistics.orders.cancelled, borderActive: 'border-red-400'    },
+                  { label: 'Total',     key: 'all',              val: statistics.orders.total,     borderActive: 'border-gray-400'   },
+                  { label: 'Pending',   key: 'pending',          val: statistics.orders.pending,   borderActive: 'border-amber-400'  },
+                  { label: 'Confirmed', key: 'confirmed',        val: statistics.orders.confirmed, borderActive: 'border-blue-400'   },
+                  { label: 'Preparing', key: 'preparing',        val: statistics.orders.preparing, borderActive: 'border-violet-400' },
+                  { label: 'Completed', key: 'delivered',        val: statistics.orders.completed, borderActive: 'border-green-400'  },
+                  { label: 'Cancelled', key: 'cancelled',        val: statistics.orders.cancelled, borderActive: 'border-red-400'    },
+                  { label: 'Requested', key: 'cancel_requested', val: statistics.orders.cancel_requested, borderActive: 'border-amber-500' },
                 ].map((s) => {
-                  const isActive = s.label === 'Total' ? statusFilter === 'all' : statusFilter === s.label.toLowerCase()
+                  const isActive = statusFilter === s.key
                   return (
                     <button
                       key={s.label}
-                      onClick={() => setStatusFilter(s.label === 'Total' ? 'all' : s.label.toLowerCase())}
+                      onClick={() => setStatusFilter(s.key)}
                       className={`bg-white rounded-xl p-3 border-2 text-center transition-all hover:shadow-sm ${
                         isActive ? `${s.borderActive} shadow-sm` : 'border-transparent'
                       }`}
@@ -817,6 +877,7 @@ const Dashboard = () => {
                     onViewDetails={handleViewDetails}
                     onStatusUpdate={handleStatusUpdate}
                     onCancelOrder={openCancelDialog}
+            onRequestCancel={openRequestDialog}
                     updating={updatingOrder === order._id}
                   />
                 ))}
@@ -1049,6 +1110,13 @@ const Dashboard = () => {
         cancelling={cancellingOrder}
         onClose={() => setCancelTarget(null)}
         onConfirm={handleCancelOrder}
+      />
+
+      <CancelRequestDialog
+        open={!!requestTarget}
+        submitting={requestingCancel}
+        onClose={() => setRequestTarget(null)}
+        onSubmit={handleRequestCancel}
       />
     </div>
   )

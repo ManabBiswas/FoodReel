@@ -114,10 +114,18 @@ const OrderTracking = () => {
     return `${Math.floor(left / 60000)} mins`
   }
 
-  const currentIdx = STATUS_FLOW.findIndex(s => s.key === order?.status)
+  // While a cancellation request is pending the order status is
+  // 'cancel_requested', so we need to look at the previous status.             
+  const timelineStatus = order?.status === 'cancel_requested'
+    ? (order.cancelRequest?.previousStatus || 'preparing')
+    : order?.status
+  const currentIdx = STATUS_FLOW.findIndex(s => s.key === timelineStatus)
   const isCancelled = order?.cancellation?.isCancelled || order?.status === 'cancelled'
   const isDelivered = order?.status === 'delivered'
-  const canCancel = order && !isCancelled && ['pending', 'confirmed', 'preparing'].includes(order.status)
+  // The restaurant asked to cancel but an admin has not decided yet, so the
+  // order is still live and the customer is still owed their food.
+  const isCancelRequested = order?.status === 'cancel_requested'
+  const canCancel = order && !isCancelled && !isCancelRequested && ['pending', 'confirmed', 'preparing'].includes(order.status)
 
   const handleCancel = async (reason) => {
     try {
@@ -194,7 +202,7 @@ const OrderTracking = () => {
               </div>
               <span
                 className="rounded-full px-4 py-1.5 text-sm font-bold uppercase tracking-wider font-sans"
-                style={isCancelled ? { background: '#FEE2E2', color: '#991B1B' } : isDelivered ? { background: '#DCFCE7', color: '#15803D' } : { background: '#DBEAFE', color: '#1E40AF' }}
+                style={isCancelled ? { background: '#FEE2E2', color: '#991B1B' } : isCancelRequested ? { background: '#FEF3C7', color: '#92400E' } : isDelivered ? { background: '#DCFCE7', color: '#15803D' } : { background: '#DBEAFE', color: '#1E40AF' }}
               >
                 {order.status?.replace('_', ' ')}
               </span>
@@ -207,7 +215,7 @@ const OrderTracking = () => {
             <div className="space-y-6 lg:col-span-7">
 
               {/* ETA / delivered banner */}
-              {!isCancelled && !isDelivered && (
+              {!isCancelled && !isDelivered && !isCancelRequested && (
                 <div className="relative overflow-hidden rounded-2xl p-8 text-white" style={{ background: 'var(--color-primary)', boxShadow: 'var(--shadow-glow)' }}>
                   <div className="pointer-events-none absolute -right-12 -bottom-12 h-48 w-48 rounded-full opacity-20" style={{ background: '#fff' }} />
                   <p className="text-xs font-bold uppercase tracking-widest opacity-75 font-sans">Estimated Arrival</p>
@@ -224,6 +232,26 @@ const OrderTracking = () => {
                   </div>
                 </div>
               )}
+              {isCancelRequested && (
+                <div className="flex items-start gap-4 rounded-2xl p-6" style={{ background: '#FEF3C7', border: '1px solid #FCD34D' }}>
+                  <AlertCircle className="h-7 w-7 flex-shrink-0" style={{ color: '#d97706' }} />
+                  <div>
+                    <p className="font-bold text-lg font-sans" style={{ color: '#92400E' }}>
+                      Cancellation requested
+                    </p>
+                    <p className="text-sm font-sans mt-1" style={{ color: '#92400E' }}>
+                      The restaurant is unable to serve this order and has asked us to cancel it.
+                      Our team is reviewing the request — if it is approved your refund is issued
+                      automatically. Your order is still live until then.
+                    </p>
+                    {order.cancelRequest?.reason && (
+                      <p className="text-xs font-sans mt-2 italic" style={{ color: '#b45309' }}>
+                        Reason: {order.cancelRequest.reason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Timeline */}
               <div className="rounded-2xl p-8" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
@@ -234,6 +262,18 @@ const OrderTracking = () => {
                     <h3 className="font-serif text-xl font-bold" style={{ color: 'var(--color-text-base)' }}>Order Cancelled</h3>
                     {order.cancellation?.reason && <p className="text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>Reason: {order.cancellation.reason}</p>}
                   </div>
+                ) : isCancelRequested ? (
+                  // The order is not cancelled, so the timeline still shows how
+                  // far it got — it just stops at the step it reached.
+                  STATUS_FLOW.map((step, i) => (
+                    <Step
+                      key={step.key}
+                      step={step}
+                      isComplete={i < currentIdx}
+                      isCurrent={i === currentIdx}
+                      isLast={i === STATUS_FLOW.length - 1}
+                    />
+                  ))
                 ) : (
                   STATUS_FLOW.map((step, i) => (
                     <Step

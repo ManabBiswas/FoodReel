@@ -22,6 +22,7 @@ import Navbar from '../../Components/Navbar'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { showSuccess, showError } from '../../utils/toast'
 import CancelOrderDialog from '../../Components/CancelOrderDialog'
+import CancelRequestDialog from '../../Components/CancelRequestDialog'
 
 const OrderDetail = () => {
   const { orderId } = useParams()
@@ -33,6 +34,8 @@ const OrderDetail = () => {
   const [updating, setUpdating] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showRequestDialog, setShowRequestDialog] = useState(false)
+  const [requestingCancel, setRequestingCancel] = useState(false)
   const [error, setError] = useState('')
 
   const fetchOrderDetails = useCallback(async () => {
@@ -116,6 +119,35 @@ const OrderDetail = () => {
     }
   }
 
+  const handleRequestCancel = async (reason, details) => {
+    if (!orderId) return
+
+    try {
+      setRequestingCancel(true)
+      const response = await axios.post(
+        API_ENDPOINTS.order.partnerCancelRequest(orderId),
+        { reason, details },
+        axiosConfig
+      )
+
+      if (response.data.success || response.status === 201) {
+        setShowRequestDialog(false)
+        showSuccess('Request sent. An admin will review it shortly.')
+        if (response.data?.order) {
+          setOrder(response.data.order)
+        } else {
+          fetchOrderDetails()
+        }
+      }
+    } catch (err) {
+      console.error('Error requesting cancellation:', err)
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to send cancellation request'
+      showError(errorMsg)
+    } finally {
+      setRequestingCancel(false)
+    }
+  }
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
@@ -135,7 +167,8 @@ const OrderDetail = () => {
       preparing: 'bg-purple-100 text-purple-800 border-purple-200',
       ready: 'bg-indigo-100 text-indigo-800 border-indigo-200',
       delivered: 'bg-green-100 text-green-800 border-green-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200'
+      cancelled: 'bg-red-100 text-red-800 border-red-200',
+      cancel_requested: 'bg-amber-100 text-amber-800 border-amber-200'
     }
     return colors[status] || colors.pending
   }
@@ -149,10 +182,11 @@ const OrderDetail = () => {
     const statusActions = {
       pending: ['confirmed', 'cancel'],
       confirmed: ['preparing', 'cancel'],
-      preparing: ['ready'],
-      ready: ['delivered'],
+      preparing: ['ready', 'request-cancel'],
+      ready: ['delivered', 'request-cancel'],
       delivered: [],
-      cancelled: []
+      cancelled: [],
+      cancel_requested: []
     }
 
     return statusActions[order.status] || []
@@ -263,6 +297,18 @@ const OrderDetail = () => {
                           </>
                         )}
                       </button>
+                    ) : action === 'request-cancel' ? (
+                      // The food is already being made, so the partner cannot
+                      // cancel outright — they ask an admin instead.
+                      <button
+                        key={action}
+                        onClick={() => setShowRequestDialog(true)}
+                        disabled={updating || cancelling}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChefHat className="w-4 h-4" />
+                        Unable to Serve
+                      </button>
                     ) : (
                       <button
                         key={action}
@@ -288,9 +334,37 @@ const OrderDetail = () => {
               </div>
             )}
 
+            {/* Pending cancellation request notice */}
+            {order.status === 'cancel_requested' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                <div className="flex items-start gap-3">
+                  <ChefHat className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-bold text-amber-800 mb-1">
+                      Cancellation requested — awaiting admin review
+                    </h3>
+                    <p className="text-amber-700 mb-2">
+                      The order is not cancelled yet. An admin has to approve the request before
+                      the customer is cancelled and refunded.
+                    </p>
+                    {order.cancelRequest?.reason && (
+                      <p className="text-sm text-amber-600">Reason: {order.cancelRequest.reason}</p>
+                    )}
+                    {order.cancelRequest?.requestedAt && (
+                      <p className="text-sm text-amber-600">
+                        Requested at: {formatDate(order.cancelRequest.requestedAt)}
+                      </p>
+                    )}
+                    {order.cancelRequest?.decisionNote && (
+                      <p className="text-sm text-amber-600">Admin note: {order.cancelRequest.decisionNote}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Cancellation Notice */}
-            {isCancelled && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            {isCancelled && (              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                 <div className="flex items-start gap-3">
                   <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
                   <div>
@@ -474,6 +548,13 @@ const OrderDetail = () => {
         cancelling={cancelling}
         onClose={() => setShowCancelDialog(false)}
         onConfirm={handleCancelOrder}
+      />
+
+      <CancelRequestDialog
+        open={showRequestDialog}
+        submitting={requestingCancel}
+        onClose={() => setShowRequestDialog(false)}
+        onSubmit={handleRequestCancel}
       />
     </div>
   )

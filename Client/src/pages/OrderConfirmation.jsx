@@ -27,6 +27,7 @@ const STATUS_BADGE = {
   ready: { bg: '#FFEDD5', text: '#9A3412' },
   delivered: { bg: '#DCFCE7', text: '#15803D' },
   cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+  cancel_requested: { bg: '#FEF3C7', text: '#92400E' },
 }
 
 /* ─── Page ──────────────────────────────────────────────────────── */

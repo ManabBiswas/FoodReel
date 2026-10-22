@@ -29,7 +29,7 @@ const OrdersTab = ({ navigate, setError }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: 'var(--surface)', padding: '8px 10px', borderRadius: 12, border: '1px solid var(--border)', width: 'fit-content' }}>
-        {['all', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'].map(s => (
+        {['all', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancel_requested', 'cancelled'].map(s => (
           <button key={s} className={`status-filter ${status === s ? 'active' : ''}`}
             onClick={() => { setStatus(s); setPage(1) }}>{s}</button>
         ))}
