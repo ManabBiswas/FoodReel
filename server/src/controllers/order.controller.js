@@ -588,11 +588,12 @@ const cancelOrder = async (req, res) => {
 
         // The customer cancelled while the partner's request was still waiting
         // for review. Close the request out so the admin queue does not keep
-        // showing an order that is already cancelled.
+        // showing an order that is already cancelled. No admin decided this,
+        // so the closer is recorded as 'system' — the note explains why.
         if (order.cancelRequest?.status === 'pending') {
             order.cancelRequest.status = 'rejected';
             order.cancelRequest.decidedAt = new Date();
-            order.cancelRequest.decidedBy = 'admin';
+            order.cancelRequest.decidedBy = 'system';
             order.cancelRequest.decisionNote = 'Order was cancelled by the customer before the request was reviewed';
         }
 
@@ -797,33 +798,71 @@ const partnerRequestCancel = async (req, res) => {
             });
         }
 
-        // Park the order. It is NOT cancelled yet — the customer is still owed
-        // their food, and the money is still captured, until an admin decides.
-        const statusBeforeRequest = order.status;
-        order.status = 'cancel_requested';
-        order.statusTimestamps = order.statusTimestamps || {};
-        order.statusTimestamps.cancelRequestedAt = new Date();
-        order.cancelRequest = {
-            requestedBy: 'partner',
-            reason: decision.reason,
-            details: decision.details,
-            requestedAt: new Date(),
-            previousStatus: statusBeforeRequest,
-            status: 'pending'
-        };
+        // Park the order atomically. The policy check above already validated
+        // the state we *read* — but between that read and a plain save() the
+        // order could have been cancelled by the customer (or advanced by the
+        // partner), and a stale save would resurrect those changes. The
+        // precondition matches only the status we actually saw; anything else
+        // loses the race and gets a conflict back.
+        const requestedAt = new Date();
+        const claimed = await orderModel.findOneAndUpdate(
+            {
+                _id: orderId,
+                'items.foodPartner': req.foodPartner._id,
+                // Policy guarantees this is 'preparing' or 'ready'; pinning the
+                // exact value also means previousStatus is always truthful even
+                // if the partner advanced the order mid-request.
+                status: order.status
+            },
+            {
+                $set: {
+                    status: 'cancel_requested',
+                    'statusTimestamps.cancelRequestedAt': requestedAt,
+                    cancelRequest: {
+                        requestedBy: 'partner',
+                        reason: decision.reason,
+                        details: decision.details,
+                        requestedAt,
+                        previousStatus: order.status,
+                        status: 'pending'
+                    }
+                },
+                $push: {
+                    orderNotes: {
+                        note: `Cancellation requested by partner. Awaiting admin review. Reason: ${decision.reason}`,
+                        addedBy: 'partner'
+                    }
+                }
+            },
+            { new: true }
+        );
 
-        order.orderNotes.push({
-            note: `Cancellation requested by partner. Awaiting admin review. Reason: ${decision.reason}`,
-            addedBy: 'partner'
-        });
+        if (!claimed) {
+            // Someone else moved the order first. Report what it is NOW, not
+            // what it was when this request started.
+            const current = await orderModel.findById(orderId).select('status').lean();
+            const racedPending = current?.status === 'cancel_requested';
+            return res.status(409).json({
+                error: racedPending
+                    ? 'A cancellation request is already awaiting review'
+                    : `This order can no longer be sent for review. Current status: ${current?.status ?? 'unknown'}`,
+                code: racedPending ? 'REQUEST_ALREADY_PENDING' : 'STATUS_NOT_ELIGIBLE'
+            });
+        }
 
-        await order.save();
+        // Populate the claimed document so the caller sees the same shape as
+        // every other order read.
+        await Promise.all([
+            claimed.populate('user', 'firstName lastName email mobile'),
+            claimed.populate('items.foodItem', 'name price'),
+            claimed.populate('items.foodPartner', 'companyName email'),
+        ]);
 
         res.status(201).json({
             success: true,
             message: "Cancellation request submitted. An admin will review it shortly.",
-            order,
-            cancelRequest: order.cancelRequest
+            order: claimed,
+            cancelRequest: claimed.cancelRequest
         });
 
     } catch (error) {

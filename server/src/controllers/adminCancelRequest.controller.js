@@ -64,7 +64,16 @@ export const getPendingCancelRequests = async (req, res) => {
 export const decideCancelRequest = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const decision = req.body?.decision === 'reject' ? 'reject' : 'approve';
+
+        const decision = req.body?.decision;
+        if (decision !== 'approve' && decision !== 'reject') {
+            return res.status(400).json({
+                success: false,
+                message: 'Decision must be either approve or reject',
+                code: 'INVALID_DECISION'
+            });
+        }
+
         const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
 
         const order = await orderModel.findById(orderId)

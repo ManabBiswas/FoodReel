@@ -194,15 +194,15 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
               {updating ? '…' : 'Delivered'}
             </button>
           )}
-         // pending and confirmed orders can be cancelled by the partner
+          {/* pending and confirmed orders can be cancelled by the partner */}
          {['pending', 'confirmed'].includes(order.status) && (
             <button onClick={() => onCancelOrder(order)} disabled={updating}
               className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
               Cancel
             </button>
           )}
-         // Once the food is being made the partner cannot cancel outright —
-          // they ask an admin, who approves or rejects the cancellation.
+          {/* Once the food is being made the partner cannot cancel outright —
+              they ask an admin, who approves or rejects the cancellation. */}
           {['preparing', 'ready'].includes(order.status) && (
             <button onClick={() => onRequestCancel(order)} disabled={updating}
               className="px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">

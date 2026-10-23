@@ -113,6 +113,16 @@ describe('the order model accepts the new status', () => {
         const src = read('src/models/order.model.js');
         assert.match(src, /orderSchema\.index\(\{ 'cancelRequest\.status': 1/, 'the review queue needs an index');
     });
+
+    test('decidedBy distinguishes a human admin from the system', () => {
+        // The enum used to be ['admin'] only, which forced the customer-cancel
+        // path to write 'admin' for a decision no admin made.
+        const src = read('src/models/order.model.js');
+        const match = src.match(/decidedBy:\s*\{\s*[^}]*enum:\s*\[([^\]]*)\]/s);
+        assert.ok(match, 'decidedBy must be an enum');
+        const values = match[1].split(',').map((v) => v.trim().replace(/^'|'$/g, '')).filter(Boolean);
+        assert.deepEqual(values, ['admin', 'system'], 'decidedBy must allow admin and system only');
+    });
 });
 
 describe('the status filters do not silently drop the new status', () => {
@@ -136,10 +146,18 @@ describe('the status filters do not silently drop the new status', () => {
 });
 
 describe('the partner request does not cancel the order', () => {
-    test('the handler parks the order instead of cancelling it', () => {
+    test('the handler parks the order atomically instead of cancelling it', () => {
         const src = read('src/controllers/order.controller.js');
         const fn = src.slice(src.indexOf('const partnerRequestCancel'));
-        assert.match(fn, /order\.status = 'cancel_requested'/, 'it must park the order');
+        // A plain read-then-save let a concurrent customer cancellation be
+        // clobbered back into 'cancel_requested'. The park must be claimed
+        // with a conditional update that only matches the status we saw.
+        assert.match(fn, /findOneAndUpdate/, 'the park must be a conditional claim');
+        assert.match(
+            fn,
+            /\$set:\s*\{[\s\S]*status: 'cancel_requested'/,
+            'it must park the order inside the claim'
+        );
         assert.doesNotMatch(
             fn,
             /order\.cancellation = \{/,
@@ -155,8 +173,15 @@ describe('the partner request does not cancel the order', () => {
     test('it records why, and the status to go back to', () => {
         const src = read('src/controllers/order.controller.js');
         const fn = src.slice(src.indexOf('const partnerRequestCancel'));
-        assert.match(fn, /previousStatus: statusBeforeRequest/, 'it must remember where to resume');
+        assert.match(fn, /previousStatus: order\.status/, 'it must remember where to resume');
         assert.match(fn, /reason: decision\.reason/, 'it must store the reason');
+    });
+
+    test('a lost race answers with what the order is now', () => {
+        const src = read('src/controllers/order.controller.js');
+        const fn = src.slice(src.indexOf('const partnerRequestCancel'));
+        assert.match(fn, /!claimed/, 'the claim result must be checked');
+        assert.match(fn, /ORDER_STATE|REQUEST_ALREADY_PENDING/, 'a refused park must be reported as a conflict');
     });
 });
 
@@ -167,6 +192,25 @@ describe('the admin decision does the cancelling', () => {
         assert.match(fn, /order\.status = 'cancelled'/, 'approving must cancel the order');
         assert.match(fn, /isCancelled: true/, 'it must set the cancellation flag');
         assert.match(fn, /initiateClaimedRefund/, 'it must release the refund');
+    });
+
+    test('the decision fails closed', () => {
+        // A missing body or a typo used to normalise to 'approve' — which
+        // cancels the order and releases the refund. Only an exact,
+        // deliberate 'approve' or 'reject' may pass.
+        const src = read('src/controllers/adminCancelRequest.controller.js');
+        const fn = src.slice(src.indexOf('export const decideCancelRequest'));
+        assert.match(fn, /INVALID_DECISION/, 'an invalid decision must be refused');
+        assert.doesNotMatch(
+            fn,
+            /decision === 'reject' \? 'reject' : 'approve'/,
+            'the decision must not default to approve'
+        );
+        assert.match(
+            fn,
+            /decision !== 'approve' && decision !== 'reject'/,
+            'the guard must require an exact approve/reject'
+        );
     });
 
     test('rejecting resumes the order and moves no money', () => {
@@ -218,6 +262,39 @@ describe('the customer cancelling first', () => {
             /order\.cancelRequest\.status = 'rejected'/,
             'the request must be closed out'
         );
+    });
+
+    test('closing the request records the closer as system, not admin', () => {
+        // No admin decided anything here — writing 'admin' forged an audit
+        // trail. The model now allows 'system' and this path must use it.
+        const src = read('src/controllers/order.controller.js');
+        const fn = src.slice(src.indexOf('const cancelOrder = async'));
+        assert.doesNotMatch(
+            fn,
+            /decidedBy = 'admin'/,
+            'the customer path must not forge an admin decision'
+        );
+        assert.match(fn, /decidedBy = 'system'/, 'the closer must be recorded as system');
+    });
+});
+
+describe('the admin queue UI', () => {
+    test('the decision note is per request, not one shared field', () => {
+        // One shared note used to leak across the queue: text typed for
+        // request A was submitted with the decision on request B.
+        const src = fs.readFileSync(path.join(ROOT, '..', 'Client/src/Components/admin/tabs/CancelRequestsTab.jsx'), 'utf8');
+        assert.match(src, /notes\[r\.orderId\]/, 'the note input must be keyed by request');
+        assert.match(src, /notes\[orderId\]/, 'the decision body must read the note for that request');
+        assert.doesNotMatch(src, /setNote\(''\)/, 'the old shared setter must be gone');
+    });
+
+    test('the partner dashboard has no bare comments inside JSX', () => {
+        // JSX children parse unbraced text as content, so these comment lines
+        // rendered as literal text on every order card.
+        const src = fs.readFileSync(path.join(ROOT, '..', 'Client/src/pages/FoodPartner/Dashboard.jsx'), 'utf8');
+        assert.doesNotMatch(src, /^\s*\/\/ pending and confirmed orders/m);
+        assert.doesNotMatch(src, /^\s*\/\/ Once the food is being made/m);
+        assert.match(src, /\{\/\* pending and confirmed/, 'the intent must survive as a proper JSX comment');
     });
 });
 

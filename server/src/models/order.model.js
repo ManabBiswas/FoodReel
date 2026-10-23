@@ -32,18 +32,19 @@ const orderSchema = new mongoose.Schema({
         enum: ['INR'],
         default: 'INR'
     },
-        status: {
-            type: String,
-            enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'cancel_requested'],
-            default: 'pending'
-        },        statusTimestamps: {
-            confirmedAt: Date,
-            preparingAt: Date,
-            readyAt: Date,
-            deliveredAt: Date,
-            cancelledAt: Date,
-            cancelRequestedAt: Date
-        },
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'cancel_requested'],
+        default: 'pending'
+    },
+    statusTimestamps: {
+        confirmedAt: Date,
+        preparingAt: Date,
+        readyAt: Date,
+        deliveredAt: Date,
+        cancelledAt: Date,
+        cancelRequestedAt: Date
+    },
     orderSource: {
         type: String,
         enum: ['reel', 'home', 'menu', 'search', 'cart', 'other', 'foodfest'],
@@ -227,7 +228,7 @@ const orderSchema = new mongoose.Schema({
         decidedAt: Date,
         decidedBy: {
             type: String,
-            enum: ['admin']
+            enum: ['admin', 'system']
         },
         decisionNote: {
             type: String,

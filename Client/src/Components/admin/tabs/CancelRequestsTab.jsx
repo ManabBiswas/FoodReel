@@ -14,7 +14,8 @@ const CancelRequestsTab = ({ navigate, setError }) => {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [deciding, setDeciding] = useState(null)
-  const [note, setNote] = useState('')
+  // One note per request. A single shared note used to leak across the queue
+  const [notes, setNotes] = useState({})
 
   const fetchRequests = useCallback(async (pg = 1) => {
     try {
@@ -35,16 +36,16 @@ const CancelRequestsTab = ({ navigate, setError }) => {
       setDeciding(`${orderId}:${decision}`)
       await axios.post(
         API_ENDPOINTS.admin.decideCancelRequest(orderId),
-        { decision, note: note.trim() },
+        { decision, note: (notes[orderId] || '').trim() },
         axiosConfig
       )
-      setNote('')
+      setNotes(prev => ({ ...prev, [orderId]: '' }))
       setRequests(prev => prev.filter(r => r.orderId !== orderId))
       fetchRequests(page)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to record the decision')
     } finally { setDeciding(null) }
-  }, [note, page, fetchRequests, setError])
+  }, [notes, page, fetchRequests, setError])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -104,9 +105,10 @@ const CancelRequestsTab = ({ navigate, setError }) => {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                 <input
-                  value={note}
-                  onChange={e => setNote(e.target.value.slice(0, 500))}
+                  value={notes[r.orderId] || ''}
+                  onChange={e => setNotes(prev => ({ ...prev, [r.orderId]: e.target.value.slice(0, 500) }))}
                   placeholder="Optional note for the partner…"
+                  aria-label={`Optional note for request ${String(r.orderId).slice(-8).toUpperCase()}`}
                   style={{
                     flex: 1, minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)',
                     borderRadius: 8, padding: '8px 10px', color: 'var(--text)', fontSize: 12, outline: 'none'
