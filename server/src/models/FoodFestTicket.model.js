@@ -62,7 +62,10 @@ const foodFestTicketSchema = new mongoose.Schema({
     checkedOutZoneId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'FoodFestZone'
-    }
+    },
+    refundClaimedAt: { type: Date },
+    refundId: { type: String },
+    refundedAt: { type: Date }
 }, {
     timestamps: true
 });

@@ -81,9 +81,8 @@ const run = async () => {
         headers: { 'Content-Type': 'application/json', Cookie: `token=${userToken}` },
         body: JSON.stringify({ orderId: String(o1._id) }),
     });
-    const cj = await asCustomer.json().catch(() => ({}));
-    console.log(`   customer tries to self-approve: ${asCustomer.status} ${cj.code ?? ''}`);
-    check('customer CANNOT release their own pending_approval refund', asCustomer.status === 409, `got ${asCustomer.status}`);
+    console.log(`   customer tries the removed refund endpoint: ${asCustomer.status}`);
+    check('customer refund endpoint is removed (refunds only via the cancellation flow)', asCustomer.status === 404, `got ${asCustomer.status}`);
 
     const queue = await fetch(`${BASE}/api/admin/refunds/pending`, { headers: { Cookie: `token=${adminToken}` } });
     const qj = await queue.json().catch(() => ({}));

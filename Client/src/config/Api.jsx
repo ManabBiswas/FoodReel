@@ -172,7 +172,6 @@ export const API_ENDPOINTS = {
     createOrder: `${BASE_URL}/payment/create-order`,
     verify: `${BASE_URL}/payment/verify`,
     failure: `${BASE_URL}/payment/failure`,
-    refund: `${BASE_URL}/payment/refund`,
   },
   
   // Follow endpoints

@@ -3,7 +3,6 @@ import {
   createPaymentOrder, 
   verifyPayment, 
   handlePaymentFailure,
-  initiateRefund,
   razorpayWebhook
 } from '../controllers/payment.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
@@ -23,7 +22,6 @@ router.post('/verify', isLoggedin, rateLimiter, validateBody({
   orderId: { check: optional(isObjectId), message: 'orderId must be a valid id' }
 }), verifyPayment);
 router.post('/failure', isLoggedin, handlePaymentFailure);
-router.post('/refund', isLoggedin,rateLimiter, initiateRefund);
 router.post('/webhook', razorpayWebhook);
 
 export default router;

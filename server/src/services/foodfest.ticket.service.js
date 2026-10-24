@@ -4,6 +4,7 @@ import FoodFestTier from "../models/FoodFestTier.model.js";
 import FoodFestEvent from "../models/FoodFestEvent.model.js";
 import qrService from "../services/foodfest.qr.service.js";
 import emailService from "../services/email.service.js";
+import paymentService from "./payment.service.js";
 import { supportsTransactions } from "./transactionSupport.js";
 
 /**
@@ -48,8 +49,10 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
         );
 
         if (!ticket) {
-            // Either it was never created against this gateway order, or another
-            // delivery already finalised it. Distinguish the two.
+            // Either it was never created against this gateway order, or it is
+            // no longer waiting for payment. Distinguish every case: treating
+            // "any existing ticket" as success reported a paid-but-expired
+            // ticket as verified and left the captured money with no refund.
             const existing = await FoodFestTicket.findOne({
                 "paymentDetails.razorpayOrderId": razorpayOrderId
             }).session(tx);
@@ -60,7 +63,47 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
                 return { success: false, code: "TICKET_NOT_FOUND", message: "Ticket not found for this payment" };
             }
             if (ownsTxn) await tx.abortTransaction();
-            return { success: true, alreadyFinalised: true, ticket: existing };
+
+            // Already finalised by another delivery (verify endpoint / webhook)
+            // or already admitted at the gate. Idempotent success.
+            if (existing.status === "valid" || existing.status === "used") {
+                return { success: true, alreadyFinalised: true, ticket: existing };
+            }
+
+            if (existing.status === "refunded") {
+                return {
+                    success: false,
+                    code: "TICKET_REFUNDED",
+                    refunded: true,
+                    refundId: existing.refundId,
+                    message: "This ticket was refunded because it expired before the payment was confirmed."
+                };
+            }
+
+            // The ticket left pending_payment before this payment arrived: the
+            // sweeper normally expired it (15-minute window) or it was cancelled
+            if (existing.status === "expired" || existing.status === "cancelled") {
+                const refund = await refundUnfinalisedTicket(existing, paymentId);
+                return {
+                    success: false,
+                    code: "TICKET_EXPIRED",
+                    refunded: !!refund.refunded,
+                    refundId: refund.refundId,
+                    message: refund.refunded
+                        ? "The ticket expired before the payment was confirmed. A refund was initiated automatically."
+                        : refund.inFlight
+                            ? "The ticket expired before the payment was confirmed. A refund is already being processed."
+                            : "The ticket expired before the payment was confirmed and the automatic refund could not be started. Please contact support."
+                };
+            }
+
+            // A concurrent finaliser may still hold the claim. Tell the caller
+            // to retry rather than claiming a state we cannot see yet.
+            return {
+                success: false,
+                code: "TICKET_NOT_FINALISED",
+                message: "The payment is still being confirmed. Please retry in a moment."
+            };
         }
 
         // 2. Move inventory from reserved to sold, in the same transaction.
@@ -103,6 +146,94 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
     } finally {
         if (ownsTxn) await tx.endSession();
     }
+};
+
+/**
+ * Refund a ticket whose payment was captured after it left pending_payment.
+ *
+ * The claim is a short-lived lock, not a status change: the ticket stays
+ * `expired` until the gateway confirms, so a crash mid-call cannot leave a
+ * ticket marked refunded without a refund. Concurrent verify/webhook callers
+ * are serialised by the lock, which expires after 10 minutes so a crashed
+ * claim can be retried. The captured payment id is persisted with the claim,
+ * so a failed refund remains identifiable without the original request.
+ */
+const REFUND_CLAIM_TTL_MS = 10 * 60 * 1000;
+
+const refundUnfinalisedTicket = async (ticket, paymentId) => {
+    const staleBefore = new Date(Date.now() - REFUND_CLAIM_TTL_MS);
+
+    const claimed = await FoodFestTicket.findOneAndUpdate(
+        {
+            _id: ticket._id,
+            status: ticket.status,
+            $or: [
+                { refundClaimedAt: { $exists: false } },
+                { refundClaimedAt: { $lt: staleBefore } }
+            ]
+        },
+        {
+            $set: {
+                refundClaimedAt: new Date(),
+                "paymentDetails.razorpayPaymentId": paymentId
+            }
+        },
+        { new: true }
+    );
+
+    if (!claimed) {
+        // Another verify/webhook delivery is already refunding this ticket.
+        return { refunded: false, inFlight: true };
+    }
+
+    // Razorpay refunds take the amount in rupees; razorpayAmount is stored in paise.
+    const amount = ticket.paymentDetails?.razorpayAmount
+        ? ticket.paymentDetails.razorpayAmount / 100
+        : ticket.priceAtPurchase;
+
+    let result;
+    try {
+        result = await paymentService.refundPayment(paymentId, amount, {
+            kind: "foodfest_ticket",
+            ticketId: String(ticket._id),
+            reason: "Ticket expired before payment confirmation"
+        });
+
+        if (!result?.refund?.id) {
+            throw new Error("gateway returned no refund id");
+        }
+    } catch (error) {
+        console.error(`Ticket ${ticket._id}: automatic refund failed:`, error.message);
+        await FoodFestTicket.updateOne(
+            { _id: ticket._id, status: ticket.status },
+            { $unset: { refundClaimedAt: "" } }
+        );
+        return { refunded: false, failed: true, error: error.message };
+    }
+
+    try {
+        await FoodFestTicket.updateOne(
+            { _id: ticket._id, status: ticket.status },
+            {
+                $set: {
+                    status: "refunded",
+                    refundId: result.refund.id,
+                    refundedAt: new Date()
+                },
+                $unset: { refundClaimedAt: "" }
+            }
+        );
+    } catch (persistError) {
+        // The money did move. Do not invite an immediate retry just because
+        // the ledger write failed; the claim lock expires and support can see
+        // the refund in the gateway dashboard.
+        console.error(
+            `Ticket ${ticket._id}: refund ${result.refund.id} succeeded but could not be recorded:`,
+            persistError.message
+        );
+    }
+
+    return { refunded: true, refundId: result.refund.id };
 };
 
 const sendTicketConfirmation = (ticket, event, qrImageUrl) => {

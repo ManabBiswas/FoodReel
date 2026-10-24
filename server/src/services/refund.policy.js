@@ -50,47 +50,6 @@ export function decideRefundOnCancellation({ order, actor } = {}) {
 
 const deny = (code, message, status = 400) => ({ allowed: false, code, message, status });
 
-/**
- * Validate a customer-initiated refund request (POST /api/payment/refund).
- *
- * This is the read-side guard. It cannot prevent two concurrent requests from
- * both passing — the atomic claim in refund.service.js does that — but it
- * rejects the obvious replay of a refund that is already done or in flight.
- */
-export function decideRefundRequest({ order, amount } = {}) {
-    if (!order) return deny('ORDER_NOT_FOUND', 'Order not found', 404);
-
-    const paymentDetails = order.paymentDetails;
-    if (paymentDetails?.method !== 'razorpay') {
-        return deny('NOT_RAZORPAY', 'This order was not paid online');
-    }
-    if (paymentDetails.status !== 'completed') {
-        return deny('PAYMENT_NOT_COMPLETED', 'Order payment is not completed. Cannot refund.');
-    }
-    if (!paymentDetails.razorpayPaymentId) {
-        return deny('NO_PAYMENT_ID', 'No payment id is recorded for this order');
-    }
-
-    const refundStatus = order.cancellation?.refundStatus;
-    if (refundStatus === 'completed') return deny('ALREADY_REFUNDED', 'Refund already processed for this order');
-    if (refundStatus === 'processing') return deny('REFUND_IN_FLIGHT', 'A refund is already in progress', 409);
-    if (refundStatus === 'pending_approval') {
-        return deny('REFUND_AWAITING_APPROVAL', 'This refund is awaiting approval', 409);
-    }
-
-    const total = order.pricing?.totalAmount ?? 0;
-    const requested = amount === undefined || amount === null ? total : Number(amount);
-
-    if (!Number.isFinite(requested) || requested <= 0) {
-        return deny('INVALID_AMOUNT', 'Refund amount must be greater than zero');
-    }
-    if (requested > total) {
-        return deny('AMOUNT_EXCEEDS_TOTAL', 'Refund amount cannot exceed the order total');
-    }
-
-    return { allowed: true, amount: Math.round(requested * 100) / 100 };
-}
-
 /** Statuses where the partner is actively working on the order. */
 export const FULFILMENT_STATUSES = ['confirmed', 'preparing', 'ready', 'delivered'];
 

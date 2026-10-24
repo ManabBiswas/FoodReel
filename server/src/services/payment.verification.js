@@ -113,13 +113,6 @@ export function verifyTicketPaymentBinding({ ticket, razorpayOrderId, gatewayPay
     const details = ticket.paymentDetails;
     if (!details || typeof details !== 'object') return reject(FAILURE.MALFORMED_INPUT);
 
-    // Terminal states must not be re-finalised
-    if (ticket.status === 'valid' || ticket.status === 'used') {
-        return reject(FAILURE.ORDER_ALREADY_PAID);
-    }
-    if (ticket.status === 'refunded' || ticket.status === 'cancelled' || ticket.status === 'expired') {
-        return reject(FAILURE.ORDER_CANCELLED);
-    }
 
     // THE BINDING CHECK: this must be the gateway order created for THIS ticket
     if (!details.razorpayOrderId || details.razorpayOrderId !== razorpayOrderId) {

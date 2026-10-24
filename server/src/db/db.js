@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 
 mongoose.set('strictQuery', true);
+// for test purposes only
+// Keep sanitizeFilter off: mongoose throws on $expr, which the ticket tier and
+// gate zone capacity guards depend on (checkout and gate scans would 500).
 
 const intEnv = (name, fallback) => {
     const n = parseInt(process.env[name], 10);

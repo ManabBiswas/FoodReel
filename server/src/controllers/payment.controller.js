@@ -5,8 +5,6 @@ import emailService from '../services/email.service.js';
 import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
 import { verifyOrderBinding, verifyPaymentBinding, toPaise } from '../services/payment.verification.js';
 import { decideWebhookAction, resolveOrderKey, ACTION } from '../services/webhook.handler.js';
-import { decideRefundRequest } from '../services/refund.policy.js';
-import { initiateClaimedRefund } from '../services/refund.service.js';
 import { isGatewayOrderReusable } from '../services/gatewayOrderReuse.js';
 import paymentWebhookEventModel from '../models/paymentWebhookEvent.model.js';
 
@@ -305,71 +303,6 @@ export const handlePaymentFailure = async (req, res) => {
   }
 };
 
-// Initiate refund for an order (customer-initiated)
-export const initiateRefund = async (req, res) => {
-  try {
-    const { orderId, reason, amount } = req.body;
-
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Unauthorized'
-      });
-    }
-
-    const userId = req.user._id;
-
-    const order = await orderModel.findOne({
-      _id: orderId,
-      user: userId
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    // Read-side eligibility check
-    const decision = decideRefundRequest({ order, amount });
-
-    if (!decision.allowed) {
-      return res.status(decision.status).json({
-        success: false,
-        message: decision.message,
-        code: decision.code
-      });
-    }
-
-    const result = await initiateClaimedRefund({
-      orderId: order._id,
-      amount: decision.amount,
-      initiatedBy: 'user',
-      reason: reason || 'Customer requested refund'
-    });
-
-    if (!result.ok) {
-      return res.status(result.status).json({
-        success: false,
-        message: result.message,
-        code: result.code,
-        ...(result.error ? { error: result.error } : {})
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Refund initiated successfully',
-      refund: result.refund
-    });
-
-  } catch (error) {
-    console.error(`[req:${req.id}] Refund initiation error:`, error);
-    serverFail(res, error, 'Failed to process refund request');
-  }
-};
-
 // Handle Razorpay webhooks
 export const razorpayWebhook = async (req, res) => {
   // Declared OUTSIDE the try: the catch block reads it to record the failure,
@@ -459,14 +392,16 @@ export const razorpayWebhook = async (req, res) => {
         if (!result?.success && !result?.alreadyFinalised) {
             console.error(
                 `[req:${req.id}] FoodFest ticket not finalized:`,
-                result?.code || 'unknown'
+                result?.code || 'unknown',
+                result?.refunded ? `(auto-refund ${result.refundId})` : '(no refund recorded)'
             );
         }
 
         return res.status(200).json({
             success: true,
             handled: 'foodfest_ticket',
-            finalized: Boolean(result?.success)
+            finalized: Boolean(result?.success),
+            refunded: Boolean(result?.refunded)
         });
     }
 

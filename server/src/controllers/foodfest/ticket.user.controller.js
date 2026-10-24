@@ -240,10 +240,14 @@ export const verifyTicketPayment = async (req, res) => {
         );
 
         if (!result.success) {
-            return res.status(400).json({
+            // State conflicts (expired/cancelled ticket, concurrent settlement) are not malformed requests: 409 tells the client not to retry as-is.
+            const conflictCodes = new Set(["TICKET_EXPIRED", "TICKET_REFUNDED", "TICKET_NOT_FINALISED"]);
+            return res.status(conflictCodes.has(result.code) ? 409 : 400).json({
                 success: false,
                 message: result.message || "Could not finalise this ticket",
-                code: result.code
+                code: result.code,
+                refunded: !!result.refunded,
+                refundId: result.refundId
             });
         }
 
