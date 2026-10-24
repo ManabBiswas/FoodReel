@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     verifyPaymentBinding,
     verifyOrderBinding,
+    verifyTicketPaymentBinding,
     toPaise,
     FAILURE,
 } from '../src/services/payment.verification.js';
@@ -358,4 +359,90 @@ describe('verifyPaymentBinding â€” never throws on malformed input', () => {
             assert.equal(typeof result.message, 'string');
         });
     }
+});
+
+// ---------------------------------------------------------------------------
+// FoodFest ticket binding
+// ---------------------------------------------------------------------------
+
+const makeTicket = (over = {}) => ({
+    _id: 'ticket-1',
+    status: 'pending_payment',
+    currency: 'INR',
+    priceAtPurchase: 500,
+    paymentDetails: {
+        razorpayOrderId: 'order_ticket_1',
+        razorpayAmount: 50000, // paise
+    },
+    ...over,
+});
+
+const makeTicketPayment = (over = {}) => ({
+    id: 'pay_ticket_1',
+    order_id: 'order_ticket_1',
+    amount: 50000,
+    currency: 'INR',
+    status: 'captured',
+    ...over,
+});
+
+const ticketBinding = (ticket = makeTicket(), gatewayPayment = makeTicketPayment()) =>
+    verifyTicketPaymentBinding({
+        ticket,
+        razorpayOrderId: 'order_ticket_1',
+        gatewayPayment,
+    });
+
+describe('verifyTicketPaymentBinding — identity and amount only', () => {
+    test('accepts a captured payment bound to the ticket', () => {
+        const result = ticketBinding();
+        assert.equal(result.ok, true, result.message);
+    });
+
+    test('lets the finaliser decide terminal ticket states', () => {
+        // Regression: rejecting these here made the paid-but-expired refund
+        // path unreachable from POST /api/foodfest/tickets/verify.
+        for (const status of ['expired', 'cancelled', 'refunded', 'valid', 'used']) {
+            const result = ticketBinding(makeTicket({ status }));
+            assert.equal(result.ok, true, `${status} must reach the finaliser`);
+        }
+    });
+
+    test('rejects a payment for a different gateway order', () => {
+        const result = ticketBinding(makeTicket(), makeTicketPayment({ order_id: 'order_other' }));
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.PAYMENT_ORDER_MISMATCH);
+    });
+
+    test('rejects a mismatched amount', () => {
+        const result = ticketBinding(makeTicket(), makeTicketPayment({ amount: 100 }));
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.AMOUNT_MISMATCH);
+    });
+
+    test('falls back to priceAtPurchase when razorpayAmount is absent', () => {
+        const ticket = makeTicket();
+        delete ticket.paymentDetails.razorpayAmount;
+        assert.equal(ticketBinding(ticket, makeTicketPayment({ amount: 50000 })).ok, true);
+    });
+
+    test('rejects an uncaptured payment', () => {
+        const result = ticketBinding(makeTicket(), makeTicketPayment({ status: 'authorized' }));
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.NOT_CAPTURED);
+    });
+
+    test('rejects a missing gateway payment', () => {
+        const result = ticketBinding(makeTicket(), null);
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.GATEWAY_PAYMENT_MISSING);
+    });
+
+    test('rejects a ticket that was never put through checkout', () => {
+        const ticket = makeTicket();
+        delete ticket.paymentDetails.razorpayOrderId;
+        const result = ticketBinding(ticket);
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.ORDER_NOT_PAYMENT_CREATED);
+    });
 });

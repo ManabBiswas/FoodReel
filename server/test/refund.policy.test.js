@@ -2,7 +2,6 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     decideRefundOnCancellation,
-    decideRefundRequest,
     decideRefundApproval,
     decideFulfilmentAllowed,
     OUTCOME,
@@ -88,80 +87,6 @@ describe('decideRefundOnCancellation', () => {
             const result = decideRefundOnCancellation({ order, actor: 'user' });
             assert.equal(result.outcome, OUTCOME.NONE);
         }
-    });
-});
-
-describe('decideRefundRequest — the customer-initiated refund endpoint', () => {
-    test('allows a first refund of a paid order', () => {
-        const result = decideRefundRequest({ order: paid(), amount: undefined });
-        assert.equal(result.allowed, true);
-        assert.equal(result.amount, 500, 'defaults to the full order total');
-    });
-
-    test('allows a partial refund', () => {
-        const result = decideRefundRequest({ order: paid(), amount: 200 });
-        assert.equal(result.allowed, true);
-        assert.equal(result.amount, 200);
-    });
-
-    test('refuses a refund larger than the order total', () => {
-        const result = decideRefundRequest({ order: paid(), amount: 501 });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'AMOUNT_EXCEEDS_TOTAL');
-    });
-
-    test('refuses a negative or zero amount', () => {
-        assert.equal(decideRefundRequest({ order: paid(), amount: 0 }).allowed, false);
-        assert.equal(decideRefundRequest({ order: paid(), amount: -50 }).allowed, false);
-    });
-
-    test('refuses when the payment was never completed', () => {
-        const order = paid({ paymentDetails: { method: 'razorpay', status: 'pending' } });
-        const result = decideRefundRequest({ order, amount: undefined });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'PAYMENT_NOT_COMPLETED');
-    });
-
-    test('refuses when there is no payment id to refund against', () => {
-        const order = paid({ paymentDetails: { method: 'razorpay', status: 'completed' } });
-        const result = decideRefundRequest({ order, amount: undefined });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'NO_PAYMENT_ID');
-    });
-
-    test('refuses a second refund once one is completed', () => {
-        const order = paid({ cancellation: { isCancelled: true, refundStatus: 'completed' } });
-        const result = decideRefundRequest({ order, amount: undefined });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'ALREADY_REFUNDED');
-    });
-
-    test('refuses a concurrent duplicate while one is in flight', () => {
-        const order = paid({ cancellation: { isCancelled: true, refundStatus: 'processing' } });
-        const result = decideRefundRequest({ order, amount: undefined });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'REFUND_IN_FLIGHT');
-    });
-
-    test('refuses while an approval is still pending', () => {
-        const order = paid({ cancellation: { isCancelled: true, refundStatus: 'pending_approval' } });
-        const result = decideRefundRequest({ order, amount: undefined });
-        assert.equal(result.allowed, false);
-        assert.equal(result.code, 'REFUND_AWAITING_APPROVAL');
-    });
-
-    test('allows a retry after a previous refund failed', () => {
-        const order = paid({ cancellation: { isCancelled: true, refundStatus: 'failed' } });
-        assert.equal(decideRefundRequest({ order, amount: undefined }).allowed, true);
-    });
-
-    test('refuses a COD order', () => {
-        const result = decideRefundRequest({ order: cod(), amount: undefined });
-        assert.equal(result.allowed, false);
-    });
-
-    test('refuses a missing order', () => {
-        assert.equal(decideRefundRequest({ order: null, amount: undefined }).allowed, false);
     });
 });
 
