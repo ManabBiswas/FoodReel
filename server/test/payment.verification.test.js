@@ -393,7 +393,7 @@ const ticketBinding = (ticket = makeTicket(), gatewayPayment = makeTicketPayment
         gatewayPayment,
     });
 
-describe('verifyTicketPaymentBinding — identity and amount only', () => {
+describe('verifyTicketPaymentBinding ï¿½ identity and amount only', () => {
     test('accepts a captured payment bound to the ticket', () => {
         const result = ticketBinding();
         assert.equal(result.ok, true, result.message);
@@ -418,6 +418,12 @@ describe('verifyTicketPaymentBinding — identity and amount only', () => {
         const result = ticketBinding(makeTicket(), makeTicketPayment({ amount: 100 }));
         assert.equal(result.ok, false);
         assert.equal(result.code, FAILURE.AMOUNT_MISMATCH);
+    });
+
+    test('rejects a mismatched currency', () => {
+        const result = ticketBinding(makeTicket(), makeTicketPayment({ currency: 'USD' }));
+        assert.equal(result.ok, false);
+        assert.equal(result.code, FAILURE.CURRENCY_MISMATCH);
     });
 
     test('falls back to priceAtPurchase when razorpayAmount is absent', () => {

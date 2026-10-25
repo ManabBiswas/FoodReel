@@ -165,6 +165,7 @@ test('expired ticket: a gateway failure stays retryable and keeps the payment id
     assert.equal(failed.success, false);
     assert.equal(failed.code, 'TICKET_EXPIRED');
     assert.equal(failed.refunded, false);
+    assert.equal(failed.retryable, true, 'the webhook must retry a failed auto-refund');
 
     const afterFailure = await FoodFestTicket.findById(ticket._id).lean();
     assert.equal(afterFailure.status, 'expired', 'a failed refund must stay retryable');
@@ -203,7 +204,34 @@ test('already valid ticket: idempotent success, no refund call', needsDb, async 
 
     assert.equal(result.success, true);
     assert.equal(result.alreadyFinalised, true);
+    assert.equal(result.retryable, undefined, 'settled money needs no webhook retry');
     assert.equal(refundCalls.length, 0, 'money already settled must not be refunded');
+});
+
+test('already used ticket: idempotent success, no refund call', needsDb, async () => {
+    const ticket = await makeTicket({ status: 'used' });
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentIdFor(ticket), 'sig');
+
+    assert.equal(result.success, true);
+    assert.equal(result.alreadyFinalised, true);
+    assert.equal(refundCalls.length, 0, 'an admitted ticket must not be refunded');
+});
+
+test('cancelled ticket: captured payment is refunded', needsDb, async () => {
+    const ticket = await makeTicket({ status: 'cancelled' });
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentIdFor(ticket), 'sig');
+
+    assert.equal(result.code, 'TICKET_EXPIRED');
+    assert.equal(result.refunded, true);
+    assert.equal(result.retryable, false);
+    assert.equal(refundCalls.length, 1);
+
+    const stored = await FoodFestTicket.findById(ticket._id).lean();
+    assert.equal(stored.status, 'refunded');
+    assert.ok(stored.refundId);
+    assert.equal(stored.refundClaimedAt, undefined);
 });
 
 test('concurrent verify + webhook reaches the gateway exactly once', needsDb, async () => {

@@ -131,6 +131,28 @@ test('the foodfest branch does not swallow errors', () => {
     );
 });
 
+test('the foodfest webhook asks Razorpay to retry a pending refund', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf("kind === 'foodfest_ticket'");
+    const block = src.slice(start, start + 2400);
+    assert.match(block, /result\?\.retryable/, 'must use the finaliser retry flag');
+    assert.match(block, /res\.status\(503\)/, 'a pending refund must not be acknowledged with 200');
+});
+
+test('a failed webhook event is replayed instead of acked as a duplicate', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf('Claim the event before doing any work');
+    assert.ok(start > -1, 'the event claim must exist');
+    const block = src.slice(start, start + 2000);
+    assert.match(
+        block,
+        /create\(\{ eventId, event, outcome: 'error' \}\)/,
+        'a crash mid-delivery must stay retryable'
+    );
+    assert.match(block, /deleteOne\(\{ eventId, outcome: 'error' \}\)/, 'only failed attempts may be replayed');
+    assert.match(block, /deletedCount === 1/, 'the delete is the retry claim');
+});
+
 test('finalizeTicketPayment reports success, not ok', () => {
     const src = read('src/services/foodfest.ticket.service.js');
     assert.match(src, /return \{ success: true, ticket \}/);
