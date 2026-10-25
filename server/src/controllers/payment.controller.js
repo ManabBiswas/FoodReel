@@ -347,15 +347,33 @@ export const razorpayWebhook = async (req, res) => {
     // this atomic: if two deliveries race, exactly one insert wins.
     if (eventId) {
         try {
-            await paymentWebhookEventModel.create({ eventId, event, outcome: 'ignored' });
+            // Provisional "error": recordWebhookOutcome() replaces it with the
+            // real outcome. If the process dies mid-delivery the row stays
+            // retryable instead of being acked as a duplicate.
+            await paymentWebhookEventModel.create({ eventId, event, outcome: 'error' });
         } catch (claimErr) {
             if (claimErr?.code === 11000) {
-                console.log(`Webhook ${eventId} already processed — acknowledging duplicate`);
-                return res.status(200).json({ success: true, message: 'Duplicate event ignored' });
+                // A previous delivery created this row. If that attempt failed
+                // (outcome "error"), Razorpay is retrying us: remove the failed
+                // ledger row and process the event again.
+                const removed = await paymentWebhookEventModel
+                    .deleteOne({ eventId, outcome: 'error' })
+                    .catch((deleteErr) => {
+                        console.error(`[req:${req.id}] Webhook retry claim failed for ${eventId}:`, deleteErr.message);
+                        return { deletedCount: 0 };
+                    });
+
+                if (removed.deletedCount === 1) {
+                    console.log(`Webhook ${eventId} retrying after a failed attempt`);
+                } else {
+                    console.log(`Webhook ${eventId} already processed — acknowledging duplicate`);
+                    return res.status(200).json({ success: true, message: 'Duplicate event ignored' });
+                }
+            } else {
+                // A ledger write failure is transient (e.g. DB down). Let Razorpay retry.
+                console.error(`[req:${req.id}] Webhook ledger claim failed for ${eventId}:`, claimErr.message);
+                return res.status(500).json({ success: false, message: 'Webhook could not be recorded' });
             }
-            // A ledger write failure is transient (e.g. DB down). Let Razorpay retry.
-            console.error(`[req:${req.id}] Webhook ledger claim failed for ${eventId}:`, claimErr.message);
-            return res.status(500).json({ success: false, message: 'Webhook could not be recorded' });
         }
     }
 
@@ -383,13 +401,36 @@ export const razorpayWebhook = async (req, res) => {
             null // webhook already authenticated the event; no signature to re-check
         );
 
-        // Record the real outcome. 
-        await recordWebhookOutcome(eventId, {
-            action: result?.success || result?.alreadyFinalised ? ACTION.APPLY : ACTION.REJECT,
-            reason: result?.code || (result?.alreadyFinalised ? 'already_finalised' : 'foodfest_ticket')
-        });
+        const settled = Boolean(result?.success || result?.alreadyFinalised);
+        const retryable = Boolean(result?.retryable);
 
-        if (!result?.success && !result?.alreadyFinalised) {
+        // Record the real outcome.
+        await recordWebhookOutcome(
+            eventId,
+            {
+                action: settled ? ACTION.APPLY : ACTION.REJECT,
+                reason: result?.code || (result?.alreadyFinalised ? 'already_finalised' : 'foodfest_ticket')
+            },
+            retryable
+        );
+
+        if (retryable) {
+            // The money was captured but the refund is not done yet 
+            // A 200 would make Razorpay drop the event, so fail the delivery to trigger a retry.
+            console.error(
+                `[req:${req.id}] FoodFest ticket refund pending:`,
+                result?.code || 'unknown'
+            );
+            return res.status(503).json({
+                success: false,
+                handled: 'foodfest_ticket',
+                finalized: false,
+                refunded: false,
+                retryable: true
+            });
+        }
+
+        if (!settled) {
             console.error(
                 `[req:${req.id}] FoodFest ticket not finalized:`,
                 result?.code || 'unknown',

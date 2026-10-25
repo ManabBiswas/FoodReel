@@ -13,7 +13,7 @@ const paymentWebhookEventSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    // What we did with it, for auditing: applied | ignored | rejected
+    // What we did with it, for auditing: applied | ignored | rejected | error
     outcome: {
         type: String,
         enum: ['applied', 'ignored', 'rejected', 'error'],

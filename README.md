@@ -432,7 +432,7 @@ Notes:
 - `POST /api/payment/create-order` – Create Razorpay order (user only)
 - `POST /api/payment/verify` – Verify payment (user only)
 - `POST /api/payment/failure` – Handle payment failure
-- `POST /api/payment/refund` – Initiate refund (user only)
+- Refunds have no public endpoint: customer cancellations auto-refund; partner cancellations require admin approval.
 
 #### User Profile & Preferences
 - `POST /api/user/profile-picture` – Upload profile picture (user only)

@@ -12,7 +12,7 @@ const skipInDev = () => RATE_LIMIT_EXEMPT_ENVS.has(process.env.NODE_ENV);
 export const rateLimiter = rateLimit({
   store: buildStore({ windowMs: 15 * 60 * 1000, prefix: 'pay' }),
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 30, // Shared across payment create/verify/refund — 10 let a couple of
+  limit: 30, // Shared across payment create/verify — 10 let a couple of
            // failed checkouts lock a user out of paying entirely.
   message: 'Too many payment requests, please try again later',
   standardHeaders: true,

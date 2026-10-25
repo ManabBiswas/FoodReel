@@ -89,6 +89,7 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
                     code: "TICKET_EXPIRED",
                     refunded: !!refund.refunded,
                     refundId: refund.refundId,
+                    retryable: !refund.refunded,
                     message: refund.refunded
                         ? "The ticket expired before the payment was confirmed. A refund was initiated automatically."
                         : refund.inFlight
@@ -102,6 +103,7 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
             return {
                 success: false,
                 code: "TICKET_NOT_FINALISED",
+                retryable: true,
                 message: "The payment is still being confirmed. Please retry in a moment."
             };
         }
