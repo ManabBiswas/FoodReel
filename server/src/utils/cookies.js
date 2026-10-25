@@ -15,7 +15,7 @@ export const authCookieOptions = (maxAgeMs = 7 * 24 * 60 * 60 * 1000) => { // 7 
 //  'lax' (default if not cross-site) → Safer, prevents most CSRF attacks but still allows navigation-based requests.
 
 // 'none' (if cross-site deployment) → Required for cookies to be sent in cross-site contexts, but must be paired with secure: true.
-        secure: crossSite,
+        secure: crossSite || process.env.NODE_ENV === 'production',
         maxAge: maxAgeMs, // 7 days
         path: '/'   //Makes the cookie available across the entire site
     };

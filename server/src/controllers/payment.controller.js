@@ -1,6 +1,7 @@
 import paymentService from '../services/payment.service.js';
 import { serverFail } from '../utils/apiError.js';
 import orderModel from '../models/order.model.js';
+import mongoose from 'mongoose';
 import emailService from '../services/email.service.js';
 import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
 import { verifyOrderBinding, verifyPaymentBinding, toPaise } from '../services/payment.verification.js';
@@ -265,7 +266,7 @@ export const verifyPayment = async (req, res) => {
 export const handlePaymentFailure = async (req, res) => {
   try {
     const { orderId, error } = req.body;
-    
+
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -273,25 +274,65 @@ export const handlePaymentFailure = async (req, res) => {
       });
     }
 
-    const userId = req.user._id;
-
-    const order = await orderModel.findOne({ 
-      _id: orderId, 
-      user: userId 
-    });
-
-    if (order) {
-      order.paymentDetails.status = 'failed';
-      order.orderNotes.push({
-        note: `Payment failed: ${error?.description || 'Unknown error'}`,
-        addedBy: 'system'
+    if (!orderId || !mongoose.isValidObjectId(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderId must be a valid id'
       });
-      await order.save();
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Payment failure recorded'
+    const description = typeof error?.description === 'string'
+      ? error.description.slice(0, 500)
+      : 'Unknown error';
+
+    // Update order
+    const order = await orderModel.findOneAndUpdate(
+      {
+        _id: orderId,
+        user: req.user._id,
+        'paymentDetails.method': 'razorpay',
+        'paymentDetails.status': { $in: ['pending', 'processing'] }
+      },
+      {
+        $set: { 'paymentDetails.status': 'failed' },
+        $push: {
+          orderNotes: {
+            note: `Payment failed: ${description}`,
+            addedBy: 'system'
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (order) {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment failure recorded'
+      });
+    }
+
+    const existing = await orderModel
+      .findOne({ _id: orderId, user: req.user._id })
+      .select('paymentDetails.status')
+      .lean();
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Retrying the same failure notification is harmless.
+    if (existing.paymentDetails?.status === 'failed') {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment failure already recorded'
+      });
+    }
+
+    return res.status(409).json({
+      success: false,
+      code: 'PAYMENT_NOT_FAILABLE',
+      message: 'This payment can no longer be marked as failed'
     });
 
   } catch (error) {

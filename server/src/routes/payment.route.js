@@ -21,7 +21,9 @@ router.post('/verify', isLoggedin, rateLimiter, validateBody({
   razorpay_signature: { check: (v) => isNonEmptyString(v, 512), message: 'razorpay_signature is required' },
   orderId: { check: optional(isObjectId), message: 'orderId must be a valid id' }
 }), verifyPayment);
-router.post('/failure', isLoggedin, handlePaymentFailure);
+router.post('/failure', isLoggedin, rateLimiter, validateBody({
+  orderId: { check: isObjectId, message: 'orderId must be a valid id' }
+}), handlePaymentFailure);
 router.post('/webhook', razorpayWebhook);
 
 export default router;

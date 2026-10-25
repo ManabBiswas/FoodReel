@@ -4,6 +4,7 @@ import FoodFestZone from "../../models/FoodFestZone.model.js";
 import FoodFestTier from "../../models/FoodFestTier.model.js";
 import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
+import { validateEventWindow } from "../../utils/eventDates.js";
 
 const EVENT_UPDATABLE = ['name', 'description', 'venue', 'startTime', 'endTime', 'salesStart', 'salesEnd', 'bannerImage'];
 const ZONE_UPDATABLE = ['name', 'capacity', 'warningThreshold', 'criticalThreshold', 'tracksExit'];
@@ -29,6 +30,11 @@ export const createEvent = async (req, res) => {
                 success: false,
                 message: "Missing required fields: name, venue(address, city), startTime, endTime, salesStart, salesEnd"
             });
+        }
+
+        const dateError = validateEventWindow({ startTime, endTime, salesStart, salesEnd });
+        if (dateError) {
+            return res.status(400).json({ success: false, message: dateError });
         }
 
         const event = await FoodFestEvent.create({
@@ -77,15 +83,23 @@ export const updateEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "No updatable fields provided" });
         }
 
-        const event = await FoodFestEvent.findByIdAndUpdate(
-            eventId,
-            { $set: updates },
-            { new: true, runValidators: true }
-        );
-
+        const event = await FoodFestEvent.findById(eventId);
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
+
+        const dateError = validateEventWindow({
+            startTime: updates.startTime ?? event.startTime,
+            endTime: updates.endTime ?? event.endTime,
+            salesStart: updates.salesStart ?? event.salesStart,
+            salesEnd: updates.salesEnd ?? event.salesEnd
+        });
+        if (dateError) {
+            return res.status(400).json({ success: false, message: dateError });
+        }
+
+        event.set(updates);
+        await event.save();
 
         res.status(200).json({ success: true, message: "Event updated successfully", event });
     } catch (error) {

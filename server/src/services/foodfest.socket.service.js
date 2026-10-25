@@ -34,16 +34,18 @@ export const initSocketIO = (httpServer) => {
                 socket.user = { id: decoded.id, type: 'user' };
                 return next();
             }
-            const partner = await foodPartnerModel.findById(decoded.id).select('isBlocked');
+            const partner = await foodPartnerModel.findById(decoded.id).select('isBlocked tokenVersion');
             if (partner) {
                 if (partner.isBlocked) return next(new Error("Account blocked"));
+                if ((decoded.tv ?? 0) !== (partner.tokenVersion ?? 0)) return next(new Error("Session expired"));
                 socket.user = { id: decoded.id, type: 'partner' };
                 return next();
             }
-            const admin = await adminModel.findById(decoded.id).select('isActive');
+            const admin = await adminModel.findById(decoded.id).select('isActive tokenVersion');
             if (admin) {
                 // Mirror the HTTP plane: a deactivated admin keeps no live socket.
                 if (admin.isActive === false) return next(new Error("Account deactivated"));
+                if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) return next(new Error("Session expired"));
                 socket.user = { id: decoded.id, type: 'admin' };
                 return next();
             }

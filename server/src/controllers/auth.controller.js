@@ -353,7 +353,7 @@ async function adminLogin(req, res) {
             });
         }
 
-        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign({ id: admin._id, email: admin.email, tv: admin.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie('token', token, authCookieOptions());
         
         res.status(200).json({ 
@@ -402,6 +402,13 @@ async function adminVerify(req, res) {
                 message: "Not authenticated"
             });
         }
+
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Not authenticated"
+            });
+        }
         
         res.status(200).json({
             isAuthenticated: true,
@@ -432,8 +439,13 @@ async function adminProfile(req, res) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const admin = await adminModel.findById(decoded.id).select('-code');
         
-        // This route does not run through isAdmin, so the kill switch has to be enforced here too
+        // This route does not run through isAdmin, so the kill switch and
+        // tokenVersion have to be enforced here too.
         if (!admin || admin.isActive === false) {
+            return res.status(401).json({ error: "Not authenticated" });
+        }
+
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
             return res.status(401).json({ error: "Not authenticated" });
         }
         

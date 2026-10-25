@@ -233,6 +233,29 @@ test('concurrent ticket claims never oversell', needsDb, async () => {
     assert.equal(stored.sold, 5, 'sold must equal quantity exactly, never more');
 });
 
+test('zone checkout decrement is floored at zero under contention', needsDb, async () => {
+    const Zone = zoneModel();
+    const zone = await Zone.create({
+        eventId: oid(),
+        name: 'Exit Gate',
+        capacity: 10,
+        currentCount: 2,
+        tracksExit: true
+    });
+
+    // Exactly the query checkoutTicket uses to release a seat.
+    const release = () =>
+        Zone.findOneAndUpdate(
+            { _id: zone._id, currentCount: { $gt: 0 } },
+            { $inc: { currentCount: -1 } },
+            { new: true }
+        );
+
+    const released = (await Promise.all(Array.from({ length: 10 }, release))).filter(Boolean);
+    assert.equal(released.length, 2, 'exactly the two checked-in seats may be released');
+    assert.equal((await Zone.findById(zone._id)).currentCount, 0, 'count must never go negative');
+});
+
 // ---------- strictQuery must not strip the paths filters depend on ----------
 
 test('strictQuery keeps identity-scoped filter paths', needsDb, async () => {

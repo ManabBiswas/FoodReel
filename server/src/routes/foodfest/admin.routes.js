@@ -21,8 +21,12 @@ import {
     rejectApplication
 } from '../../controllers/foodfest/application.admin.controller.js';
 import isAdmin from '../../middlewares/isAdmin.js';
+import { adminRateLimiter } from '../../middlewares/rateLimiter.js';
 
 const router = express.Router();
+
+// Admin dashboard reads are chatty
+router.use(adminRateLimiter);
 
 // Event CRUD
 router.post('/events', isAdmin, createEvent);

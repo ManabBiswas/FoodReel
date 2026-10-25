@@ -41,7 +41,7 @@ async function register(req,res) {
                 longitude: lng
                 // profileImage will be added later via profile update
             })
-            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET, { expiresIn: "7d" });
+            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email,tv: foodPartner.tokenVersion ?? 0},process.env.JWT_SECRET, { expiresIn: "7d" });
             res.cookie('token', token, authCookieOptions());
             res.status(201).json({
                 message: "FoodPartner created successfully",
@@ -92,7 +92,7 @@ async function login(req,res){
         });
         
         if(isPasswordMatched){
-            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email, tv: foodPartner.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
             res.cookie('token', token, authCookieOptions());
             res.status(200).json({
                 message: "FoodPartner logged in successfully",

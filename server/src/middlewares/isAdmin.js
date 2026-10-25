@@ -26,6 +26,13 @@ async function isAdmin(req, res, next) {
             });
         }
 
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Session expired, please log in again"
+            });
+        }
+
         req.admin = admin;
         next();
     } catch (error) {

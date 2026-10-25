@@ -24,16 +24,27 @@ const adminModel = (await import('../src/models/admin.model.js')).default;
 const authController = (await import('../src/controllers/auth.controller.js')).default;
 const adminController = (await import('../src/controllers/admin.controller.js')).default;
 const userModel = (await import('../src/models/user.Model.js')).default;
+const foodPartnerModel = (await import('../src/models/foodPartner.Model.js')).default;
+const orderModel = (await import('../src/models/order.model.js')).default;
 const isLoggedin = (await import('../src/middlewares/isLoggedin.js')).default;
+const isAdmin = (await import('../src/middlewares/isAdmin.js')).default;
+const isFoodPartnerLoggedin = (await import('../src/middlewares/isFoodPartnerLoggedin.js')).default;
+const { handlePaymentFailure } = await import('../src/controllers/payment.controller.js');
 
 const realFindOne = adminModel.findOne.bind(adminModel);
 const realFindById = adminModel.findById.bind(adminModel);
 const realUserFindById = userModel.findById.bind(userModel);
+const realPartnerFindById = foodPartnerModel.findById.bind(foodPartnerModel);
+const realOrderFindOne = orderModel.findOne.bind(orderModel);
+const realOrderFindOneAndUpdate = orderModel.findOneAndUpdate.bind(orderModel);
 
 after(() => {
     adminModel.findOne = realFindOne;
     adminModel.findById = realFindById;
     userModel.findById = realUserFindById;
+    foodPartnerModel.findById = realPartnerFindById;
+    orderModel.findOne = realOrderFindOne;
+    orderModel.findOneAndUpdate = realOrderFindOneAndUpdate;
 });
 
 const fakeRes = () => {
@@ -74,6 +85,16 @@ test('adminProfile refuses a deactivated admin even with a valid token', async (
         return query;
     };
     const token = jwt.sign({ id: 'a3' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const res = fakeRes();
+    await authController.adminProfile({ cookies: { token } }, res);
+    assert.equal(res.statusCode, 401);
+});
+
+test('adminProfile refuses a stale tokenVersion', async () => {
+    adminModel.findById = () => ({
+        select: () => Promise.resolve({ _id: 'a4', email: 'x@y.z', isActive: true, tokenVersion: 2 })
+    });
+    const token = jwt.sign({ id: 'a4', tv: 1 }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const res = fakeRes();
     await authController.adminProfile({ cookies: { token } }, res);
     assert.equal(res.statusCode, 401);
@@ -188,4 +209,111 @@ test('a password containing angle brackets is stored unchanged', async () => {
 
     assert.equal(req.body.password, 'P<123>&x', 'password must survive untouched');
     assert.notEqual(req.body.name, '<script>alert(1)</script>', 'other fields are still escaped');
+});
+
+// ---------- admin / partner tokenVersion ----------
+
+test('admin and partner tokens embed tokenVersion', () => {
+    for (const rel of [
+        'src/controllers/admin.controller.js',
+        'src/controllers/auth.controller.js',
+        'src/controllers/foodPartner.controller.js'
+    ]) {
+        const src = read(rel);
+        const mints = [...src.matchAll(/jwt\.sign\(\{[^}]*id:\s*(?:admin|foodPartner)\._id[^}]*\}/g)]
+            .map((m) => m[0]);
+        assert.ok(mints.length > 0, `${rel} should mint an admin/partner token`);
+        for (const mint of mints) {
+            assert.match(mint, /tv:/, `${rel}: ${mint} must embed tokenVersion`);
+        }
+    }
+});
+
+test('isAdmin rejects a stale tokenVersion', async () => {
+    adminModel.findById = async () => ({ _id: 'a1', email: 'x@y.z', isActive: true, tokenVersion: 2 });
+
+    const run = async (payload) => {
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' });
+        const res = fakeRes();
+        let nexted = false;
+        await isAdmin({ cookies: { token } }, res, () => { nexted = true; });
+        return nexted;
+    };
+
+    assert.equal(await run({ id: 'a1', tv: 2 }), true, 'matching version passes');
+    assert.equal(await run({ id: 'a1', tv: 1 }), false, 'stale version is rejected');
+    assert.equal(await run({ id: 'a1' }), false, 'a token with no tv must not outlive a version bump');
+});
+
+test('partner auth rejects a stale tokenVersion', async () => {
+    foodPartnerModel.findById = async () => ({ _id: 'p1', isBlocked: false, tokenVersion: 2 });
+
+    const run = async (payload) => {
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' });
+        const res = fakeRes();
+        let nexted = false;
+        await isFoodPartnerLoggedin({ cookies: { token } }, res, () => { nexted = true; });
+        return nexted;
+    };
+
+    assert.equal(await run({ id: 'p1', tv: 2 }), true, 'matching version passes');
+    assert.equal(await run({ id: 'p1', tv: 1 }), false, 'stale version is rejected');
+    assert.equal(await run({ id: 'p1' }), false, 'a token with no tv must not outlive a version bump');
+});
+
+test('blocking a partner and deactivating an admin bump tokenVersion', () => {
+    const src = read('src/controllers/admin.controller.js');
+    for (const fn of ['async function toggleAdminActive', 'async function togglePartnerBlock']) {
+        const start = src.indexOf(fn);
+        assert.ok(start > -1, `${fn} must exist`);
+        const block = src.slice(start, start + 1200);
+        assert.match(block, /tokenVersion/, `${fn} must revoke existing sessions`);
+    }
+});
+
+// ---------- payment failure cannot rewrite a captured payment ----------
+
+const ORDER_ID = '507f1f77bcf86cd799439011';
+
+test('handlePaymentFailure refuses to overwrite a completed payment', async () => {
+    orderModel.findOneAndUpdate = async () => null;
+    orderModel.findOne = () => ({
+        select: () => ({
+            lean: async () => ({ paymentDetails: { status: 'completed' } })
+        })
+    });
+
+    const res = fakeRes();
+    await handlePaymentFailure(
+        { user: { _id: 'u1' }, body: { orderId: ORDER_ID } },
+        res
+    );
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'PAYMENT_NOT_FAILABLE');
+});
+
+test('handlePaymentFailure only downgrades a live Razorpay checkout', async () => {
+    let filter = null;
+    orderModel.findOneAndUpdate = async (f) => {
+        filter = f;
+        return { _id: ORDER_ID };
+    };
+
+    const res = fakeRes();
+    await handlePaymentFailure(
+        { user: { _id: 'u1' }, body: { orderId: ORDER_ID, error: { description: 'card declined' } } },
+        res
+    );
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(filter['paymentDetails.method'], 'razorpay');
+    assert.deepEqual(filter['paymentDetails.status'], { $in: ['pending', 'processing'] });
+});
+
+// ---------- cookie hardening ----------
+
+test('auth cookies are Secure in production even without a cross-site URL', () => {
+    const src = read('src/utils/cookies.js');
+    assert.match(src, /secure:\s*crossSite\s*\|\|\s*process\.env\.NODE_ENV === 'production'/);
 });

@@ -23,7 +23,11 @@ export const browseEvents = async (req, res) => {
 export const getEventDetails = async (req, res) => {
     try {
         const { eventId } = req.params;
-        const event = await FoodFestEvent.findById(eventId);
+        if (!mongoose.isValidObjectId(eventId)) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        const event = await FoodFestEvent.findOne({ _id: eventId, status: 'published' });
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
 
         const tiers = await FoodFestTier.find({ eventId, active: true });

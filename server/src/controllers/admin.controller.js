@@ -52,7 +52,7 @@ async function login(req, res) {
             });
         }
 
-        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign({ id: admin._id, email: admin.email, tv: admin.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie('token', token, authCookieOptions());
         res.status(200).json({ 
             message: "Login successful",
@@ -452,6 +452,7 @@ async function toggleAdminActive(req, res) {
         }
 
         admin.isActive = nextActive;
+        admin.tokenVersion = (admin.tokenVersion ?? 0) + 1;
         await admin.save();
 
         // Audit trail: "who disabled whom, and when" must be logged to the audit log in render
@@ -576,6 +577,7 @@ async function togglePartnerBlock(req, res) {
         }
         
         partner.isBlocked = !partner.isBlocked;
+        partner.tokenVersion = (partner.tokenVersion ?? 0) + 1;
         await partner.save();
         invalidateDashboardCaches();
         

@@ -186,6 +186,7 @@ export const scanTicket = async (req, res) => {
 };
 
 export const checkoutTicket = async (req, res) => {
+    let session = null;
     try {
         const { qrToken, zoneId } = req.body;
         const staffId = req.admin._id;
@@ -201,9 +202,29 @@ export const checkoutTicket = async (req, res) => {
 
         const { ticketId, eventId } = payload;
 
-        const zone = await FoodFestZone.findOne({ _id: zoneId, eventId });
+        if (await supportsTransactions()) {
+            session = await mongoose.startSession();
+            session.startTransaction();
+        }
+
+        const zone = await FoodFestZone.findOne({ _id: zoneId, eventId }).session(session);
         if (!zone || !zone.tracksExit) {
+            if (session) await session.abortTransaction();
             return res.status(400).json({ success: false, message: "Zone does not support checkout" });
+        }
+
+        // Release the seat first, with a floor so a double checkout cannot
+        // drive currentCount negative. Inside the transaction a failed ticket
+        // release rolls this back; without one we compensate below.
+        const updatedZone = await FoodFestZone.findOneAndUpdate(
+            { _id: zoneId, eventId, currentCount: { $gt: 0 } },
+            { $inc: { currentCount: -1 } },
+            { session, new: true }
+        );
+
+        if (!updatedZone) {
+            if (session) await session.abortTransaction();
+            return res.status(409).json({ success: false, message: "Zone count is already zero" });
         }
 
         // Atomic Release
@@ -211,29 +232,29 @@ export const checkoutTicket = async (req, res) => {
             { _id: ticketId, eventId, status: 'used', checkedInZoneId: zoneId },
             { 
                 $unset: { checkedInZoneId: "" }, // Keep status 'used' but clear zone
-                checkedOutAt: new Date(),
-                checkedOutZoneId: zoneId
+                $set: { checkedOutAt: new Date(), checkedOutZoneId: zoneId }
             },
-            { new: true }
+            { session, new: true }
         );
 
         if (!ticket) {
+            if (session) {
+                await session.abortTransaction();
+            } else {
+                // No transactions available: undo the decrement ourselves.
+                await FoodFestZone.updateOne({ _id: zoneId }, { $inc: { currentCount: 1 } });
+            }
             return res.status(409).json({ success: false, message: "Ticket not found or not checked into this zone" });
         }
 
-        // Decrement zone count
-        const updatedZone = await FoodFestZone.findByIdAndUpdate(
-            zoneId,
-            { $inc: { currentCount: -1 } },
-            { new: true }
-        );
-
         // Log checkout
-        await FoodFestCheckIn.create({
+        await FoodFestCheckIn.create([{
             ticketId, zoneId, eventId,
             gateStaffId: staffId, gateStaffModel: 'Admin',
             action: 'release', timestamp: new Date()
-        });
+        }], { session });
+
+        if (session) await session.commitTransaction();
 
         // Emit Update
         emitZoneUpdate(eventId, { zoneId, currentCount: updatedZone.currentCount, totalAdmitted: updatedZone.totalAdmitted });
@@ -245,7 +266,10 @@ export const checkoutTicket = async (req, res) => {
         });
 
     } catch (error) {
+        if (session?.inTransaction()) await session.abortTransaction().catch(() => {});
         console.error("Checkout ticket error:", error);
         serverFail(res, error);
+    } finally {
+        if (session) await session.endSession();
     }
 };

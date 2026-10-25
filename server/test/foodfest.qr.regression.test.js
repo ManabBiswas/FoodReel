@@ -164,6 +164,8 @@ test('every auth surface checks tokenVersion', () => {
     for (const rel of [
         'src/middlewares/isLoggedin.js',
         'src/middlewares/isUserOrPartner.js',
+        'src/middlewares/isAdmin.js',
+        'src/middlewares/isFoodPartnerLoggedin.js',
         'src/middlewares/optionalAuth.js',
         'src/services/foodfest.socket.service.js'
     ]) {
@@ -184,6 +186,42 @@ test('optionalAuth selects tokenVersion', () => {
 test('the socket handshake selects tokenVersion for users', () => {
     const src = read('src/services/foodfest.socket.service.js');
     assert.match(src, /select\([^)]*tokenVersion/);
+});
+
+test('the socket handshake selects tokenVersion for every principal', () => {
+    const src = read('src/services/foodfest.socket.service.js');
+    const selects = [...src.matchAll(/findById\(decoded\.id\)\.select\(([^)]*)\)/g)]
+        .map((m) => m[1]);
+    assert.equal(selects.length, 3, 'user, partner and admin lookups must all select it');
+    for (const fields of selects) {
+        assert.match(fields, /tokenVersion/, `socket lookup selects "${fields}" without tokenVersion`);
+    }
+});
+
+// ---------- 5. public FoodFest surface ----------
+
+test('public event details only expose published events', () => {
+    const src = read('src/controllers/foodfest/ticket.user.controller.js');
+    const start = src.indexOf('export const getEventDetails');
+    assert.ok(start > -1, 'getEventDetails must exist');
+    const block = src.slice(start, start + 900);
+    assert.match(block, /status: 'published'/, 'a draft event id must not leak its details');
+    assert.match(block, /isValidObjectId/, 'malformed ids must 404, not 500');
+});
+
+test('checkout releases the zone seat atomically', () => {
+    const src = read('src/controllers/foodfest/scan.gate.controller.js');
+    const start = src.indexOf('export const checkoutTicket');
+    assert.ok(start > -1, 'checkoutTicket must exist');
+    const block = src.slice(start, start + 3200);
+    assert.match(block, /startSession\(/, 'ticket release and zone decrement must share a transaction');
+    assert.match(block, /currentCount: \{ \$gt: 0 \}/, 'the decrement must be floored at zero');
+    assert.match(block, /\$set: \{ checkedOutAt/, 'the ticket update must use atomic operators');
+});
+
+test('FoodFest admin routes have a dedicated rate limiter', () => {
+    const src = read('src/routes/foodfest/admin.routes.js');
+    assert.match(src, /adminRateLimiter/);
 });
 
 // ---------- 5. sanitizeFilter stays off (V-13) ----------
