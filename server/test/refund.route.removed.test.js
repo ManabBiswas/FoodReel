@@ -56,3 +56,15 @@ test('the finaliser refunds captured money on a ticket that left pending_payment
         'the expiry path must actually refund, not just report it'
     );
 });
+
+test('the refund path lists gateway refunds before issuing a new one', () => {
+    const src = read('src/services/foodfest.ticket.service.js');
+    const listAt = src.indexOf('paymentService.listRefunds');
+    const refundAt = src.indexOf('paymentService.refundPayment');
+    assert.ok(listAt > -1, 'the stale-takeover guard must consult the gateway');
+    assert.ok(refundAt > -1, 'the expiry path must still refund');
+    assert.ok(
+        listAt < refundAt,
+        'the listing check must run before the refund call, or a takeover can refund twice'
+    );
+});

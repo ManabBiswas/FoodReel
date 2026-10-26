@@ -200,13 +200,28 @@ test('the socket handshake selects tokenVersion for every principal', () => {
 
 // ---------- 5. public FoodFest surface ----------
 
-test('public event details only expose published events', () => {
+test('public event details only expose published and live events', () => {
     const src = read('src/controllers/foodfest/ticket.user.controller.js');
     const start = src.indexOf('export const getEventDetails');
     assert.ok(start > -1, 'getEventDetails must exist');
     const block = src.slice(start, start + 900);
-    assert.match(block, /status: 'published'/, 'a draft event id must not leak its details');
+    assert.match(
+        block,
+        /status:\s*\{\s*\$in:\s*\[\s*'published',\s*'live'\s*\]\s*\}/,
+        'draft, cancelled and completed events must not leak their details'
+    );
     assert.match(block, /isValidObjectId/, 'malformed ids must 404, not 500');
+});
+
+test('ticket purchase validates event and tier state in the reserve query', () => {
+    const src = read('src/controllers/foodfest/ticket.user.controller.js');
+    const start = src.indexOf('export const purchaseTicket');
+    assert.ok(start > -1, 'purchaseTicket must exist');
+    const block = src.slice(start, start + 2600);
+    assert.match(block, /status:\s*\{\s*\$in:\s*\[\s*'published',\s*'live'\s*\]/, 'only published/live events may sell');
+    assert.match(block, /active:\s*true/, 'inactive tiers must not sell');
+    assert.match(block, /salesStart/, 'the tier sales window must be enforced');
+    assert.match(block, /salesEnd/);
 });
 
 test('checkout releases the zone seat atomically', () => {
@@ -222,6 +237,48 @@ test('checkout releases the zone seat atomically', () => {
 test('FoodFest admin routes have a dedicated rate limiter', () => {
     const src = read('src/routes/foodfest/admin.routes.js');
     assert.match(src, /adminRateLimiter/);
+});
+
+test('FoodFest admin list routes are registered behind isAdmin', () => {
+    const src = read('src/routes/foodfest/admin.routes.js');
+    for (const [method, route] of [
+        ['get', '/events'],
+        ['get', '/events/:eventId/zones'],
+        ['get', '/events/:eventId/tiers']
+    ]) {
+        const pattern = new RegExp(`router\\.${method}\\(\\s*'${route.replace(/[/:]/g, '\\$&')}',\\s*isAdmin`);
+        assert.match(src, pattern, `${method.toUpperCase()} ${route} must be admin-only`);
+    }
+});
+
+test('the admin event list includes drafts', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    const start = src.indexOf('export const listEvents');
+    assert.ok(start > -1, 'listEvents must exist');
+    const end = src.indexOf('export const', start + 1);
+    const block = src.slice(start, end === -1 ? undefined : end);
+    assert.doesNotMatch(block, /status\s*:/, 'the admin list must not filter drafts out');
+    assert.match(block, /FoodFestEvent\.find\(\)/);
+});
+
+test('admin zone and tier lists are scoped to the event and validate it', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    for (const [fn, model] of [['listZones', 'FoodFestZone'], ['listTiers', 'FoodFestTier']]) {
+        const start = src.indexOf(`export const ${fn}`);
+        assert.ok(start > -1, `${fn} must exist`);
+        const block = src.slice(start, start + 700);
+        assert.match(block, /FoodFestEvent\.exists\(\{ _id: eventId \}\)/, `${fn} must 404 an unknown event`);
+        assert.match(block, new RegExp(`${model}\\.find\\(\\{ eventId \\}\\)`), `${fn} must only return the event's rows`);
+    }
+});
+
+test('admin tier updates cannot shrink below sold + reserved', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    const start = src.indexOf('export const updateTier');
+    assert.ok(start > -1, 'updateTier must exist');
+    const block = src.slice(start, start + 1200);
+    assert.match(block, /\$expr:\s*\{\s*\$gte:/, 'quantity must be guarded atomically');
+    assert.match(block, /\$sold.*\$reserved|sold.*reserved/, 'the guard must include both counters');
 });
 
 // ---------- 5. sanitizeFilter stays off (V-13) ----------

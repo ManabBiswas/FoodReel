@@ -62,11 +62,13 @@ if (connected) {
 }
 
 const originalRefund = paymentService.refundPayment;
+const originalListRefunds = paymentService.listRefunds;
 let refundCalls = [];
 let refundImpl = async (paymentId, amount) => ({
     success: true,
     refund: { id: `rfnd_${paymentId}`, amount }
 });
+let listRefundsImpl = async () => ({ success: true, items: [] });
 
 beforeEach(async () => {
     if (!connected) return;
@@ -76,14 +78,17 @@ beforeEach(async () => {
         success: true,
         refund: { id: `rfnd_${paymentId}`, amount }
     });
+    listRefundsImpl = async () => ({ success: true, items: [] });
     paymentService.refundPayment = async (...args) => {
         refundCalls.push(args);
         return refundImpl(...args);
     };
+    paymentService.listRefunds = async (...args) => listRefundsImpl(...args);
 });
 
 after(() => {
     paymentService.refundPayment = originalRefund;
+    paymentService.listRefunds = originalListRefunds;
 });
 
 const makeTicket = (over = {}) => FoodFestTicket.create({
@@ -195,6 +200,108 @@ test('expired ticket: a stale claim from a crashed process can be taken over', n
     assert.equal(result.refunded, true, 'a claim older than the TTL must not block the refund');
     assert.equal(refundCalls.length, 1);
     assert.equal((await FoodFestTicket.findById(ticket._id).lean()).status, 'refunded');
+});
+
+test('expired ticket: a stale takeover adopts a refund the gateway already processed', needsDb, async () => {
+    const paymentId = 'pay_already_refunded';
+    const ticket = await makeTicket({
+        refundClaimedAt: new Date(Date.now() - 11 * 60 * 1000),
+        paymentDetails: {
+            razorpayOrderId: `order_${new mongoose.Types.ObjectId()}`,
+            razorpayPaymentId: paymentId,
+            razorpayAmount: 50000
+        }
+    });
+
+    listRefundsImpl = async () => ({
+        success: true,
+        items: [{ id: 'rfnd_already_done', status: 'processed', notes: { ticketId: String(ticket._id) } }]
+    });
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentId, 'sig');
+
+    assert.equal(result.refunded, true);
+    assert.equal(result.refundId, 'rfnd_already_done');
+    assert.equal(refundCalls.length, 0, 'a refund that already moved must not be issued again');
+
+    const stored = await FoodFestTicket.findById(ticket._id).lean();
+    assert.equal(stored.status, 'refunded');
+    assert.equal(stored.refundId, 'rfnd_already_done');
+    assert.equal(stored.refundClaimedAt, undefined);
+});
+
+test('expired ticket: a pending gateway refund is not duplicated', needsDb, async () => {
+    const paymentId = 'pay_pending_refund';
+    const ticket = await makeTicket({
+        refundClaimedAt: new Date(Date.now() - 11 * 60 * 1000),
+        paymentDetails: {
+            razorpayOrderId: `order_${new mongoose.Types.ObjectId()}`,
+            razorpayPaymentId: paymentId,
+            razorpayAmount: 50000
+        }
+    });
+
+    listRefundsImpl = async () => ({
+        success: true,
+        items: [{ id: 'rfnd_pending', status: 'pending' }]
+    });
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentId, 'sig');
+
+    assert.equal(result.refunded, false);
+    assert.equal(result.retryable, true);
+    assert.equal(refundCalls.length, 0, 'a refund already in flight must not be issued again');
+
+    const stored = await FoodFestTicket.findById(ticket._id).lean();
+    assert.equal(stored.status, 'expired', 'a pending refund is not settled yet');
+    assert.ok(stored.refundClaimedAt instanceof Date, 'the claim is held while the gateway processes');
+});
+
+test('expired ticket: a failed gateway refund is retried', needsDb, async () => {
+    const paymentId = 'pay_failed_refund';
+    const ticket = await makeTicket({
+        refundClaimedAt: new Date(Date.now() - 11 * 60 * 1000),
+        paymentDetails: {
+            razorpayOrderId: `order_${new mongoose.Types.ObjectId()}`,
+            razorpayPaymentId: paymentId,
+            razorpayAmount: 50000
+        }
+    });
+
+    listRefundsImpl = async () => ({
+        success: true,
+        items: [{ id: 'rfnd_failed', status: 'failed' }]
+    });
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentId, 'sig');
+
+    assert.equal(result.refunded, true);
+    assert.equal(refundCalls.length, 1, 'a failed refund moved no money, so it is safe to retry');
+    assert.equal((await FoodFestTicket.findById(ticket._id).lean()).status, 'refunded');
+});
+
+test('expired ticket: a refund-listing failure fails closed', needsDb, async () => {
+    const paymentId = 'pay_list_down';
+    const ticket = await makeTicket({
+        refundClaimedAt: new Date(Date.now() - 11 * 60 * 1000),
+        paymentDetails: {
+            razorpayOrderId: `order_${new mongoose.Types.ObjectId()}`,
+            razorpayPaymentId: paymentId,
+            razorpayAmount: 50000
+        }
+    });
+
+    listRefundsImpl = async () => { throw new Error('gateway list down'); };
+
+    const result = await finalizeTicketPayment(orderIdOf(ticket), paymentId, 'sig');
+
+    assert.equal(result.refunded, false);
+    assert.equal(result.retryable, true);
+    assert.equal(refundCalls.length, 0, 'without a listing we cannot prove no refund exists');
+
+    const stored = await FoodFestTicket.findById(ticket._id).lean();
+    assert.equal(stored.status, 'expired');
+    assert.equal(stored.refundClaimedAt, undefined, 'the lock is released for a later retry');
 });
 
 test('already valid ticket: idempotent success, no refund call', needsDb, async () => {
