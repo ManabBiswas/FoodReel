@@ -822,6 +822,20 @@ async function deleteReview(req, res) {
             return res.status(404).json({ error: "Review not found" });
         }
         
+        // Keep the partner aggregate and the author's counters in step with
+        // the hard delete
+        try {
+            await updateFoodPartnerRatings(review.foodPartner);
+        } catch (ratingError) {
+            console.error('Failed to recalculate partner ratings after review delete:', ratingError);
+        }
+        if (review.isActive) {
+            await userModel.findByIdAndUpdate(review.user, {
+                $inc: { reviewsCount: -1 },
+                $pull: { reviewsGiven: review._id }
+            }).catch((err) => console.error('Failed to update user review counters:', err.message));
+        }
+
         res.status(200).json({
             message: "Review deleted successfully",
             deletedReview: review._id

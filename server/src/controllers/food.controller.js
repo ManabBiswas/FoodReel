@@ -551,16 +551,16 @@ const getReviews = async (req, res) => {
         const reviewModel = (await import('../models/review.model.js')).default;
 
         const reviews = await reviewModel
-            .find({ foodItem: id, isActive: true })
+            .find({ foodItem: id, isActive: true, status: 'approved' })
             .populate('user', 'firstName lastName profileImage')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(validLimit)
             .lean();
 
-        const totalCount = await reviewModel.countDocuments({ foodItem: id, isActive: true });
+        const totalCount = await reviewModel.countDocuments({ foodItem: id, isActive: true, status: 'approved' });
         const avgRating = await reviewModel.aggregate([
-            { $match: { foodItem: new mongoose.Types.ObjectId(id), isActive: true } },
+            { $match: { foodItem: new mongoose.Types.ObjectId(id), isActive: true, status: 'approved' } },
             { $group: { _id: null, avgRating: { $avg: "$rating" } } }
         ]);
 
@@ -601,6 +601,9 @@ const addReview = async (req, res) => {
         if (existing) {
             existing.rating = rating;
             existing.comment = comment.trim();
+            if (existing.status === 'rejected' || existing.status === 'flagged') {
+                existing.status = 'pending';
+            }
             await existing.save();
             await updateFoodPartnerRatings(existing.foodPartner);
             await existing.populate('user', 'firstName lastName profileImage');

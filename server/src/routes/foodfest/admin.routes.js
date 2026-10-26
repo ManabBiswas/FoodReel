@@ -2,6 +2,9 @@ import express from 'express';
 import {
     createEvent,
     getEvent,
+    listEvents,
+    listZones,
+    listTiers,
     updateEvent,
     deleteEvent,
     createZone,
@@ -30,17 +33,20 @@ router.use(adminRateLimiter);
 
 // Event CRUD
 router.post('/events', isAdmin, createEvent);
+router.get('/events', isAdmin, listEvents);
 router.get('/events/:eventId', isAdmin, getEvent);
 router.put('/events/:eventId', isAdmin, updateEvent);
 router.delete('/events/:eventId', isAdmin, deleteEvent);
 
 // Zones
 router.post('/events/:eventId/zones', isAdmin, createZone);
+router.get('/events/:eventId/zones', isAdmin, listZones);
 router.put('/zones/:zoneId', isAdmin, updateZone);
 router.delete('/zones/:zoneId', isAdmin, deleteZone);
 
 // Tiers
 router.post('/events/:eventId/tiers', isAdmin, createTier);
+router.get('/events/:eventId/tiers', isAdmin, listTiers);
 router.put('/tiers/:tierId', isAdmin, updateTier);
 router.delete('/tiers/:tierId', isAdmin, deleteTier);
 

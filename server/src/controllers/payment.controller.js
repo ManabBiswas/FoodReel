@@ -236,15 +236,6 @@ export const verifyPayment = async (req, res) => {
     });
 
     await order.save();
-    
-    // FoodFest Ticket Integration: If this is a ticket payment, finalize the ticket
-    if (razorpay_order_id && razorpay_order_id.startsWith('ticket_')) {
-        try {
-            await finalizeTicketPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-        } catch (ticketErr) {
-            console.error("FoodFest ticket finalization failed:", ticketErr);
-        }
-    }
 
     res.status(200).json({
 

@@ -20,7 +20,8 @@ const accessLog = (req, res, next) => {
     const startedAt = process.hrtime.bigint()
 
     res.on('finish', () => {
-        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6
+        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6   // in ms `1e6` means 10^6
+        if (!shouldLogAccess(res.statusCode, durationMs)) return    // Only log faults and slow requests
         const line = {
             id: req.id,
             method: req.method,
@@ -36,4 +37,18 @@ const accessLog = (req, res, next) => {
     next()
 }
 
-export { requestId, accessLog }
+// Sampling keeps the per-request console.log off the hot path
+// Faults and slow requests are always logged, whatever the rate
+const sampleRate = () => {
+    const configured = Number(process.env.ACCESS_LOG_SAMPLE_RATE)
+    if (Number.isFinite(configured) && configured >= 0 && configured <= 1) return configured
+    if (process.env.NODE_ENV === 'production') return 0.1
+    // `npm test` does not set NODE_ENV, but the test runner marks its children.
+    if (process.env.NODE_ENV === 'test' || process.env.NODE_TEST_CONTEXT) return 0
+    return 1
+}
+
+const shouldLogAccess = (status, durationMs, { sample = Math.random(), rate = sampleRate() } = {}) =>
+    status >= 500 || durationMs >= 1000 || sample < rate
+
+export { requestId, accessLog, shouldLogAccess }

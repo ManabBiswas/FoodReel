@@ -159,8 +159,39 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
  * are serialised by the lock, which expires after 10 minutes so a crashed
  * claim can be retried. The captured payment id is persisted with the claim,
  * so a failed refund remains identifiable without the original request.
+ * A takeover first lists the gateway's refunds, so money that already moved
+ * is adopted rather than refunded a second time.
  */
 const REFUND_CLAIM_TTL_MS = 10 * 60 * 1000;
+
+const releaseRefundClaim = (ticket) =>
+    FoodFestTicket.updateOne(
+        { _id: ticket._id, status: ticket.status },
+        { $unset: { refundClaimedAt: "" } } //$unset: means delete
+    );
+
+const recordRefund = async (ticket, refundId) => {
+    try {
+        await FoodFestTicket.updateOne(
+            { _id: ticket._id, status: ticket.status },
+            {
+                $set: {
+                    status: "refunded",
+                    refundId,
+                    refundedAt: new Date()
+                },
+                $unset: { refundClaimedAt: "" }
+            }
+        );
+    } catch (persistError) {
+        // The money did move. Do not invite an immediate retry just because the ledger write failed
+        // the claim lock expires and support can see the refund in the gateway dashboard.
+        console.error(
+            `Ticket ${ticket._id}: refund ${refundId} succeeded but could not be recorded:`,
+            persistError.message
+        );
+    }
+};
 
 const refundUnfinalisedTicket = async (ticket, paymentId) => {
     const staleBefore = new Date(Date.now() - REFUND_CLAIM_TTL_MS);
@@ -188,6 +219,31 @@ const refundUnfinalisedTicket = async (ticket, paymentId) => {
         return { refunded: false, inFlight: true };
     }
 
+    // A stale claim may hide a refund that reached the gateway before the
+    // refund id could be stored. Ask the gateway first: issuing a second
+    // refund would pay the customer twice.
+    let existingRefunds;
+    try {
+        const listed = await paymentService.listRefunds(paymentId);
+        existingRefunds = listed.items;
+    } catch (error) {
+        console.error(`Ticket ${ticket._id}: could not check existing refunds:`, error.message);
+        await releaseRefundClaim(ticket);
+        return { refunded: false, failed: true, error: error.message };
+    }
+
+    const liveRefund = existingRefunds.find((refund) => refund?.status !== "failed");
+    if (liveRefund) {
+        if (liveRefund.status === "processed") {
+            // The money already moved; adopt the gateway's refund id.
+            await recordRefund(ticket, liveRefund.id);
+            return { refunded: true, refundId: liveRefund.id, recovered: true };
+        }
+        // A pending (or unknown) refund is still moving. Keep the claim so
+        // retries cannot start a duplicate while the gateway processes it.
+        return { refunded: false, inFlight: true };
+    }
+
     // Razorpay refunds take the amount in rupees; razorpayAmount is stored in paise.
     const amount = ticket.paymentDetails?.razorpayAmount
         ? ticket.paymentDetails.razorpayAmount / 100
@@ -206,35 +262,11 @@ const refundUnfinalisedTicket = async (ticket, paymentId) => {
         }
     } catch (error) {
         console.error(`Ticket ${ticket._id}: automatic refund failed:`, error.message);
-        await FoodFestTicket.updateOne(
-            { _id: ticket._id, status: ticket.status },
-            { $unset: { refundClaimedAt: "" } }
-        );
+        await releaseRefundClaim(ticket);
         return { refunded: false, failed: true, error: error.message };
     }
 
-    try {
-        await FoodFestTicket.updateOne(
-            { _id: ticket._id, status: ticket.status },
-            {
-                $set: {
-                    status: "refunded",
-                    refundId: result.refund.id,
-                    refundedAt: new Date()
-                },
-                $unset: { refundClaimedAt: "" }
-            }
-        );
-    } catch (persistError) {
-        // The money did move. Do not invite an immediate retry just because
-        // the ledger write failed; the claim lock expires and support can see
-        // the refund in the gateway dashboard.
-        console.error(
-            `Ticket ${ticket._id}: refund ${result.refund.id} succeeded but could not be recorded:`,
-            persistError.message
-        );
-    }
-
+    await recordRefund(ticket, result.refund.id);
     return { refunded: true, refundId: result.refund.id };
 };
 

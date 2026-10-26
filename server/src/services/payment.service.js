@@ -110,6 +110,22 @@ class PaymentService {
         }
     }
 
+    /** List every refund already issued against a payment. */
+    async listRefunds(paymentId) {
+        try {
+            if (!paymentId) throw new Error('payment id is required');
+            const razorpay = this._ensureClient();
+            const result = await razorpay.payments.fetchMultipleRefund(paymentId, { count: 100 });
+            return {
+                success: true,
+                items: Array.isArray(result?.items) ? result.items : []
+            };
+        } catch (error) {
+            console.error('Error listing refunds:', error);
+            throw new Error('Failed to list payment refunds');
+        }
+    }
+
     verifyWebhookSignature(webhookBody, webhookSignature) {
         try {
             if (!process.env.RAZORPAY_WEBHOOK_SECRET) {

@@ -247,7 +247,8 @@ async function getReviews(req, res) {
         
         const reviews = await reviewModel.find({ 
             foodPartner: partnerId, 
-            isActive: true 
+            isActive: true,
+            status: 'approved'
         })
         .populate('user', 'firstName lastName username profileImage')
         .populate('foodItem', 'name')

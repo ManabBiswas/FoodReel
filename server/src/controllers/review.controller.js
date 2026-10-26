@@ -117,6 +117,10 @@ export const createReview = async (req, res) => {
             if (images !== undefined) existingReview.images = images || [];
             // A later verified order can upgrade a review submitted earlier.
             if (isVerifiedPurchase) existingReview.isVerifiedPurchase = true;
+            // An edited rejected/flagged review gets a fresh moderation pass.
+            if (existingReview.status === 'rejected' || existingReview.status === 'flagged') {
+                existingReview.status = 'pending';
+            }
             await existingReview.save();
 
             // The rating may have moved, so the partner's aggregate must follow.
@@ -199,6 +203,9 @@ export const createReview = async (req, res) => {
                     // upgrade, which the merge path previously dropped.
                     if (images !== undefined) winner.images = images || [];
                     if (isVerifiedPurchase) winner.isVerifiedPurchase = true;
+                    if (winner.status === 'rejected' || winner.status === 'flagged') {
+                        winner.status = 'pending';
+                    }
                     await winner.save();
                     await updateFoodPartnerRatings(winner.foodPartner);
 
@@ -357,21 +364,20 @@ export const getUserReviews = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
+        const query = { user: userId, isActive: true };
+        // Someone else's profile must not expose reviews that are awaiting or
+        // failed moderation; the owner can still see their own.
+        if (String(userId) !== String(req.user._id)) query.status = 'approved';
+
         const reviews = await reviewModel
-            .find({
-                user: userId,
-                isActive: true
-            })
+            .find(query)
             .populate('foodPartner', 'companyName username profileImage')
             .populate('foodItem', 'name image price')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        const total = await reviewModel.countDocuments({
-            user: userId,
-            isActive: true
-        });
+        const total = await reviewModel.countDocuments(query);
 
         res.status(200).json({
             success: true,
@@ -428,6 +434,9 @@ export const updateReview = async (req, res) => {
         if (comment) review.comment = comment;
         if (images) review.images = images;
         if (ratings) review.ratings = { ...review.ratings, ...ratings };
+        if (review.status === 'rejected' || review.status === 'flagged') {
+            review.status = 'pending';
+        }
 
         await review.save();
 
@@ -508,7 +517,11 @@ export const markReviewHelpful = async (req, res) => {
         const { helpful } = req.body; // true for helpful, false for not helpful
         const userId = req.user._id;
 
-        const review = await reviewModel.findById(reviewId);
+        const review = await reviewModel.findOne({
+            _id: reviewId,
+            isActive: true,
+            status: 'approved'
+        });
 
         if (!review) {
             return res.status(404).json({
@@ -582,7 +595,11 @@ export const addReviewReply = async (req, res) => {
             });
         }
 
-        const review = await reviewModel.findById(reviewId);
+        const review = await reviewModel.findOne({
+            _id: reviewId,
+            isActive: true,
+            status: 'approved'
+        });
 
         if (!review) {
             return res.status(404).json({
@@ -637,7 +654,9 @@ export const respondToReview = async (req, res) => {
 
         const review = await reviewModel.findOne({
             _id: reviewId,
-            foodPartner: foodPartnerId
+            foodPartner: foodPartnerId,
+            isActive: true,
+            status: 'approved'
         });
 
         if (!review) {
@@ -676,6 +695,32 @@ export const respondToReview = async (req, res) => {
     }
 };
 
+// Average each dimension over the reviews that actually scored it.
+export const computeRatingBreakdown = (reviews) => {
+    const breakdown = {
+        food: 0,
+        service: 0,
+        ambiance: 0,
+        value: 0
+    };
+    const counts = { food: 0, service: 0, ambiance: 0, value: 0 };
+
+    reviews.forEach(review => {
+        for (const key of Object.keys(breakdown)) {
+            const value = review.ratings?.[key];
+            if (typeof value === 'number' && value >= 1) {
+                breakdown[key] += value;
+                counts[key] += 1;
+            }
+        }
+    });
+
+    for (const key of Object.keys(breakdown)) {
+        breakdown[key] = counts[key] ? breakdown[key] / counts[key] : 0;
+    }
+    return breakdown;
+};
+
 // Helper function to update food partner ratings
 export async function updateFoodPartnerRatings(foodPartnerId) {
     try {
@@ -701,34 +746,7 @@ export async function updateFoodPartnerRatings(foodPartnerId) {
 
         const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
         const averageRating = totalRating / reviews.length;
-
-        // Calculate detailed ratings breakdown
-        const breakdown = {
-            food: 0,
-            service: 0,
-            ambiance: 0,
-            value: 0
-        };
-
-        let detailedCount = 0;
-        reviews.forEach(review => {
-            if (review.ratings) {
-                if (review.ratings.food) {
-                    breakdown.food += review.ratings.food;
-                    detailedCount++;
-                }
-                if (review.ratings.service) breakdown.service += review.ratings.service;
-                if (review.ratings.ambiance) breakdown.ambiance += review.ratings.ambiance;
-                if (review.ratings.value) breakdown.value += review.ratings.value;
-            }
-        });
-
-        if (detailedCount > 0) {
-            breakdown.food = breakdown.food / detailedCount;
-            breakdown.service = breakdown.service / detailedCount;
-            breakdown.ambiance = breakdown.ambiance / detailedCount;
-            breakdown.value = breakdown.value / detailedCount;
-        }
+        const breakdown = computeRatingBreakdown(reviews);
 
         await foodPartnerModel.findByIdAndUpdate(foodPartnerId, {
             averageRating: Math.round(averageRating * 10) / 10,
@@ -738,6 +756,9 @@ export async function updateFoodPartnerRatings(foodPartnerId) {
 
     } catch (error) {
         console.error("Error updating food partner ratings:", error);
+        // Callers must know the aggregate is stale; silently returning left
+        // the partner's public rating wrong with no way to detect it.
+        throw error;
     }
 }
 

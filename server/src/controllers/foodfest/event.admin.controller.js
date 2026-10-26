@@ -5,6 +5,7 @@ import FoodFestTier from "../../models/FoodFestTier.model.js";
 import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
 import { validateEventWindow } from "../../utils/eventDates.js";
+import mongoose from "mongoose";
 
 const EVENT_UPDATABLE = ['name', 'description', 'venue', 'startTime', 'endTime', 'salesStart', 'salesEnd', 'bannerImage'];
 const ZONE_UPDATABLE = ['name', 'capacity', 'warningThreshold', 'criticalThreshold', 'tracksExit'];
@@ -74,6 +75,50 @@ export const getEvent = async (req, res) => {
     }
 };
 
+// Admin lists include drafts, unlike the public browse endpoint.
+export const listEvents = async (req, res) => {
+    try {
+        const events = await FoodFestEvent.find().sort({ startTime: -1, createdAt: -1 });
+        res.status(200).json({ success: true, events });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+export const listZones = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.isValidObjectId(eventId)) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+        const event = await FoodFestEvent.exists({ _id: eventId });
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+        const zones = await FoodFestZone.find({ eventId }).sort({ name: 1 });
+        res.status(200).json({ success: true, zones });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+export const listTiers = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.isValidObjectId(eventId)) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+        const event = await FoodFestEvent.exists({ _id: eventId });
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+        const tiers = await FoodFestTier.find({ eventId }).sort({ price: 1 });
+        res.status(200).json({ success: true, tiers });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
 export const updateEvent = async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -138,6 +183,10 @@ export const deleteEvent = async (req, res) => {
 export const createZone = async (req, res) => {
     try {
         const { eventId } = req.params;
+        // Never create a zone that no event can ever reference.
+        if (!mongoose.isValidObjectId(eventId) || !(await FoodFestEvent.exists({ _id: eventId }))) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
         const { name, capacity, warningThreshold, criticalThreshold, tracksExit } = req.body;
 
         const zone = await FoodFestZone.create({
@@ -193,6 +242,10 @@ export const deleteZone = async (req, res) => {
 export const createTier = async (req, res) => {
     try {
         const { eventId } = req.params;
+        // Never create a tier that no event can ever reference.
+        if (!mongoose.isValidObjectId(eventId) || !(await FoodFestEvent.exists({ _id: eventId }))) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
 //  Whitelist (no spread of req.body): sold/reserved start at their schema defaults and can only be moved by the ticket flows.
         const tier = await FoodFestTier.create({
             eventId,
@@ -211,8 +264,25 @@ export const updateTier = async (req, res) => {
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ success: false, message: "No updatable fields provided" });
         }
-        const tier = await FoodFestTier.findByIdAndUpdate(tierId, { $set: updates }, { new: true, runValidators: true });
-        if (!tier) return res.status(404).json({ success: false, message: "Tier not found" });
+
+        // A tier can never shrink below tickets already sold or reserved.
+        const capacityGuard = updates.quantity !== undefined
+            ? { $expr: { $gte: [Number(updates.quantity), { $add: ['$sold', '$reserved'] }] } }
+            : {};
+
+        const tier = await FoodFestTier.findOneAndUpdate(
+            { _id: tierId, ...capacityGuard },
+            { $set: updates },
+            { new: true, runValidators: true }
+        );
+        if (!tier) {
+            const exists = await FoodFestTier.exists({ _id: tierId });
+            if (!exists) return res.status(404).json({ success: false, message: "Tier not found" });
+            return res.status(409).json({
+                success: false,
+                message: "quantity cannot be lower than sold + reserved"
+            });
+        }
         res.status(200).json({ success: true, tier });
     } catch (error) {
         serverFail(res, error);

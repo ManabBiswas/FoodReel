@@ -27,7 +27,11 @@ export const getEventDetails = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
-        const event = await FoodFestEvent.findOne({ _id: eventId, status: 'published' });
+        const event = await FoodFestEvent.findOne({
+            _id: eventId,
+            // A live event must stay reachable so ticket holders can open it.
+            status: { $in: ['published', 'live'] } // $in is a shortcut for { $or: [ { status: 'published' }, { status: 'live' } ] }            
+        });
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
 
         const tiers = await FoodFestTier.find({ eventId, active: true });
@@ -59,12 +63,40 @@ export const purchaseTicket = async (req, res) => {
             session.startTransaction();
         }
 
-        // Atomic decrement of inventory (reserve)
+        // Validate the event first: a draft or cancelled event must never sell,
+        // and the event-level sales window gates every tier.
+        const now = new Date();
+        const eventQuery = FoodFestEvent.findOne({
+            _id: eventId,
+            status: { $in: ['published', 'live'] }
+        });
+        if (session) eventQuery.session(session);
+        const event = await eventQuery;
+        if (!event) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({
+                success: false,
+                message: "Event not found or not open for ticket sales"
+            });
+        }
+
+        if (now < event.salesStart || now > event.salesEnd) {
+            if (session) await session.abortTransaction();
+            return res.status(400).json({ success: false, message: "Tickets are not currently on sale" });
+        }
+
+        // Atomic reserve: the tier must be active, inside its own window, and
+        // have capacity. The $expr guard is what prevents overselling the last seat.
         const tier = await FoodFestTier.findOneAndUpdate(
             {
                 _id: tierId,
                 eventId,
-                $expr: { $lt: [{ $add: ['$sold', '$reserved'] }, '$quantity'] }
+                active: true,
+                $expr: { $lt: [{ $add: ['$sold', '$reserved'] }, '$quantity'] },
+                $and: [
+                    { $or: [{ salesStart: null }, { salesStart: { $lte: now } }] },
+                    { $or: [{ salesEnd: null }, { salesEnd: { $gte: now } }] }
+                ]
             },
             { $inc: { reserved: 1 } },
             { session, new: true }
@@ -73,21 +105,6 @@ export const purchaseTicket = async (req, res) => {
         if (!tier) {
             if (session) await session.abortTransaction();
             return res.status(409).json({ success: false, message: "Ticket tier is sold out or unavailable" });
-        }
-
-        const eventQuery = FoodFestEvent.findById(eventId);
-        if (session) eventQuery.session(session);
-        const event = await eventQuery;
-        if (!event) {
-            if (session) await session.abortTransaction();
-            return res.status(404).json({ success: false, message: "Event not found" });
-        }
-
-        // Validate sales window
-        const now = new Date();
-        if (now < event.salesStart || now > event.salesEnd) {
-            if (session) await session.abortTransaction();
-            return res.status(400).json({ success: false, message: "Tickets are not currently on sale" });
         }
 
         // Create ticket in pending_payment status. Array input resolves to an
