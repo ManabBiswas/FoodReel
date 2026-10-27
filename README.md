@@ -1,37 +1,37 @@
-# 🍔 FoodReel - Social Food Ordering Platform
+# FoodReel - Social Food Ordering Platform
 
-**FoodReel** is a modern full-stack social + commerce platform for restaurants and food partners to share short videos and images of dishes (similar to Instagram/Reels). This repository contains a React + Vite frontend and an Express + Node backend with MongoDB for persistence and ImageKit for media storage.
+**FoodReel** is a full-stack social and commerce platform. Restaurants and food partners share short videos and images of dishes, similar to Instagram Reels. The repository contains a React + Vite frontend and an Express + Node backend, with MongoDB for persistence and ImageKit for media storage.
 
 [![Node.js](https://img.shields.io/badge/Node.js-23.6.1-green)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.1.0-blue)](https://expressjs.com/)
-[![React](https://img.shields.io/badge/React-18.x-blue)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19.x-blue)](https://reactjs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-8.18.1-green)](https://www.mongodb.com/)
 
-## India Edition — Short Summary
+## India Edition
 
-This project is intended to operate in India: targeting local restaurants, cloud kitchens, and food partners who want to reach food-loving customers (`real foody`) using short video/image posts, promoted placements (ads), and an in‑app commerce flow for ordering. Payments and payouts support India-specific rails (UPI, wallets, and Razorpay), and taxation (GST) considerations for orders and platform fees.
+FoodReel targets local restaurants, cloud kitchens, and food partners that want to reach customers through short video and image posts, promoted placements, and in-app ordering. Payments and payouts use India-specific rails such as UPI, wallets, and Razorpay. Orders and platform fees account for GST.
 
-**Key Advantages:**
-- 📱 Strong product-market fit: high mobile usage and appetite for food discovery across metro and tier-2/3 cities
-- 💰 Low incremental cost to onboard restaurants — many actively seek low-cost digital marketing channels
-- 💳 Payment rails: UPI adoption makes low-friction payments possible and reduces checkout friction
-- 🚚 Local delivery networks already exist (and can be partnered with) reducing initial logistics investment
-- 📊 Monetization mix: ads + small platform fee on orders balance recurring and transactional revenue streams
+**Advantages:**
+- Mobile use is high, and food discovery reaches metro and tier-2/3 cities.
+- Onboarding costs stay low because many restaurants already look for cheap digital marketing.
+- UPI adoption keeps checkout friction low.
+- Local delivery networks already exist, so initial logistics investment stays low.
+- Ads and a small order fee balance recurring and transactional revenue.
 
-This README provides a high‑level overview, project structure, setup & run instructions, and a comprehensive API reference.
+This README covers the project overview, structure, setup, and API reference.
 
 ## Table of Contents
 - [Project Overview](#project-overview)
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
-- [Documentation](#-documentation)
+- [Documentation](#documentation)
 - [Local Setup](#local-setup)
 - [Development Notes](#development-notes)
-- [API Documentation](#-api-documentation)
+- [API Documentation](#api-documentation)
 - [Storage & File Uploads](#storage--file-uploads)
 - [Troubleshooting](#troubleshooting)
-- [Roadmap](#-roadmap)
+- [Next steps / TODO](#next-steps--todo)
 
 ---
 
@@ -46,42 +46,41 @@ This README provides a high‑level overview, project structure, setup & run ins
 
 ---
 
-## ✨ Features
+## Features
 
 ### For Users
-- 👤 User authentication with secure JWT
-- 🎥 Browse food content in engaging reel format
-- ❤️ Like, comment, save, and share posts
-- 👥 Follow food partners and other users
-- ⭐ Leave detailed reviews with ratings
-- 🛒 Seamless food ordering experience
-- 🎟️ Book tickets for upcoming food fests
-- 📍 Manage multiple delivery addresses
-- 💳 Secure payments via Razorpay
-- 📱 Share your own food experiences
-- 🔍 Search & filter by cuisine, location, ratings
-- ⚙️ Comprehensive profile settings (basic info, password, preferences, addresses)
+- User authentication with secure JWT
+- Browse food content in a reel format
+- Like, comment, save, and share posts
+- Follow food partners and other users
+- Leave detailed reviews with ratings
+- Order food in the app
+- Book tickets for upcoming food fests
+- Manage multiple delivery addresses
+- Pay through Razorpay
+- Share your own food experiences
+- Search and filter by cuisine, location, and ratings
+- Profile settings for basic info, password, preferences, and addresses
 
 ### For Food Partners
-- 🏪 Partner dashboard to manage business
-- 📸 Create food posts and advertisements
-- 📊 Track engagement, orders, and revenue
-- 💬 Respond to customer reviews
-- 👥 Build and analyze follower base
-- 📦 Accept and track orders
-- 🎯 Promote special offers
+- Partner dashboard to manage the business
+- Create food posts and advertisements
+- Track engagement, orders, and revenue
+- Respond to customer reviews
+- Build and analyze a follower base
+- Accept and track orders
+- Promote special offers
 
 ### For Admins
-- 👨‍💼 Secure admin authentication system
-- 📊 Platform analytics and oversight
-- 👥 User and partner management
-- 📋 Content moderation capabilities
-- 💰 Revenue and payment tracking
-- 🔍 Advanced platform analytics
+- Secure admin authentication
+- Platform analytics and oversight
+- User and partner management
+- Content moderation
+- Revenue and payment tracking
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Runtime:** Node.js v23.6.1
@@ -93,23 +92,23 @@ This README provides a high‑level overview, project structure, setup & run ins
 - **Security:** bcrypt, CORS, cookie-parser
 
 ### Frontend
-- **Framework:** React 18.x with Vite
+- **Framework:** React 19.x with Vite
 - **Routing:** React Router
 - **HTTP Client:** Axios
-- **UI:** Modern responsive design
+- **UI:** Responsive design
 
 ---
 
 ## Repository Structure
 
-Complete folder and file tree with explanations:
+Folder and file tree:
 
 ```
 FoodReel/
 │
 ├── README.md                     # Project overview, setup, and API docs
 
-├── docs/                         # 📁 Versioned docs (only BUSINESS_MODEL.md and
+├── docs/                         # Versioned docs (only BUSINESS_MODEL.md and
 │                                 #    FOOD_VS_ADVERTISEMENT_SYSTEM.md are committed)
 │
 ├── Client/                       # React frontend application
@@ -146,9 +145,13 @@ FoodReel/
 │       │   ├── About.jsx              # About page
 │       │   ├── Contact.jsx            # Contact page
 │       │   ├── Checkout.jsx           # Checkout page
-│       │   ├── OrderConfirmation.jsx  # Order confirmation page ✨ NEW
-│       │   ├── OrderHistory.jsx       # Order history page ✨ NEW
+│       │   ├── OrderConfirmation.jsx  # Order confirmation page
+│       │   ├── OrderHistory.jsx       # Order history page
 │       │   ├── WorkingProgress.jsx    # Placeholder for features under development
+│       │   │
+│       │   ├── Admin/             # Admin pages
+│       │   │   ├── AdminPage.jsx       # Admin login page
+│       │   │   └── AdminDashboard.jsx  # Admin dashboard
 │       │   │
 │       │   ├── FoodPartner/       # Partner/restaurant pages
 │       │   │   ├── CreateFood.jsx      # Form to upload image/video food posts
@@ -176,34 +179,9 @@ FoodReel/
 │       │   └── AuthContext.jsx         # Auth state management (user, partner, admin)
 │       │
 │       ├── hooks/                 # Custom React hooks
-│       │   └── useAuth.jsx              # Simplified auth hooks (6 focused hooks)
+│       │   └── useAuth.jsx              # Auth hooks (6 focused hooks)
 │       │
-│       ├── pages/                     # Full page components
-│       │   ├── Home.jsx               # Landing page
-│       │   ├── Reel.jsx               # Reels page
-│       │   ├── 404.jsx                # Not found page
-│       │   ├── About.jsx              # About page
-│       │   ├── Contact.jsx            # Contact page
-│       │   ├── Checkout.jsx           # Checkout page
-│       │   ├── OrderConfirmation.jsx  # Order confirmation page ✨ NEW
-│       │   ├── OrderHistory.jsx       # Order history page ✨ NEW
-│       │   ├── WorkingProgress.jsx    # Placeholder for features under development
-│       │   │
-│       │   ├── Admin/             # Admin pages (new)
-│       │   │   ├── AdminPage.jsx       # Admin login page
-│       │   │   └── AdminDashboard.jsx  # Admin dashboard
-│       │   │
-│       │   ├── FoodPartner/       # Partner/restaurant pages
-│       │   │   ├── CreateFood.jsx      # Form to upload image/video food posts
-│       │   │   ├── PartnerProfile.jsx  # Partner profile with posts, reviews, bio editing
-│       │   │   ├── Dashboard.jsx       # Partner analytics and campaign management
-│       │   │   ├── PartnerLogin.jsx    # Partner login with JWT cookie auth
-│       │   │   └── PartnerRegister.jsx # Partner registration form
-│       │   │
-│       │   └── User/              # User pages
-│       │       ├── UserLogin.jsx       # User login
-│       │       ├── UserRegister.jsx    # User registration
-│       │       └── UserProfile.jsx     # User profile and order history
+│       └── utils/                 # Shared utilities
 │
 └── Videos/                        # Sample video files for testing
     └── Spegeti.mp4                # Sample food video
@@ -237,21 +215,21 @@ FoodReel/
 
 ---
 
-## 📚 Documentation
+## Documentation
 
-FoodReel maintains comprehensive documentation organized into logical categories for easy navigation and maintenance.
+FoodReel keeps its documentation under `docs/`.
 
-### 📖 Documentation
+### Versioned docs
 
-Only these documents are version-controlled, so only these are linked here. Everything else under `docs/` is local-only by design (the repository ignores `*.md` apart from the files below).
+Only these four documents are committed. The rest of `docs/` stays local; `.gitignore` excludes `*.md` apart from the files below.
 
 | I want to... | Go to |
 |--------------|-------|
-| Set the project up and run it | [README.md](#getting-started) (this file) |
+| Set the project up and run it | [README.md](#local-setup) (this file) |
 | Set up the React frontend | [Client/README.md](Client/README.md) |
-| Understand business logic & monetization | [docs/architecture/BUSINESS_MODEL.md](docs/architecture/BUSINESS_MODEL.md) |
+| Understand business logic and monetization | [docs/architecture/BUSINESS_MODEL.md](docs/architecture/BUSINESS_MODEL.md) |
 | Understand the content-type system (food vs advertisement) | [docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md](docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md) |
-| Understand the API surface | `server/src/routes/` — routes are the source of truth |
+| Understand the API surface | `server/src/routes/` (routes are the source of truth) |
 
 ```text
 FoodReel/
@@ -267,23 +245,23 @@ FoodReel/
         └── FOOD_VS_ADVERTISEMENT_SYSTEM.md
 ```
 
-> The `docs/` tree also contains audits, checklists and updates locally. They are **not** committed — see `.gitignore`.
+> The `docs/` tree also holds audits, checklists, and updates locally. Git ignores them; see `.gitignore`.
 
 ---
 
 ## Local setup
 
-Before you start, ensure you have Node.js (>=18) and npm/yarn installed, plus a running MongoDB instance (local or cloud such as MongoDB Atlas).
+You need Node.js 18 or newer, npm or yarn, and a MongoDB instance (local or Atlas).
 
 ### 1) Prerequisites
 
-- Node.js & npm (or yarn) — Node.js 18 or newer (Express 5 / bcrypt 6 requirement)
+- Node.js 18 or newer and npm (or yarn). Express 5 and bcrypt 6 require it.
 - MongoDB connection string
-- ImageKit account (optional but used by default in the project)
+- ImageKit account (optional; the project uses it by default)
 
 ### 2) Environment variables
 
-Create a `.env` file for the `server/` folder (or set env vars in your environment). These names must match the code exactly — the server validates them at startup and exits if required ones are missing:
+Create `server/.env` or set the variables in your environment. The names must match the code. The server validates them at startup and exits when a required one is missing:
 
 ```
 # Required at startup (server.js)
@@ -307,12 +285,12 @@ RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 
 See `server/.env.example` for the full list with placeholders.
 
-> **Naming note:** older docs used `MONGO_URI`/`MONGODB_URI`/`CLIENT_URL`/`CORS_ORIGIN`/`SENDGRID_API_KEY`. The code reads **`MONGODB_URL`** and **`FRONTEND_URL`** only — setting the old names causes a boot-loop.
+> **Naming note:** older docs used `MONGO_URI`/`MONGODB_URI`/`CLIENT_URL`/`CORS_ORIGIN`/`SENDGRID_API_KEY`. The code reads only `MONGODB_URL` and `FRONTEND_URL`. Setting the old names causes a boot loop.
 
 **Deployment:**
-- **Backend (Render):** `render.yaml` at the repo root defines the service (`rootDir: server`, `/health` check). Secret values are prompted by Render, never committed.
-- **Frontend (Netlify):** set the **base directory = `Client`** in the dashboard. `Client/netlify.toml` sets the build command, publish directory, cache headers and the SPA rewrite. `Client/.env.production` carries `VITE_API_BASE_URL` (read at build time). Set `FRONTEND_URL` on Render to your Netlify origin so the CORS allowlist matches.
-- **Keeping Render awake:** Render's free tier idles the service after ~15 minutes, and the first request then pays a cold start (measured 33s vs 0.7s warm). `.github/workflows/keep-render-warm.yml` pings `/health` every 5 minutes to hold it open. Optionally set the repo secret `RENDER_HEALTH_URL` (Settings → Secrets and variables → Actions) to override the default production URL. Note that GitHub disables scheduled workflows in public repos after 60 days of inactivity.
+- **Backend (Render):** `render.yaml` at the repo root defines the service (`rootDir: server`, `/health` check). Render prompts for secrets and never commits them.
+- **Frontend (Netlify):** set the **base directory = `Client`** in the dashboard. `Client/netlify.toml` sets the build command, publish directory, cache headers, and the SPA rewrite. `Client/.env.production` carries `VITE_API_BASE_URL` (read at build time). Set `FRONTEND_URL` on Render to your Netlify origin so the CORS allowlist matches.
+- **Keeping Render awake:** Render's free tier idles the service after about 15 minutes. The next request then pays a cold start (33s measured, against 0.7s warm). `.github/workflows/keep-render-warm.yml` pings `/health` every 5 minutes to hold it open. Optionally set the repo secret `RENDER_HEALTH_URL` (Settings → Secrets and variables → Actions) to override the default production URL. GitHub disables scheduled workflows in public repos after 60 days of inactivity.
 
 ### Automation
 
@@ -321,11 +299,11 @@ See `server/.env.example` for the full list with placeholders.
 | `.github/workflows/ci.yml` | push / PR to `main` | Server import + app-load check, `npm test`, client lint + build, dependency audit |
 | `.github/workflows/keep-render-warm.yml` | every 5 min / manual | Pings Render `/health` so the free instance never spins down |
 
-Server tests run locally with `cd server && npm test` (Node's built-in runner — no test framework installed). `npm run sweep` prints a read-only data consistency report.
+Server tests run with `cd server && npm test` (Node's built-in runner; no test framework installed). `npm run sweep` prints a read-only data consistency report.
 
-**For a new maintainer:** start with [docs/architecture/TECHNICAL_HANDOVER.md](docs/architecture/TECHNICAL_HANDOVER.md) — what works, what is verified, and what is inherited.
+New maintainers should start with [docs/architecture/TECHNICAL_HANDOVER.md](docs/architecture/TECHNICAL_HANDOVER.md). It covers what works, what is verified, and what the project inherited.
 
-### 3) Install & run
+### 3) Install and run
 
 Backend (server):
 
@@ -362,159 +340,158 @@ Notes:
 - If images/videos don't appear, check backend console logs (controller prints formatted items) and browser console network tab for returned URLs.
 - Ensure ImageKit env vars are correctly provided. The storage service returns direct `response.url`.
 
-## 📚 API Documentation
+## API Documentation
 
-**The route files under `server/src/routes/` are the source of truth for the API.** Each route file maps paths to controllers; the auth middleware applied to each route documents who may call it.
+The route files under `server/src/routes/` are the source of truth for the API. Each route file maps paths to controllers, and the auth middleware on each route shows who may call it.
 
 ### Quick API Reference
 
 **Base URL:** `http://localhost:3000/api`
 
 #### Authentication Endpoints
-- `POST /api/auth/user/register` – Register new user
-- `POST /api/auth/user/login` – User login (sets JWT cookie)
-- `POST /api/auth/user/logout` – User logout
-- `GET /api/auth/user/profile` – Get user profile
-- `PUT /api/auth/user/profile` – Update user profile
-- `PUT /api/auth/user/change-password` – Change password
-- `POST /api/auth/partner/register` – Register food partner
-- `POST /api/auth/partner/login` – Partner login (sets JWT cookie)
-- `GET /api/auth/verify` – Verify user session
-- `GET /api/auth/partner/check` – Verify partner session
-- `POST /api/auth/admin/login` – Admin login (sets JWT cookie) **NEW**
-- `GET /api/auth/admin/verify` – Verify admin session **NEW**
-- `GET /api/auth/admin/profile` – Get admin profile **NEW**
-- `POST /api/auth/admin/logout` – Admin logout **NEW**
+- `POST /api/auth/user/register` - Register new user
+- `POST /api/auth/user/login` - User login (sets JWT cookie)
+- `POST /api/auth/user/logout` - User logout
+- `GET /api/auth/user/profile` - Get user profile
+- `PUT /api/auth/user/profile` - Update user profile
+- `PUT /api/auth/user/change-password` - Change password
+- `POST /api/auth/partner/register` - Register food partner
+- `POST /api/auth/partner/login` - Partner login (sets JWT cookie)
+- `GET /api/auth/verify` - Verify user session
+- `GET /api/auth/partner/check` - Verify partner session
+- `POST /api/auth/admin/login` - Admin login (sets JWT cookie)
+- `GET /api/auth/admin/verify` - Verify admin session
+- `GET /api/auth/admin/profile` - Get admin profile
+- `POST /api/auth/admin/logout` - Admin logout
 
 #### Food & Posts
-- `POST /api/food` – Create food post (multipart/form-data, partner only)
-- `GET /api/food` – Get all food posts (with pagination)
-- `GET /api/food/trending` – Get trending posts
-- `GET /api/food/my-posts` – Get partner's own posts (partner only)
-- `POST /api/food/:id/like` – Toggle like on post (user only)
-- `POST /api/food/:id/save` – Toggle save/bookmark (user only)
+- `POST /api/food` - Create food post (multipart/form-data, partner only)
+- `GET /api/food` - Get all food posts (with pagination)
+- `GET /api/food/trending` - Get trending posts
+- `GET /api/food/my-posts` - Get partner's own posts (partner only)
+- `POST /api/food/:id/like` - Toggle like on post (user only)
+- `POST /api/food/:id/save` - Toggle save/bookmark (user only)
 
 #### User Posts
-- `POST /api/posts/user` – Create user post (multipart/form-data, user only)
-- `GET /api/posts/user` – Get all user posts
-- `GET /api/posts/user/my-posts` – Get logged-in user's posts
-- `POST /api/posts/user/:id/like` – Toggle like on user post
-- `POST /api/posts/user/:id/comment` – Add comment to user post
+- `POST /api/posts/user` - Create user post (multipart/form-data, user only)
+- `GET /api/posts/user` - Get all user posts
+- `GET /api/posts/user/my-posts` - Get logged-in user's posts
+- `POST /api/posts/user/:id/like` - Toggle like on user post
+- `POST /api/posts/user/:id/comment` - Add comment to user post
 
 #### Follow System
-- `POST /api/follow/follow` – Follow a user or food partner
-- `POST /api/follow/unfollow` – Unfollow
-- `GET /api/follow/followers/:userId/:userType` – Get followers list
-- `GET /api/follow/following/:userId/:userType` – Get following list
-- `GET /api/follow/check/:targetId/:targetType` – Check if following
-- `GET /api/follow/suggestions` – Get suggested follows
+- `POST /api/follow/follow` - Follow a user or food partner
+- `POST /api/follow/unfollow` - Unfollow
+- `GET /api/follow/followers/:userId/:userType` - Get followers list
+- `GET /api/follow/following/:userId/:userType` - Get following list
+- `GET /api/follow/check/:targetId/:targetType` - Check if following
+- `GET /api/follow/suggestions` - Get suggested follows
 
 #### Review System
-- `POST /api/reviews/create` – Create review (user only)
-- `GET /api/reviews/partner/:partnerId` – Get partner reviews
-- `GET /api/reviews/food/:foodId` – Get food item reviews
-- `GET /api/reviews/user/:userId` – Get user's reviews
-- `PUT /api/reviews/:reviewId` – Update review
-- `DELETE /api/reviews/:reviewId` – Delete review
-- `POST /api/reviews/:reviewId/helpful` – Mark review as helpful
-- `POST /api/reviews/:reviewId/reply` – Add reply to review
-- `POST /api/reviews/:reviewId/respond` – Food partner response (partner only)
+- `POST /api/reviews/create` - Create review (user only)
+- `GET /api/reviews/partner/:partnerId` - Get partner reviews
+- `GET /api/reviews/food/:foodId` - Get food item reviews
+- `GET /api/reviews/user/:userId` - Get user's reviews
+- `PUT /api/reviews/:reviewId` - Update review
+- `DELETE /api/reviews/:reviewId` - Delete review
+- `POST /api/reviews/:reviewId/helpful` - Mark review as helpful
+- `POST /api/reviews/:reviewId/reply` - Add reply to review
+- `POST /api/reviews/:reviewId/respond` - Food partner response (partner only)
 
 #### Orders
-- `POST /api/orders` – Create new order (user only)
-- `GET /api/orders` – Get user's orders
-- `GET /api/orders/partner` – Get partner's orders (partner only)
-- `PUT /api/orders/partner/:orderId/status` – Update order status (partner only)
-- `GET /api/orders/partner/statistics` – Get order statistics (partner only)
-- `GET /api/orders/:id` – Get single order by ID (user only) **NEW**
+- `POST /api/orders` - Create new order (user only)
+- `GET /api/orders` - Get user's orders
+- `GET /api/orders/partner` - Get partner's orders (partner only)
+- `PUT /api/orders/partner/:orderId/status` - Update order status (partner only)
+- `GET /api/orders/partner/statistics` - Get order statistics (partner only)
+- `GET /api/orders/:id` - Get single order by ID (user only)
 
 #### Payments
-- `POST /api/payment/create-order` – Create Razorpay order (user only)
-- `POST /api/payment/verify` – Verify payment (user only)
-- `POST /api/payment/failure` – Handle payment failure
+- `POST /api/payment/create-order` - Create Razorpay order (user only)
+- `POST /api/payment/verify` - Verify payment (user only)
+- `POST /api/payment/failure` - Handle payment failure
 - Refunds have no public endpoint: customer cancellations auto-refund; partner cancellations require admin approval.
 
 #### User Profile & Preferences
-- `POST /api/user/profile-picture` – Upload profile picture (user only)
-- `PUT /api/user/preferences` – Update food preferences (user only)
-- `GET /api/user/address` – Get all delivery addresses (user only)
-- `POST /api/user/address` – Add new delivery address (user only)
-- `PUT /api/user/address/:id` – Update delivery address (user only)
-- `DELETE /api/user/address/:id` – Delete delivery address (user only)
-- `PATCH /api/user/address/:id/default` – Set default delivery address (user only)
+- `POST /api/user/profile-picture` - Upload profile picture (user only)
+- `PUT /api/user/preferences` - Update food preferences (user only)
+- `GET /api/user/address` - Get all delivery addresses (user only)
+- `POST /api/user/address` - Add new delivery address (user only)
+- `PUT /api/user/address/:id` - Update delivery address (user only)
+- `DELETE /api/user/address/:id` - Delete delivery address (user only)
+- `PATCH /api/user/address/:id/default` - Set default delivery address (user only)
 
 #### Advertisements
-- `POST /api/advertisement` – Create advertisement (partner only)
-- `GET /api/advertisement` – Get all advertisements
-- `GET /api/advertisement/:id` – Get advertisement by ID
-- `PUT /api/advertisement/:id` – Update advertisement (partner only)
-- `DELETE /api/advertisement/:id` – Delete advertisement (partner only)
+- `POST /api/advertisement` - Create advertisement (partner only)
+- `GET /api/advertisement` - Get all advertisements
+- `GET /api/advertisement/:id` - Get advertisement by ID
+- `PUT /api/advertisement/:id` - Update advertisement (partner only)
+- `DELETE /api/advertisement/:id` - Delete advertisement (partner only)
 
-**For request/response shapes, read the controller that backs each route in `server/src/controllers/`.**
+For request and response shapes, read the controller behind each route in `server/src/controllers/`.
 
 ---
 
-## Storage & file uploads
+## Storage and file uploads
 
-- Multer configuration uses memory storage. Files are uploaded to ImageKit using `storage.service.js` which returns a public URL.
-- Frontend must send the file using the field name `file` (FormData.append('file', file)). For compatibility the backend validates MIME type based on provided `type` field.
+- Multer uses memory storage. `storage.service.js` uploads files to ImageKit and returns a public URL.
+- Send the file as `file` in FormData. The backend validates the MIME type against the `type` field.
 
 ## Troubleshooting
 
-- CORS / cookies: ensure frontend origin matches backend CORS and `axios` uses `withCredentials: true`.
-- Missing media: check ImageKit env keys and verify the upload response logs in server console.
-- 400 from upload: ensure the file field is named `file` and not `image`/`video`.
+- CORS and cookies: make the frontend origin match backend CORS and set `withCredentials: true` in `axios`.
+- Missing media: check the ImageKit env keys and the upload response in the server console.
+- 400 from upload: name the file field `file`, not `image` or `video`.
 
 ## Next steps / TODO
 
-### 🚨 Critical Priority (Required for Order Management)
+### High priority (order management)
 
-**Backend Updates:**
+**Backend updates:**
 - [ ] Implement `GET /api/orders/:id` endpoint for order details
-- [ ] Add ownership verification in order controller
-- [ ] Update user's orderHistory on order creation
+- [ ] Add ownership verification in the order controller
+- [ ] Update the user's orderHistory on order creation
 - [ ] Test order API endpoints with Postman
 
-**Frontend Updates:**
-- [ ] Add OrderConfirmation route in AppRoutes.jsx
+**Frontend updates:**
+- [ ] Add the OrderConfirmation route in AppRoutes.jsx
 - [ ] Update Checkout.jsx to navigate to order confirmation
 - [ ] Fix lint warnings in order pages
-- [ ] Add "My Orders" link in Navbar
-- [ ] Test complete order flow end-to-end
+- [ ] Add a "My Orders" link in Navbar
+- [ ] Test the complete order flow end to end
 
-
-### 🔄 Medium Priority (Enhancements)
+### Medium priority (enhancements)
 
 - Add comment persistence and real-time updates (WebSockets)
-- Add pagination/feed endpoints and infinite scroll
-- Add upcoming food fest ticket booking system
-- Implement download receipt functionality
-- Add order tracking timeline UI
+- Add pagination and feed endpoints with infinite scroll
+- Add the upcoming food fest ticket booking system
+- Implement receipt downloads
+- Add an order tracking timeline UI
 - Add server-side search and filtering
 
-### 🟢 Low Priority (Future Features)
+### Low priority (future features)
 
-- Add more robust validation & unit tests
-- Add CI pipeline and Docker setup
-- Implement advanced order analytics
+- Add validation and unit tests
+- Add a CI pipeline and Docker setup
+- Implement order analytics
 - Add bulk order operations
-- Add order export functionality
+- Add order export
 
-### 📊 Current Status
+### Current status
 
-- ✅ **Completed**: OrderConfirmation.jsx and OrderHistory.jsx pages created
-- ✅ **Completed**: Core user, partner, cart, order, review, follow and FoodFest modules implemented
-- 🔄 **In Progress**: Payment verification hardening and FoodFest ticket finalization
-- 🔄 **In Progress**: Test coverage and CI
+- **Completed**: OrderConfirmation.jsx and OrderHistory.jsx pages created
+- **Completed**: Core user, partner, cart, order, review, follow, and FoodFest modules implemented
+- **In progress**: Payment verification hardening and FoodFest ticket finalization
+- **In progress**: Test coverage and CI
 
 ---
 
-## 📝 Documentation Notes
+## Documentation notes
 
 **Version control policy**
-- `.gitignore` ignores `*.md`, with explicit exceptions for `README.md`, `Client/README.md`, `docs/architecture/BUSINESS_MODEL.md` and `docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md`.
-- Only those four files are committed. The wider `docs/` tree (audits, checklists, updates) stays local by design, so it is deliberately not linked from this README.
-- Want the audits and roadmap in version control? Remove the `*.md` rule (or add a `!docs/**/*.md` negation) in `.gitignore` and commit them.
+- `.gitignore` ignores `*.md`, with exceptions for `README.md`, `Client/README.md`, `docs/architecture/BUSINESS_MODEL.md`, and `docs/architecture/FOOD_VS_ADVERTISEMENT_SYSTEM.md`.
+- Only those four files are committed. The wider `docs/` tree (audits, checklists, updates) stays local, so this README does not link to it.
+- To version the audits and roadmap, remove the `*.md` rule (or add a `!docs/**/*.md` negation) in `.gitignore` and commit them.
 
 ---
 

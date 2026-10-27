@@ -1,48 +1,43 @@
 # FoodReel Client - React + Vite Frontend
 
-## 🚀 Overview
+## Overview
 
-Modern React frontend for FoodReel - a social food ordering platform with Instagram/TikTok-style reels for food discovery.
+React frontend for FoodReel, a social food ordering platform with Instagram/TikTok-style reels for food discovery.
 
-## ✨ Key Features
+## Features
 
-### User Features
-- 🎥 **Food Reels** - Scroll through engaging food videos and images
-- 👤 **User Profiles** - Comprehensive profile management with:
-  - Basic information (name, email, mobile)
-  - Password management
-  - Food preferences (cuisines, dietary restrictions, spice level)
-  - Multiple delivery addresses with default selection
-  - Profile picture upload
-- 🛒 **Food Ordering** - Quick order with Razorpay payment integration
-- ❤️ **Social Features** - Like, save, share, comment, and follow
-- ⭐ **Reviews & Ratings** - Write and view detailed reviews with ratings
-- 📍 **Address Management** - Add, edit, delete, and set default delivery addresses
+### User features
+- **Food reels**: Scroll through food videos and images.
+- **User profiles**: Manage basic info (name, email, mobile), password, food preferences (cuisines, dietary restrictions, spice level), delivery addresses, and profile picture.
+- **Food ordering**: Place orders and pay through Razorpay.
+- **Social features**: Like, save, share, comment, and follow.
+- **Reviews and ratings**: Write and read reviews.
+- **Address management**: Add, edit, delete, and set default delivery addresses.
 
-### Partner Features
-- 🏪 **Partner Dashboard** - Manage food posts and advertisements
-- 📸 **Content Creation** - Upload food videos/images with descriptions
-- 📊 **Analytics** - Track engagement and orders
-- 💬 **Review Management** - Respond to customer reviews
+### Partner features
+- **Partner dashboard**: Manage food posts and advertisements.
+- **Content creation**: Upload food videos and images with descriptions.
+- **Analytics**: Track engagement and orders.
+- **Review management**: Respond to customer reviews.
 
-### Admin Features **NEW**
-- 👨‍💼 **Admin Dashboard** - Platform oversight and management
-- 📊 **Analytics & Reporting** - View platform metrics and statistics
-- 👥 **User & Partner Management** - Manage accounts and content
-- 💰 **Revenue Tracking** - Monitor payments and platform fees
-- 🔍 **Content Moderation** - Review and manage user-generated content
+### Admin features
+- **Admin dashboard**: Platform oversight and management.
+- **Analytics and reporting**: View platform metrics.
+- **User and partner management**: Manage accounts and content.
+- **Revenue tracking**: Monitor payments and platform fees.
+- **Content moderation**: Review and manage user-generated content.
 
-## 🛠 Tech Stack
+## Tech stack
 
-- **React 18.x** - UI framework
-- **Vite** - Fast build tool with HMR
-- **React Router** - Client-side routing
-- **Axios** - HTTP client with cookie support
-- **React Toastify** - Toast notifications
-- **Lucide React** - Modern icon library
-- **Tailwind CSS** - Utility-first styling
+- **React 19.x**: UI framework.
+- **Vite**: Build tool with HMR.
+- **React Router**: Client-side routing.
+- **Axios**: HTTP client with cookie support.
+- **React Toastify**: Toast notifications.
+- **Lucide React**: Icon library.
+- **Tailwind CSS**: Utility-first styling.
 
-## 📁 Project Structure
+## Project structure
 
 ```
 Client/
@@ -60,7 +55,7 @@ Client/
 │   │   │   ├── PartnerProfile.jsx
 │   │   │   ├── CreateFood.jsx
 │   │   │   └── Dashboard.jsx
-│   │   ├── Admin/                     # Admin pages (NEW)
+│   │   ├── Admin/                     # Admin pages
 │   │   │   ├── AdminPage.jsx          # Admin login page
 │   │   │   └── AdminDashboard.jsx     # Admin dashboard
 │   │   ├── Reel.jsx                  # Main reels feed
@@ -69,7 +64,7 @@ Client/
 │   ├── Contexts/
 │   │   └── AuthContext.jsx           # Auth state with authType (user, partner, admin)
 │   ├── hooks/
-│   │   └── useAuth.jsx               # Simplified auth hooks (6 focused hooks)
+│   │   └── useAuth.jsx               # Auth hooks (6 focused hooks)
 │   ├── Components/
 │   │   ├── Navbar.jsx
 │   │   ├── Footer.jsx
@@ -84,10 +79,10 @@ Client/
 └── package.json
 ```
 
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
-- Node.js (v16 or higher)
+- Node.js 20 or newer
 - npm or yarn
 
 ### Installation
@@ -106,7 +101,7 @@ npm run build
 npm run preview
 ```
 
-### Environment Variables
+### Environment variables
 
 Create a `.env` file in the Client directory:
 
@@ -115,104 +110,103 @@ VITE_API_BASE_URL=http://localhost:3000
 VITE_API_VERSION=
 ```
 
-## 📡 API Integration
+## API integration
 
-The frontend connects to the backend API via the centralized `Api.jsx` configuration file:
+The frontend calls the backend through the centralized `Api.jsx` configuration.
 
-### Key API Endpoints Used
+### Key API endpoints
 
 **Authentication**
-- User login/register/logout
-- Partner login/register
-- Admin login/verify **NEW**
+- User login, register, and logout
+- Partner login and register
+- Admin login and verification
 - Session verification
 
-**User Profile**
-- Get/update profile
+**User profile**
+- Get and update profile
 - Change password
 - Upload profile picture
 - Manage preferences
-- **Delivery address CRUD operations**
+- Delivery address CRUD
 
-**Food & Posts**
+**Food and posts**
 - Browse reels
-- Like/save posts
+- Like and save posts
 - Create user posts
 - View food details
 
-**Orders & Payments**
+**Orders and payments**
 - Create orders
 - Razorpay integration
 - Order tracking
 
-**Social Features**
-- Follow/unfollow
-- Reviews & ratings
+**Social features**
+- Follow and unfollow
+- Reviews and ratings
 - Comments
 
-### Authentication System
+### Authentication system
 
-The app uses a unified authentication system with `AuthContext` that supports three user types:
-- **User** (`authType: 'user'`) - Regular customers
-- **Partner** (`authType: 'partner'`) - Food restaurant/business
-- **Admin** (`authType: 'admin'`) - Platform administrator
+`AuthContext` supports three user types:
+- **User** (`authType: 'user'`): customers.
+- **Partner** (`authType: 'partner'`): restaurants and food businesses.
+- **Admin** (`authType: 'admin'`): platform administrators.
 
-Routes are automatically protected based on `authType` value.
+Routes are protected based on `authType`.
 
-## 🎨 UI Components
+## UI components
 
-### Profile Settings Tabs
-1. **Basic Info** - Name, email, mobile, profile picture
-2. **Password** - Change password with validation
-3. **Preferences** - Cuisines, dietary restrictions, spice level
-4. **Delivery Addresses** - Add, edit, delete, set default addresses
-5. **Address** - Legacy address field
+### Profile settings tabs
+1. **Basic info**: Name, email, mobile, profile picture.
+2. **Password**: Change password with validation.
+3. **Preferences**: Cuisines, dietary restrictions, spice level.
+4. **Delivery addresses**: Add, edit, delete, and set default addresses.
+5. **Address**: Legacy address field.
 
-### Address Management Features
-- ➕ Add new delivery addresses
-- ✏️ Edit existing addresses
-- 🗑️ Delete addresses
-- ⭐ Set default address
-- 🏠 Label addresses (Home/Work/Other)
-- 📍 Full address details (street, city, state, ZIP, country)
+### Address management
+- Add new delivery addresses.
+- Edit existing addresses.
+- Delete addresses.
+- Set a default address.
+- Label addresses as Home, Work, or Other.
+- Store full address details (street, city, state, ZIP, country).
 
-## 🔧 Development
+## Development
 
-### Vite Plugins
+### Vite plugins
+- **@vitejs/plugin-react**: Uses Babel for Fast Refresh.
+- **@vitejs/plugin-react-swc**: Uses SWC for Fast Refresh (alternative).
 
-- **@vitejs/plugin-react** - Uses Babel for Fast Refresh
-- **@vitejs/plugin-react-swc** - Uses SWC for Fast Refresh (alternative)
-
-### ESLint Configuration
+### ESLint configuration
 
 For production applications, consider:
-- TypeScript integration
-- Type-aware lint rules
-- Check the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts)
+- TypeScript integration.
+- Type-aware lint rules.
+- The [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts).
 
-## 📱 Responsive Design
+## Responsive design
 
-- Mobile-first approach
-- Tailwind CSS breakpoints
-- Touch-optimized interactions
-- Adaptive layouts for tablets and desktops
+- Mobile-first layout.
+- Tailwind CSS breakpoints.
+- Touch-friendly interactions.
+- Adaptive layouts for tablets and desktops.
 
-## 🔐 Authentication
+## Authentication
 
-- JWT-based authentication with HTTP-only cookies
-- Automatic session verification on app load
-- Protected routes for authenticated users
-- Separate auth flows for users, partners, and admins
-- Centralized `AuthContext` with `authType` tracking
-- 6 simplified custom hooks via `useAuth.jsx`:
-  - `useAuth()` - Full context access
-  - `useIsAuthenticated()` - Boolean check
-  - `useCurrentUser()` - Get current user/partner/admin object
-  - `useAuthType()` - Get auth type as string ('user'/'partner'/'admin'/null)
-  - `useUserType()` - Get flags object {isUser, isPartner, isAdmin}
-  - `useLogout()` - Logout function
+- JWT authentication with HTTP-only cookies.
+- Automatic session verification on app load.
+- Protected routes for authenticated users.
+- Separate auth flows for users, partners, and admins.
+- `AuthContext` tracks `authType`.
+- Six hooks in `useAuth.jsx`:
+  - `useAuth()`: Full context access.
+  - `useIsAuthenticated()`: Boolean check.
+  - `useCurrentUser()`: Current user, partner, or admin object.
+  - `useAuthType()`: Auth type as a string ('user', 'partner', 'admin', or null).
+  - `useUserType()`: Flags object `{isUser, isPartner, isAdmin}`.
+  - `useLogout()`: Logout function.
 
-## 📦 Build & Deployment
+## Build and deployment
 
 ```bash
 # Production build
@@ -222,14 +216,13 @@ npm run build
 npm run preview
 ```
 
-Build output is in the `dist/` directory, ready for deployment to:
-- Netlify (configured via `netlify.toml` in this directory)
+Build output goes to `dist/`, ready for:
+- Netlify (configured through `netlify.toml` in this directory).
 
-
-## 🤝 Contributing
+## Contributing
 
 See the main project [README](../README.md) for contribution guidelines.
 
-## 📄 License
+## License
 
 See the main project LICENSE file.
