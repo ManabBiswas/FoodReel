@@ -1,9 +1,11 @@
-// Remove trailing slash from base URL to prevent double slashes
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const API_VERSION = import.meta.env.VITE_API_VERSION || '';
 
 // Construct base API URL
 const BASE_URL = API_VERSION ? `${API_BASE_URL}/api/${API_VERSION}` : `${API_BASE_URL}/api`;
+
+// Socket.io shares the API origin. The handshake authenticates with the same HTTP-only cookie, so the client must connect with `withCredentials: true`.
+export const SOCKET_URL = API_BASE_URL;
 
 // API endpoints configuration
 export const API_ENDPOINTS = {
@@ -207,6 +209,63 @@ export const API_ENDPOINTS = {
     like:     `${BASE_URL}/comments/like`,
     unlike:   (commentId)  => `${BASE_URL}/comments/unlike/${commentId}`,
     myLikes:  (postId)     => `${BASE_URL}/comments/my-likes/${postId}`,
+  },
+
+  // FoodFest endpoints
+  foodfest: {
+    // User (public reads, authenticated purchase)
+    events: `${BASE_URL}/foodfest/user/events`,
+    event: (eventId) => `${BASE_URL}/foodfest/user/events/${eventId}`,
+    ticketPurchase: `${BASE_URL}/foodfest/user/tickets/purchase`, // requires Idempotency-Key
+    ticketVerify: `${BASE_URL}/foodfest/user/tickets/verify`,
+    myTickets: `${BASE_URL}/foodfest/user/my-tickets`,
+    proposals: `${BASE_URL}/foodfest/user/proposals`,
+    myProposals: `${BASE_URL}/foodfest/user/my-proposals`,
+
+    // Admin
+    adminEventsList: `${BASE_URL}/foodfest/admin/events`,
+    adminCreateEvent: `${BASE_URL}/foodfest/admin/events`,
+    adminEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}`,
+    adminEventZones: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/zones`,
+    adminCreateZone: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/zones`,
+    adminZone: (zoneId) => `${BASE_URL}/foodfest/admin/zones/${zoneId}`,
+    adminEventTiers: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/tiers`,
+    adminCreateTier: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/tiers`,
+    adminTier: (tierId) => `${BASE_URL}/foodfest/admin/tiers/${tierId}`,
+    adminApplications: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/applications`,
+    adminApproveApplication: (appId) => `${BASE_URL}/foodfest/admin/applications/${appId}/approve`,
+    adminRejectApplication: (appId) => `${BASE_URL}/foodfest/admin/applications/${appId}/reject`,
+    adminCapacityCheck: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/capacity-check`,
+    adminPublishEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/publish`,
+    adminGoLive: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/go-live`,
+    adminCompleteEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/complete`,
+    adminProposals: `${BASE_URL}/foodfest/admin/proposals`,
+    adminApproveProposal: (proposalId) => `${BASE_URL}/foodfest/admin/proposals/${proposalId}/approve`,
+    adminRejectProposal: (proposalId) => `${BASE_URL}/foodfest/admin/proposals/${proposalId}/reject`,
+    adminOrganizerAccess: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/organizer-access`,
+
+    // Organizer (user-hosted event after admin grants access)
+    organizerEvents: `${BASE_URL}/foodfest/organizer/events`,
+    organizerEvent: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}`,
+    organizerEventSummary: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/summary`,
+    organizerEventTiers: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/tiers`,
+    organizerTier: (tierId) => `${BASE_URL}/foodfest/organizer/tiers/${tierId}`,
+    organizerEventZones: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/zones`,
+    organizerZone: (zoneId) => `${BASE_URL}/foodfest/organizer/zones/${zoneId}`,
+    organizerEventTickets: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/tickets`,
+    organizerPublish: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/publish`,
+    organizerGoLive: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/go-live`,
+    organizerComplete: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/complete`,
+
+    // Partner
+    partnerAvailableEvents: `${BASE_URL}/foodfest/partner/available-events`,
+    partnerApply: (eventId) => `${BASE_URL}/foodfest/partner/events/${eventId}/apply`,
+    partnerToggleStall: (stallId) => `${BASE_URL}/foodfest/partner/stalls/${stallId}/toggle-open`,
+    partnerMyApplications: `${BASE_URL}/foodfest/partner/my-applications`,
+
+    // Gate (admin-only today)
+    gateScan: `${BASE_URL}/foodfest/gate/scan`,
+    gateCheckout: `${BASE_URL}/foodfest/gate/checkout`,
   },
 
   // Contact endpoint

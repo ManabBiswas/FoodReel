@@ -6,6 +6,7 @@ import {
   verifyTicketPayment,
   getMyTickets
 } from '../../controllers/foodfest/ticket.user.controller.js';
+import { createUserProposal, getMyProposals } from '../../controllers/foodfest/proposal.controller.js';
 import isLoggedin from '../../middlewares/isLoggedin.js';
 import { rateLimiter } from '../../middlewares/rateLimiter.js';
 import { withIdempotency } from '../../services/idempotency.js';
@@ -18,6 +19,12 @@ router.get('/events', browseEvents);
 
 // GET /api/foodfest/events/:getEventId  - for a specific event details
 router.get('/events/:eventId', getEventDetails);
+
+// POST /api/foodfest/user/proposals - regular user submits an event proposal
+router.post('/proposals', isLoggedin, createUserProposal);
+
+// GET /api/foodfest/user/my-proposals - user's own proposals and their status
+router.get('/my-proposals', isLoggedin, getMyProposals);
 
 // POST /api/foodfest/tickets/purchase  - for purchasing a ticket.
 router.post('/tickets/purchase', isLoggedin, validateBody({

@@ -1,7 +1,4 @@
-import {
-  LayoutDashboard, Users, Store, FileText,
-  ShoppingBag, Star, BarChart3, ChefHat
-} from 'lucide-react'
+import { LayoutDashboard, Users, Store, FileText, ShoppingBag, Star, BarChart3, ChefHat, Zap, CalendarDays } from 'lucide-react'
 
 export const fmtCur = n =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n ?? 0)}`
@@ -33,4 +30,6 @@ export const TABS = [
   { id: 'cancels',   label: 'Cancel Requests', icon: ChefHat },
   { id: 'reviews',   label: 'Reviews',   icon: Star },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'events',    label: 'Events',    icon: CalendarDays },
+  { id: 'event-proposals', label: 'Event Proposals', icon: Zap },
 ]

@@ -143,6 +143,8 @@ a:focus-visible {
   height: 100vh;
   background: #000;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100vh;
 }
 
 .reel-content {

@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import {
-  Menu, X, User, LogOut, ChefHat,
-  Home, Film, ShoppingBag, UserCircle,
-  Plus, ShoppingCart
-} from 'lucide-react'
+import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle, Plus, ShoppingCart, CalendarDays, Ticket, Store, Sparkles } from 'lucide-react'
 import Logo from '../assets/logo.png'
 
 const Navbar = () => {
@@ -30,7 +26,10 @@ const Navbar = () => {
     navigate('/')
   }
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) =>
+    path === '/'
+      ? location.pathname === '/'
+      : location.pathname === path || location.pathname.startsWith(`${path}/`)
 
   // const linkCls = (path) =>
   //   `flex items-center gap-1.5 text-sm font-medium font-sans transition-colors duration-150 ${
@@ -75,14 +74,16 @@ const Navbar = () => {
           <div className="hidden sm:flex sm:items-center sm:gap-1">
 
             {/* Common */}
-            <NavLink to="/"      icon={<Home className="w-4 h-4" />}   label="Home"   isActive={isActive('/')} />
-            <NavLink to="/reels" icon={<Film className="w-4 h-4" />}   label="Reels"  isActive={isActive('/reels')} />
+            <NavLink to="/"       icon={<Home         className="w-4 h-4" />} label="Home"   isActive={isActive('/')} />
+            <NavLink to="/reels"  icon={<Film         className="w-4 h-4" />} label="Reels"  isActive={isActive('/reels')} />
+            <NavLink to="/events" icon={<CalendarDays className="w-4 h-4" />} label="Events" isActive={isActive('/events')} />
 
             {/* Partner links */}
             {partner && (
               <>
                 <NavLink to="/partner-dashboard" icon={<ShoppingBag className="w-4 h-4" />} label="Dashboard" isActive={isActive('/partner-dashboard')} />
                 <NavLink to="/CreateFood"        icon={<ChefHat     className="w-4 h-4" />} label="Create"    isActive={isActive('/CreateFood')} />
+                <NavLink to="/partner-foodfest"  icon={<Store       className="w-4 h-4" />} label="FoodFest"  isActive={isActive('/partner-foodfest')} />
                 <NavLink to="/partner-profile"   icon={<UserCircle  className="w-4 h-4" />} label="Profile"   isActive={isActive('/partner-profile')} />
               </>
             )}
@@ -92,6 +93,8 @@ const Navbar = () => {
               <>
                 <NavLink to="/create-post"    icon={<Plus         className="w-4 h-4" />} label="Create"  isActive={isActive('/create-post')} />
                 <NavLink to="/order/history"  icon={<ShoppingBag  className="w-4 h-4" />} label="Orders"  isActive={isActive('/order/history')} />
+                <NavLink to="/my-tickets"     icon={<Ticket       className="w-4 h-4" />} label="Tickets" isActive={isActive('/my-tickets')} />
+                <NavLink to="/events/organize" icon={<Sparkles     className="w-4 h-4" />} label="Organize" isActive={isActive('/events/organize')} />
                 <NavLink to="/cart"           icon={<ShoppingCart className="w-4 h-4" />} label="Cart"    isActive={isActive('/cart')} />
                 <NavLink to="/profile"        icon={<UserCircle   className="w-4 h-4" />} label="Profile" isActive={isActive('/profile')} />
               </>
@@ -161,13 +164,15 @@ const Navbar = () => {
         >
           <div className="mx-auto max-w-7xl space-y-1 px-4 py-4">
 
-            <MobileLink to="/"      icon={<Home className="w-5 h-5" />}        label="Home"         isActive={isActive('/')} />
-            <MobileLink to="/reels" icon={<Film className="w-5 h-5" />}        label="Reels"        isActive={isActive('/reels')} />
+            <MobileLink to="/"       icon={<Home         className="w-5 h-5" />} label="Home"    isActive={isActive('/')} />
+            <MobileLink to="/reels"  icon={<Film         className="w-5 h-5" />} label="Reels"   isActive={isActive('/reels')} />
+            <MobileLink to="/events" icon={<CalendarDays className="w-5 h-5" />} label="Events"  isActive={isActive('/events')} />
 
             {partner && (
               <>
                 <MobileLink to="/partner-dashboard" icon={<ShoppingBag className="w-5 h-5" />} label="Dashboard"    isActive={isActive('/partner-dashboard')} />
                 <MobileLink to="/CreateFood"        icon={<ChefHat     className="w-5 h-5" />} label="Create Food"  isActive={isActive('/CreateFood')} />
+                <MobileLink to="/partner-foodfest"  icon={<Store       className="w-5 h-5" />} label="FoodFest"     isActive={isActive('/partner-foodfest')} />
                 <MobileLink to="/partner-profile"   icon={<UserCircle  className="w-5 h-5" />} label="Profile"      isActive={isActive('/partner-profile')} />
               </>
             )}
@@ -176,6 +181,8 @@ const Navbar = () => {
               <>
                 <MobileLink to="/create-post"   icon={<Plus         className="w-5 h-5" />} label="Create Post" isActive={isActive('/create-post')} />
                 <MobileLink to="/order/history" icon={<ShoppingBag  className="w-5 h-5" />} label="My Orders"   isActive={isActive('/order/history')} />
+                <MobileLink to="/my-tickets"    icon={<Ticket       className="w-5 h-5" />} label="My Tickets"  isActive={isActive('/my-tickets')} />
+                <MobileLink to="/events/organize" icon={<Sparkles    className="w-5 h-5" />} label="Organizer Studio" isActive={isActive('/events/organize')} />
                 <MobileLink to="/cart"          icon={<ShoppingCart className="w-5 h-5" />} label="Cart"        isActive={isActive('/cart')} />
                 <MobileLink to="/profile"       icon={<UserCircle   className="w-5 h-5" />} label="Profile"     isActive={isActive('/profile')} />
               </>

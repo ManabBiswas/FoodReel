@@ -1,4 +1,10 @@
-.agents
+# Locally installed agent skills (npx skills) — never commit
+.agents/
+.agent/
+.claude/
+.opencode/skills/
+skills-lock.json
+agent
 
 .env
 node_modules/

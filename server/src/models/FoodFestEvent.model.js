@@ -1,5 +1,14 @@
 import mongoose from "mongoose";
 
+const foodFestVenueSchema = new mongoose.Schema({
+    address: { type: String, required: true },
+    city: { type: String, required: true },
+    latitude: Number,
+    longitude: Number,
+    maxCapacity: Number,    // per day
+    gpsLoc: String
+}, { _id: false });
+
 const foodFestEventSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -11,10 +20,8 @@ const foodFestEventSchema = new mongoose.Schema({
         trim: true
     },
     venue: {
-        address: { type: String, required: true },
-        city: { type: String, required: true },
-        latitude: Number,
-        longitude: Number
+        type: foodFestVenueSchema,
+        required: true
     },
     bannerImage: {
         type: String, // ImageKit URL
@@ -43,8 +50,31 @@ const foodFestEventSchema = new mongoose.Schema({
     },
     organizer: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Admin',
+        refPath: 'organizerType',
         required: true
+    },
+    organizerType: {
+        type: String,
+        enum: ['admin', 'user'],
+        default: 'admin'
+    },
+    organizerNotes: {
+        type: String,
+        trim: true
+    },
+    // A user-hosted event only becomes manageable by its organizer after an
+    // admin grants access. Approval grants it automatically; an admin can
+    // revoke or restore it later from the Events tab.
+    organizerAccess: {  // TODO: for multiple organizers, this should be an array
+        type: Boolean,
+        default: false
+    },
+    organizerAccessGrantedAt: {
+        type: Date
+    },
+    organizerAccessGrantedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin'
     },
     stats: {
         ticketsSold: { type: Number, default: 0 },

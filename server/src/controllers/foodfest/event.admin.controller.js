@@ -48,6 +48,7 @@ export const createEvent = async (req, res) => {
             salesEnd,
             bannerImage,
             organizer: req.admin._id,
+            organizerType: 'admin',
             status: 'draft'
         });
 
@@ -405,6 +406,55 @@ export const completeEvent = async (req, res) => {
         await event.save();
 
         res.status(200).json({ success: true, message: "Event marked as completed", event });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+// PATCH /api/foodfest/admin/events/:eventId/organizer-access - Grant or revoke a user-hosted event's organizer powers.
+export const setOrganizerAccess = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { granted } = req.body;
+
+        if (typeof granted !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: "granted must be true or false"
+            });
+        }
+        if (!mongoose.isValidObjectId(eventId)) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        const event = await FoodFestEvent.findById(eventId);
+        if (!event) return res.status(404).json({ success: false, message: "Event not found" });
+        if (event.organizerType !== 'user') {
+            return res.status(400).json({
+                success: false,
+                message: "Only user-hosted events can have organizer access"
+            });
+        }
+
+        const updates = granted
+            ? {
+                organizerAccess: true,
+                organizerAccessGrantedAt: new Date(),
+                organizerAccessGrantedBy: req.admin._id
+            }
+            : { organizerAccess: false };
+
+        const updated = await FoodFestEvent.findByIdAndUpdate(
+            eventId,
+            { $set: updates },
+            { new: true }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: granted ? "Organizer access granted" : "Organizer access revoked",
+            event: updated
+        });
     } catch (error) {
         serverFail(res, error);
     }
