@@ -21,19 +21,23 @@ import {
   IndianRupee,
   Asterisk,
   Loader2,
-  Plus
+  Plus,
+  Tag,
+  X
 } from 'lucide-react'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 
 const Checkout = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { clearCart } = useCart()
+  const { clearCart, cart, fetchCart, applyCoupon, removeCoupon, couponNotice, clearCouponNotice } = useCart()
   const { user } = useAuth()
   const orderData = location.state?.orderData
 
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [couponInput, setCouponInput] = useState('')
+  const [couponBusy, setCouponBusy] = useState(false)
 
   // Form data
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -117,15 +121,24 @@ const Checkout = () => {
 
   // Email is required but not part of a saved address, so seed it from the
   // account — otherwise "Continue to payment" fails on an empty field.
+  // Depend on the individual fields (not the `user` object) so the effect
+  // only re-runs when the data it actually reads changes.
+  const { email: userEmail, firstName: userFirstName, lastName: userLastName, mobile: userMobile } =
+    user ? {
+      email: user.email ?? null,
+      firstName: user.firstName ?? null,
+      lastName: user.lastName ?? null,
+      mobile: user.mobile ?? user.phone ?? null
+    } : { email: null, firstName: null, lastName: null, mobile: null }
   useEffect(() => {
-    if (!user) return
-    const profileName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+    if (!userEmail && !userFirstName && !userLastName && !userMobile) return
+    const profileName = [userFirstName, userLastName].filter(Boolean).join(' ').trim()
     setDeliveryInfo(prev => ({
-      email: prev.email || user.email || '',
+      email: prev.email || userEmail || '',
       fullName: prev.fullName || profileName,
-      phone: prev.phone || user.mobile || user.phone || ''
+      phone: prev.phone || userMobile || ''
     }))
-  }, [user?.email, user?.firstName, user?.lastName, user?.mobile])
+  }, [userEmail, userFirstName, userLastName, userMobile])
 
   // Check if Razorpay is loaded
   useEffect(() => {
@@ -144,14 +157,18 @@ const Checkout = () => {
     }
   }, [orderData, navigate])
 
-  // Calculate totals
-  const itemTotal = orderData?.totalPrice || 0
-  // const deliveryFee = itemTotal > 500 ? 0 : 40
-  const deliveryFee = 0
-  const platformFee = Math.round(itemTotal * 0.03 * 100) / 100
+  // Calculate totals. Once the cart is loaded, its server-computed totals are
+  // authoritative — they already include any applied promo code.
+  const serverTotals = cart?.totals
+  const itemTotal = serverTotals?.itemsTotal ?? orderData?.totalPrice ?? 0
+  const deliveryFee = serverTotals?.deliveryFee ?? 0
+  const platformFee = serverTotals?.platformFee ?? Math.round(itemTotal * 0.03 * 100) / 100
   const subtotal = itemTotal + deliveryFee + platformFee
-  const gst = Math.round(subtotal * 0.05 * 100) / 100
-  const grandTotal = (subtotal + parseFloat(gst)).toFixed(2)
+  const gst = serverTotals?.taxes ?? Math.round(subtotal * 0.05 * 100) / 100
+  const discount = serverTotals?.discount || 0
+  const grandTotal = (
+    serverTotals?.grandTotal ?? Math.max(0, subtotal + gst - discount)
+  ).toFixed(2)
 
   // Handle input change
   const handleInputChange = (e) => {
@@ -209,6 +226,32 @@ const Checkout = () => {
     }
 
     setCurrentStep(2)
+  }
+
+  // Apply a promo code to the live cart. The checkout total is derived from the
+  // server's cart response, so the displayed discount matches what will be
+  // charged.
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault()
+    const code = couponInput.trim()
+    if (!code) { showWarning('Enter a promo code'); return }
+    setCouponBusy(true)
+    const result = await applyCoupon(code)
+    setCouponBusy(false)
+    if (result.success) {
+      showSuccess(result.message)
+      setCouponInput('')
+    } else {
+      showError(result.error || 'That promo code could not be applied')
+    }
+  }
+
+  const handleRemoveCoupon = async () => {
+    setCouponBusy(true)
+    const result = await removeCoupon()
+    setCouponBusy(false)
+    if (result.success) showSuccess('Promo code removed')
+    else showError(result.error)
   }
 
   // Handle Razorpay Payment
@@ -326,7 +369,8 @@ const Checkout = () => {
           pincode: deliveryInfo.pincode
         },
         paymentMethod,
-        orderSource: 'cart'
+        orderSource: 'cart',
+        ...(cart?.appliedPromo?.code ? { couponCode: cart.appliedPromo.code } : {})
       }
 
       // Create order first (for both COD and online payment)
@@ -373,7 +417,16 @@ const Checkout = () => {
       })
     } catch (error) {
       console.error('Order placement error:', error)
-      showError(error.response?.data?.error || error.response?.data?.message || 'Failed to place order')
+      const data = error.response?.data
+      setLoading(false)
+      if (typeof data?.code === 'string' && data.code.startsWith('COUPON_')) {
+        showWarning(data.error || 'Your promo code is no longer valid. Review the updated total and try again.')
+        // The server rejected the code; re-read the cart so the stale discount
+        // disappears and the customer sees the real total before retrying.
+        await fetchCart()
+      } else {
+        showError(data?.error || data?.message || 'Failed to place order')
+      }
     } finally {
       if (paymentMethod === 'cod') {
         setLoading(false)
@@ -823,11 +876,83 @@ const Checkout = () => {
                   <span>GST (5%)</span>
                   <span>₹{gst}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount{cart?.appliedPromo?.code ? ` (${cart.appliedPromo.code})` : ''}</span>
+                    <span className="font-medium">-₹{discount.toFixed(2)}</span>
+                  </div>
+                )}
                 {deliveryFee === 0 && (
                   <p className="text-xs text-green-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" />
                     Free delivery on First 5 orders
                   </p>
+                )}
+              </div>
+
+              {/* Promo code */}
+              <div className="mb-4 pb-4 border-b">
+                {cart?.appliedPromo?.code ? (
+                  <div className="flex items-start gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-3">
+                    <Tag className="mt-0.5 w-4 h-4 flex-shrink-0 text-amber-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-800">{cart.appliedPromo.code} applied</p>
+                      <p className="text-xs text-gray-500">You saved ₹{discount.toFixed(2)} on this order</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      disabled={couponBusy}
+                      className="flex-shrink-0 rounded p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-40 cursor-pointer"
+                      aria-label={`Remove promo code ${cart.appliedPromo.code}`}
+                    >
+                      {couponBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon}>
+                    <label htmlFor="checkout-promo-code" className="block text-xs font-semibold text-gray-500 mb-1.5">
+                      Have a promo code?
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          id="checkout-promo-code"
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          placeholder="Enter code"
+                          autoComplete="off"
+                          spellCheck={false}
+                          maxLength={32}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={couponBusy || !couponInput.trim()}
+                        className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {couponBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {couponNotice && (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <Tag className="mt-0.5 w-4 h-4 flex-shrink-0 text-amber-600" />
+                    <p className="flex-1 text-xs text-amber-800">{couponNotice}</p>
+                    <button
+                      type="button"
+                      onClick={clearCouponNotice}
+                      className="flex-shrink-0 text-amber-600 hover:text-amber-800 cursor-pointer"
+                      aria-label="Dismiss promo notice"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
 
