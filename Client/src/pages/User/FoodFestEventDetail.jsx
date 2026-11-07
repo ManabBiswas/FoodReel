@@ -17,14 +17,7 @@ import {
   getTierAvailability,
   getTierSalesState,
 } from '../../utils/foodfest'
-import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left'
-import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
-import Clock from 'lucide-react/dist/esm/icons/clock'
-import MapPin from 'lucide-react/dist/esm/icons/map-pin'
-import Ticket from 'lucide-react/dist/esm/icons/ticket'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
+import { ArrowLeft, CalendarDays, Clock, MapPin, Ticket, RefreshCw, LoaderCircle, Sparkles } from 'lucide-react'
 
 const salesTone = (onSale) =>
   onSale

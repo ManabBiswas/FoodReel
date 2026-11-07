@@ -5,30 +5,33 @@ import { Calendar, MapPin, ArrowRight, Ticket } from 'lucide-react'
 const events = [
     {
         id: 1,
-        date: 'March 12–15, 2026',
+        date: 'November 20–22, 2026',
         city: 'Mumbai',
-        title: 'Burger Mania 2026',
-        image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop',
+        title: 'Chaat Carnival 2026',
+        image: 'https://images.pexels.com/photos/39025942/pexels-photo-39025942.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
         tag: 'Street Food',
-        link: '/work',
+        cta: 'Taste the crunch',
+        link: '/events',
     },
     {
         id: 2,
-        date: 'April 05–07, 2026',
+        date: 'December 04–06, 2026',
         city: 'Bangalore',
-        title: 'Global Street Treats',
-        image: 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=400&h=300&fit=crop',
-        tag: 'International',
-        link: '/work',
+        title: 'Dosa Trail 2026',
+        image: 'https://images.pexels.com/photos/20422129/pexels-photo-20422129.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
+        tag: 'South Indian',
+        cta: 'Follow the crisp',
+        link: '/events',
     },
     {
         id: 3,
-        date: 'May 18–20, 2026',
+        date: 'December 18–20, 2026',
         city: 'Delhi',
-        title: 'Green Eats Fest',
-        image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        tag: 'Vegan',
-        link: '/work',
+        title: 'Thali Nights 2026',
+        image: 'https://images.pexels.com/photos/29148133/pexels-photo-29148133.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop',
+        tag: 'North Indian',
+        cta: 'Build your thali',
+        link: '/events',
     },
 ]
 
@@ -58,8 +61,7 @@ const FoodFestSection = () => {
                             </span>
 
                             <h2 className="font-serif text-5xl font-black leading-tight text-white md:text-6xl">
-                                <span style={{ color: 'var(--color-text-inverse)' }}>FoodFest{'  '}</span>
-                                
+                                <span style={{ color: 'var(--color-text-inverse)' }}>FoodFest </span>
                                 <span style={{ color: 'var(--color-accent)' }}>2026</span>
                             </h2>
 
@@ -85,20 +87,20 @@ const FoodFestSection = () => {
                                     </span>
                                     <div>
                                         <p className="text-sm font-bold text-white font-sans">{label}</p>
-                                        <p className="text-xs font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>{sub}</p>
+                                        <p className="text-xs font-sans" style={{ color: 'rgba(255,255,255,0.55)' }}>{sub}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <Link to="/work">
-                            <button
-                                className="flex items-center gap-2 rounded-xl px-6 py-3 font-bold font-sans text-sm transition-opacity hover:opacity-90"
-                                style={{ background: 'var(--color-accent)', color: 'var(--color-background-dark)' }}
-                            >
-                                <Ticket className="w-4 h-4" />
-                                View Calendar
-                            </button>
+                        <Link
+                            to="/events"
+                            className="inline-flex items-center gap-2 rounded-xl px-6 py-3 font-bold font-sans text-sm transition-opacity hover:opacity-90"
+                            style={{ background: 'var(--color-accent)', color: 'var(--color-background-dark)' }}
+                        >
+                            <Ticket className="w-4 h-4" />
+                            Browse all events
+                            <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
 
@@ -119,7 +121,9 @@ const FoodFestSection = () => {
                                         <img
                                             src={event.image}
                                             alt={event.title}
-                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
                                         />
                                         <span
                                             className="absolute top-3 left-3 rounded-full px-3 py-1 text-[10px] font-bold font-sans uppercase tracking-wide"
@@ -130,7 +134,7 @@ const FoodFestSection = () => {
                                     </div>
 
                                     <div className="p-5 space-y-3">
-                                        <div className="flex items-center gap-3 text-xs font-sans" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-sans" style={{ color: 'rgba(255,255,255,0.6)' }}>
                                             <span className="flex items-center gap-1">
                                                 <Calendar className="w-3.5 h-3.5" /> {event.date}
                                             </span>
@@ -141,12 +145,13 @@ const FoodFestSection = () => {
 
                                         <h3 className="text-base font-bold text-white font-sans">{event.title}</h3>
 
-                                        <button
-                                            className="w-full rounded-xl py-2.5 text-sm font-bold font-sans transition-opacity hover:opacity-90"
-                                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        <span
+                                            className="inline-flex items-center gap-1 text-sm font-bold font-sans transition-colors group-hover:underline"
+                                            style={{ color: 'var(--color-accent)' }}
                                         >
-                                            Coming Soon
-                                        </button>
+                                            {event.cta}
+                                            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                                        </span>
                                     </div>
                                 </div>
                             </Link>

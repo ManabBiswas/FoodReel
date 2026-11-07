@@ -648,7 +648,7 @@ const deleteFood = async (req, res) => {
 const updateFood = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, price, cuisine, ingredients, preparationTime, isAvailable } = req.body;
+        const { name, description, price, cuisine, ingredients, preparationTime, isAvailable, tags } = req.body;
 
         const food = await foodModel.findOne({ _id: id, foodPartner: req.foodPartner._id });
         if (!food) return res.status(404).json({ error: 'Food item not found or permission denied' });
@@ -659,7 +659,21 @@ const updateFood = async (req, res) => {
         if (cuisine) food.cuisine = cuisine;
         if (ingredients) food.ingredients = ingredients;
         if (preparationTime) food.preparationTime = preparationTime;
-        if (typeof isAvailable === 'boolean') food.isAvailable = isAvailable;
+        if (isAvailable !== undefined) {
+            food.isAvailable = isAvailable === 'true' || isAvailable === true;
+        }
+
+        // Tags arrive as a JSON array in multipart form data. Without this the
+        // edit form would silently drop tag changes on food posts.
+        if (tags !== undefined) {
+            try {
+                food.tags = JSON.parse(tags);
+            } catch {
+                food.tags = Array.isArray(tags)
+                    ? tags
+                    : String(tags).split(',').map(tag => tag.trim()).filter(Boolean);
+            }
+        }
 
         if (req.file) {
             const mimeIsVideo = req.file.mimetype.startsWith('video/');

@@ -23,7 +23,7 @@ import About from '../pages/About'
 import Contact from '../pages/Contact'
 import AdminPage from '../pages/Admin/AdminPage'
 import { useAuth } from '../hooks/useAuth'
-import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle'
+import { LoaderCircle } from 'lucide-react'
 
 // Lazy-loaded components for code splitting so heavy components are only loaded when needed. This improves initial load time and performance.
 const Dashboard = lazy(() => import('../pages/FoodPartner/Dashboard'))
@@ -33,6 +33,7 @@ const FoodFestEventDetail = lazy(() => import('../pages/User/FoodFestEventDetail
 const MyTickets = lazy(() => import('../pages/User/MyTickets'))
 const StallApplications = lazy(() => import('../pages/FoodPartner/StallApplications'))
 const CreateEventProposal = lazy(() => import('../pages/User/CreateEventProposal'))
+const OrganizerDashboard = lazy(() => import('../pages/User/OrganizerDashboard'))
 
 // Set of paths that require authentication   
 // This is used to redirect authenticated users away from login/register pages to their intended destination or home page.    
@@ -79,8 +80,10 @@ const ProtectedRoute = ({ children, requireAuth = false, allowedType = null }) =
   // between the post-login navigate and this redirect.
   if (!requireAuth && isAuthenticated && AUTH_PATHS.has(location.pathname)) {
     const from = location.state?.from
+    const fallback =
+      authType === 'partner' ? '/partner-dashboard' : authType === 'admin' ? '/admin/dashboard' : '/'
     const safeFrom =
-      typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/'
+      typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : fallback
     return <Navigate to={safeFrom} replace />
   }
 
@@ -118,6 +121,7 @@ const AppRoutes = () => {
           <Route path='/order/tracking/:orderId' element={<ProtectedRoute requireAuth allowedType="user"><OrderTracking /></ProtectedRoute>} />
           <Route path='/my-tickets' element={<ProtectedRoute requireAuth allowedType="user"><MyTickets /></ProtectedRoute>} />
           <Route path='/events/host' element={<ProtectedRoute requireAuth allowedType="user"><CreateEventProposal /></ProtectedRoute>} />
+          <Route path='/events/organize' element={<ProtectedRoute requireAuth allowedType="user"><OrganizerDashboard /></ProtectedRoute>} />
 
           {/* Partner Protected Routes */}
           <Route path='/partner-dashboard' element={<ProtectedRoute requireAuth allowedType="partner"><Dashboard /></ProtectedRoute>} />
