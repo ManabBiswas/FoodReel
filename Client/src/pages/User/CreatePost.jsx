@@ -1,11 +1,155 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { showSuccess, showError, showWarning } from '../../utils/toast'
 import { API_ENDPOINTS, multipartConfig, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import ErrorBoundary from '../../Components/ErrorBoundary'
-import { Upload, Image as ImageIcon, Video, X, Plus, Loader2, Search, Tag, Store, UtensilsCrossed } from 'lucide-react'
+import { Upload, Image as ImageIcon, Video, X, Plus, Loader2, Search, Tag, Store, UtensilsCrossed, Hash } from 'lucide-react'
+import { animate, stagger } from 'animejs'
+
+/* ─── Animated SVG mark ─────────────────────────────────────────
+   The camera outline, lens and sparkle are drawn with anime.js.
+   Every path is visible by default, so reduced-motion users get the
+   finished illustration without any animation. */
+const TasteMark = () => {
+  const rootRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return undefined
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+
+    const drawPaths = root.querySelectorAll('.cp-draw')
+    drawPaths.forEach((path) => {
+      path.style.strokeDasharray = '1'
+      path.style.strokeDashoffset = '1'
+    })
+
+    const draw = animate(drawPaths, {
+      strokeDashoffset: [1, 0],
+      delay: stagger(120),
+      duration: 1000,
+      easing: 'easeOutExpo'
+    })
+
+    const pop = animate(root.querySelectorAll('.cp-pop'), {
+      opacity: [0, 1],
+      scale: [0.5, 1],
+      delay: stagger(140, { start: 650 }),
+      duration: 700,
+      easing: 'easeOutBack'
+    })
+
+    const glow = animate(root.querySelectorAll('.cp-glow'), {
+      opacity: [0.3, 0.75],
+      scale: [0.94, 1.04],
+      duration: 2600,
+      loop: true,
+      alternate: true,
+      easing: 'easeInOutSine'
+    })
+
+    return () => {
+      draw.pause()
+      pop.pause()
+      glow.pause()
+    }
+  }, [])
+
+  return (
+    <svg
+      ref={rootRef}
+      viewBox="0 0 120 120"
+      className="h-20 w-20"
+      role="img"
+      aria-label="A camera with a plate-like lens"
+    >
+      <defs>
+        <linearGradient id="cp-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fffdf8" />
+          <stop offset="100%" stopColor="#ffd9b3" />
+        </linearGradient>
+        <radialGradient id="cp-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffb800" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#ff6a00" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <circle
+        className="cp-glow"
+        cx="60"
+        cy="64"
+        r="48"
+        fill="url(#cp-glow)"
+        opacity="0.5"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+
+      <path
+        className="cp-draw"
+        pathLength="1"
+        d="M30 44h12l6-9h24l6 9h12a6 6 0 0 1 6 6v32a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6V50a6 6 0 0 1 6-6Z"
+        fill="url(#cp-body)"
+        stroke="#1a1208"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <circle
+        className="cp-draw"
+        pathLength="1"
+        cx="60"
+        cy="63"
+        r="16"
+        fill="#fffdf8"
+        stroke="#1a1208"
+        strokeWidth="3"
+      />
+      <circle
+        className="cp-pop"
+        cx="60"
+        cy="63"
+        r="7.5"
+        fill="#ff6a00"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        className="cp-pop"
+        cx="56.5"
+        cy="59.5"
+        r="2.2"
+        fill="#ffd9b3"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <path
+        className="cp-draw"
+        pathLength="1"
+        d="M98 26v10M93 31h10"
+        fill="none"
+        stroke="#ffb800"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <circle
+        className="cp-pop"
+        cx="24"
+        cy="28"
+        r="3"
+        fill="#ffb800"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        className="cp-pop"
+        cx="102"
+        cy="88"
+        r="2.5"
+        fill="#ff6a00"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+    </svg>
+  )
+}
+
 
 const CreatePost = () => {
   const navigate = useNavigate()
@@ -27,6 +171,19 @@ const CreatePost = () => {
   const [selectedFood, setSelectedFood] = useState(null)
   const [foodItems, setFoodItems] = useState([])
   const [loadingFoodItems, setLoadingFoodItems] = useState(false)
+
+  const formRef = useRef(null)
+
+  useEffect(() => {
+    if (formRef.current) {
+      animate('.sk-surface', {
+        opacity: [0, 1],
+        translateY: [20, 0],
+        delay: stagger(100),
+        easing: 'easeOutExpo'
+      })
+    }
+  }, [])
 
   // Search for partners when user types
   useEffect(() => {
@@ -103,6 +260,15 @@ const CreatePost = () => {
     fetchFoodItems()
   }, [selectedPartner])
 
+  const changeType = (nextType) => {
+    if (nextType === type) return
+    setType(nextType)
+    // A file chosen for the previous format would be rejected by the API, so
+    // clear both the file and its preview whenever the format changes.
+    setFile(null)
+    setPreview(null)
+  }
+
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags(prev => [...prev, tagInput.trim()])
@@ -119,7 +285,6 @@ const CreatePost = () => {
     const isVideo = f.type.startsWith('video/')
     if (type === 'image' && !isImage) return showWarning('Please select an image file')
     if (type === 'video' && !isVideo) return showWarning('Please select a video file')
-    // follow the server's FILE_SIZE_LIMITS (IMAGE 5MB / VIDEO 10MB).
     const sizeLimit = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024
     if (f.size > sizeLimit) return showWarning(`File must be less than ${isVideo ? '10MB' : '5MB'}`)
     setFile(f)
@@ -142,7 +307,6 @@ const CreatePost = () => {
     if (!description.trim()) { showWarning('Description required'); setLoading(false); return }
     if (!file) { showWarning('Please select a file'); setLoading(false); return }
 
-    // Validate tagging
     if (wantToTag === 'yes') {
       if (!selectedPartner) {
         showWarning('Please select a restaurant')
@@ -164,7 +328,6 @@ const CreatePost = () => {
       fd.append('tags', JSON.stringify(tags))
       fd.append('file', file)
 
-      // Add tagging info
       if (wantToTag === 'yes' && selectedPartner && selectedFood) {
         fd.append('partnerId', selectedPartner._id)
         fd.append('foodId', selectedFood._id)
@@ -173,7 +336,7 @@ const CreatePost = () => {
       const res = await axios.post(API_ENDPOINTS.food.createUserPost, fd, multipartConfig)
       if (res?.data) {
         showSuccess('Post created successfully! Redirecting...')
-        setTimeout(() => navigate('/reels'), 1500)
+        setTimeout(() => navigate('/profile'), 1500)
       }
     } catch (err) {
       console.error(err)
@@ -182,274 +345,273 @@ const CreatePost = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f7f2e8] text-[#1a1208]">
       <Navbar />
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        <h1 className="text-3xl text-center font-bold text-amber-500 mb-4">Create a Post</h1>
+      <div className="max-w-3xl mx-auto py-12 px-6" ref={formRef}>
+        <header className="text-center mb-12">
+          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/70 bg-gradient-to-b from-[#fffdf8] to-[#ffd9b3] shadow-[0_12px_28px_rgba(26,18,8,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]">
+            <TasteMark />
+          </div>
+          <h1 className="text-5xl font-serif font-black mb-4">Share your <span className="italic text-orange-600">taste.</span></h1>
+          <p className="text-text-muted font-sans max-w-md mx-auto">
+            Upload a reel or photo of your favorite meal and let the community discover it.
+          </p>
+        </header>
+
         <ErrorBoundary>
-          <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded shadow">
-            <div>
-              <label className="block text-sm font-medium mb-1">Content Type</label>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setType('image')} className={`px-3 py-2 rounded border ${type === 'image' ? 'bg-blue-50 border-blue-200' : 'border-gray-200'}`}><ImageIcon className="inline w-4 h-4 mr-2" />Image</button>
-                <button type="button" onClick={() => setType('video')} className={`px-3 py-2 rounded border ${type === 'video' ? 'bg-red-50 border-red-200' : 'border-gray-200'}`}><Video className="inline w-4 h-4 mr-2" />Video</button>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* ── Content Type & Media ────────────────────────────────── */}
+            <div className="sk-surface sk-texture p-8 flex flex-col md:flex-row gap-8">
+              <div className="flex-1 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted font-sans">Content Format</label>
+                  <div className="flex gap-3">
+                    <button 
+                      type="button" 
+                      onClick={() => changeType('image')} 
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all font-sans font-semibold flex items-center justify-center gap-2 ${
+                        type === 'image' 
+                        ? 'bg-orange-50 border-orange-400 text-orange-700 shadow-inner' 
+                        : 'bg-white border-border-light text-text-muted hover:border-border-medium'
+                      }`}
+                    >
+                      <ImageIcon className="w-4 h-4" /> Image
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => changeType('video')} 
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all font-sans font-semibold flex items-center justify-center gap-2 ${
+                        type === 'video' 
+                        ? 'bg-orange-50 border-orange-400 text-orange-700 shadow-inner' 
+                        : 'bg-white border-border-light text-text-muted hover:border-border-medium'
+                      }`}
+                    >
+                      <Video className="w-4 h-4" /> Video Reel
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted font-sans">Post Title</label>
+                  <input 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    className="w-full px-4 py-3 rounded-xl border-2 border-border-light bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all font-serif text-xl" 
+                    placeholder="What are we eating?"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted font-sans">Story</label>
+                  <textarea 
+                    value={description} 
+                    onChange={e => setDescription(e.target.value)} 
+                    className="w-full px-4 py-3 rounded-xl border-2 border-border-light bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all font-sans leading-relaxed" 
+                    rows={4}
+                    placeholder="Tell us about the flavor, the spot, or the memory..."
+                  />
+                </div>
+              </div>
+
+              <div className="w-full md:w-80 space-y-4">
+                <div className="relative aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-surface-muted group">
+                  {!preview ? (
+                    <label className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-black/5 transition-colors">
+                      <input type="file" accept={type === 'image' ? 'image/*' : 'video/*'} onChange={handleFileChange} className="hidden" />
+                      <Upload className="w-10 h-10 text-text-faint mb-2" />
+                      <span className="text-xs font-bold uppercase tracking-tighter text-text-faint">Upload {type}</span>
+                    </label>
+                  ) : (
+                    <>
+                      {type === 'image' ? <img src={preview} alt="preview" className="w-full h-full object-cover" /> : <video src={preview} controls className="w-full h-full object-cover" />}
+                      <button 
+                        type="button" 
+                        onClick={() => { setFile(null); setPreview(null) }} 
+                        className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg hover:bg-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="text-center text-[10px] text-text-faint font-sans italic">
+                  {type === 'image' ? 'Max 5MB (JPG, PNG)' : 'Max 10MB (MP4, MOV)'}
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Title</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border rounded" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded" rows={4} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">File</label>
-              {!preview ? (
-                <div className="border-2 border-dashed p-6 text-center rounded">
-                  <input id="file-input" type="file" accept={type === 'image' ? 'image/*' : 'video/*'} onChange={handleFileChange} className="hidden" />
-                  <label htmlFor="file-input" className="cursor-pointer">
-                    <Upload className="mx-auto w-10 h-10 text-gray-400" />
-                    <div className="mt-2 text-gray-600">Click to upload {type}</div>
-                  </label>
+            {/* ── Tagging Section ────────────────────────────────────── */}
+            <div className="sk-surface sk-texture p-8 space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl font-bold">Make it shoppable</h3>
+                    <p className="text-xs text-text-muted font-sans">Tag a restaurant to add an order button</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="relative">
-                  {type === 'image' ? <img src={preview} alt="preview" className="w-full rounded" /> : <video src={preview} controls className="w-full rounded" />}
-                  <button type="button" onClick={() => { setFile(null); setPreview(null) }} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"><X className="w-4 h-4" /></button>
+                <div className="flex gap-2 bg-white/50 p-1 rounded-xl border border-border-light">
+                  <button 
+                    type="button"
+                    onClick={() => setWantToTag('no')} 
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${wantToTag === 'no' ? 'bg-white shadow-sm text-text-base' : 'text-text-muted hover:text-text-base'}`}
+                  >
+                    Just Share
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setWantToTag('yes')} 
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${wantToTag === 'yes' ? 'bg-white shadow-sm text-text-base' : 'text-text-muted hover:text-text-base'}`}
+                  >
+                    Tag Dish
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* Want to Tag Restaurant & Food */}
-            <div className="border-t pt-4">
-              <label className="flex items-center gap-2 text-sm font-medium mb-3">
-                <Tag className="w-4 h-4" />
-                Tag a Restaurant & Food Item (Optional)
-              </label>
-              <p className="text-xs text-gray-500 mb-3">
-                Tagging allows the order button to appear on your post, making it shoppable!
-              </p>
-              
-              <div className="flex gap-4 mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="tag" 
-                    value="no" 
-                    checked={wantToTag === 'no'}
-                    onChange={e => setWantToTag(e.target.value)} 
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">No, just share my post</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="tag" 
-                    value="yes" 
-                    checked={wantToTag === 'yes'}
-                    onChange={e => setWantToTag(e.target.value)} 
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Yes, tag restaurant</span>
-                </label>
               </div>
 
               {wantToTag === 'yes' && (
-                <div className="space-y-4 bg-blue-50 p-4 rounded border border-blue-200">
-                  {/* Restaurant Search */}
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                      <Store className="w-4 h-4" />
-                      Search Restaurant *
-                    </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+                  <div className="space-y-4">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={restaurantSearch}
-                        onChange={e => {
-                          setRestaurantSearch(e.target.value)
-                          if (!e.target.value.trim()) {
-                            setSelectedPartner(null)
-                            setSelectedFood(null)
-                          }
-                        }}
-                        placeholder="Type restaurant name..."
-                        className="w-full pl-10 pr-3 py-2 border rounded"
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-faint" />
+                      <input 
+                        type="text" 
+                        value={restaurantSearch} 
+                        onChange={e => setRestaurantSearch(e.target.value)} 
+                        placeholder="Search for a kitchen..." 
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-border-light bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all font-sans"
                       />
                       {searchingPartners && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-blue-500" />
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-orange-500" />
+                      )}
+                      {partnerSuggestions.length > 0 && (
+                        <div className="absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-border-light overflow-hidden">
+                          {partnerSuggestions.map(partner => (
+                            <button 
+                              key={partner._id} 
+                              type="button" 
+                              onClick={() => handleSelectPartner(partner)} 
+                              className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors border-b border-border-light last:border-b-0 flex items-center gap-3"
+                            >
+                              <Store className="w-4 h-4 text-text-faint" />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold truncate text-sm">{partner.companyName}</div>
+                                <div className="text-[10px] text-text-muted truncate">{partner.email}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {/* Partner Suggestions */}
-                    {partnerSuggestions.length > 0 && (
-                      <div className="mt-2 border rounded bg-white shadow-lg max-h-48 overflow-y-auto">
-                        {partnerSuggestions.map(partner => (
-                          <button
-                            key={partner._id}
-                            type="button"
-                            onClick={() => handleSelectPartner(partner)}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-2"
-                          >
-                            <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{partner.companyName}</div>
-                              <div className="text-xs text-gray-500 truncate">{partner.email}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Selected Partner Display */}
                     {selectedPartner && (
-                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Store className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-800">{selectedPartner.companyName}</span>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-green-50 border border-green-100 text-green-800">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Store className="w-4 h-4 shrink-0" />
+                          <span className="text-sm font-bold truncate">{selectedPartner.companyName}</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedPartner(null)
-                            setSelectedFood(null)
-                            setRestaurantSearch('')
-                          }}
-                          className="text-green-600 hover:text-green-800"
-                        >
+                        <button type="button" onClick={() => { setSelectedPartner(null); setSelectedFood(null); setRestaurantSearch('') }} className="p-1 hover:bg-green-100 rounded-full transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Food Item Selection */}
-                  {selectedPartner && (
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                        <UtensilsCrossed className="w-4 h-4" />
-                        Select Food Item *
-                      </label>
-                      
-                      {loadingFoodItems ? (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Loading menu items...
-                        </div>
-                      ) : foodItems.length === 0 ? (
-                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
-                          No available food items found for this restaurant with pricing information.
-                        </div>
-                      ) : (
-                        <select
-                          value={selectedFood?._id || ''}
+                  <div className="space-y-4">
+                    {selectedPartner ? (
+                      <div className="relative">
+                        <select 
+                          value={selectedFood?._id || ''} 
                           onChange={e => {
                             const food = foodItems.find(f => f._id === e.target.value)
                             setSelectedFood(food || null)
-                          }}
-                          className="w-full px-3 py-2 border rounded"
+                          }} 
+                          className="w-full px-4 py-3 rounded-xl border-2 border-border-light bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all font-sans appearance-none"
                         >
-                          <option value="">-- Select a food item --</option>
+                          <option value="">Select a dish...</option>
                           {foodItems.map(food => (
                             <option key={food._id} value={food._id}>
-                              {food.name} - ₹{food.price} {food.preparationTime ? `(${food.preparationTime} min)` : ''}
+                              {food.name} — ₹{food.price}
                             </option>
                           ))}
                         </select>
-                      )}
-
-                      {/* Selected Food Display */}
-                      {selectedFood && (
-                        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="font-medium text-green-800">{selectedFood.name}</div>
-                              <div className="text-sm text-green-600 mt-1">
-                                Price: ₹{selectedFood.price}
-                                {selectedFood.preparationTime && ` • ${selectedFood.preparationTime} min`}
-                              </div>
-                              {selectedFood.description && (
-                                <div className="text-xs text-gray-600 mt-1">{selectedFood.description}</div>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedFood(null)}
-                              className="ml-2 text-green-600 hover:text-green-800"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <UtensilsCrossed className="w-4 h-4 text-text-faint" />
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
-                    💡 <strong>Tip:</strong> When you tag a food item, the order button will appear on your post, allowing viewers to order directly!
+                        {loadingFoodItems && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-[52px] rounded-xl border-2 border-dashed border-border-light flex items-center justify-center text-text-faint text-xs font-medium italic">
+                        Select a kitchen first
+                      </div>
+                    )}
+                    {selectedFood && (
+                      <div className="p-3 rounded-xl bg-white shadow-sm border border-border-light">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-sm">{selectedFood.name}</span>
+                          <span className="text-xs font-bold text-orange-600">₹{selectedFood.price}</span>
+                        </div>
+                        <p className="text-xs text-text-muted leading-relaxed">{selectedFood.description || 'No description available.'}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Hashtags */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Hashtags (Optional)</label>
-              <div className="flex gap-2 mb-2">
-                <input 
-                  value={tagInput} 
-                  onChange={e => setTagInput(e.target.value)} 
-                  onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addTag())} 
-                  className="flex-1 px-3 py-2 border rounded" 
-                  placeholder="Add hashtags..."
-                />
-                <button 
-                  type="button" 
-                  onClick={addTag} 
-                  className="px-3 py-2 bg-blue-500 text-white rounded"
-                >
-                  <Plus className="w-4 h-4"/>
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {tags.map((t, i) => (
-                  <span key={i} className="px-2 py-1 bg-blue-100 rounded text-sm">
-                    #{t}
+              <div className="pt-6 border-t border-border-light">
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((t, i) => (
+                    <span key={i} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-border-light text-xs font-bold text-text-base transition-all hover:border-orange-400">
+                      <Hash className="w-3 h-3 text-orange-500" />
+                      {t}
+                      <button type="button" onClick={() => removeTag(t)} aria-label={`Remove ${t}`} className="p-0.5 rounded-full hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <div className="relative flex items-center">
+                    <input 
+                      type="text" 
+                      value={tagInput} 
+                      onChange={e => setTagInput(e.target.value)} 
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())} 
+                      className="pl-3 pr-10 py-1.5 rounded-full border border-border-light bg-white text-xs focus:border-orange-400 focus:ring-0 outline-none transition-all w-32 focus:w-48" 
+                      placeholder="Add tag..."
+                    />
                     <button 
                       type="button" 
-                      onClick={() => removeTag(t)} 
-                      className="ml-2 text-blue-600 hover:text-blue-800"
+                      onClick={addTag} 
+                      aria-label="Add tag"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full bg-orange-500 text-white transition-all hover:bg-orange-600"
                     >
-                      <X className="w-3 h-3 inline" />
+                      <Plus className="w-3 h-3 text-white" />
                     </button>
-                  </span>
-                ))}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Submit */}
-            <div>
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="w-full py-3 bg-green-500 text-white rounded font-semibold hover:bg-green-600 disabled:bg-gray-400"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin inline w-4 h-4 mr-2" /> 
-                    Creating...
-                  </>
-                ) : (
-                  'Create Post'
-                )}
-              </button>
-            </div>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="w-full py-4 rounded-2xl bg-orange-600 text-white font-bold text-lg shadow-lg hover:bg-orange-700 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin h-5 w-5" /> 
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-5 h-5" />
+                  Publish Post
+                </>
+              )}
+            </button>
           </form>
         </ErrorBoundary>
       </div>

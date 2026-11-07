@@ -1,107 +1,32 @@
 import React from 'react'
-import {
-  RadialBarChart,
-  RadialBar,
-  ResponsiveContainer,
-} from 'recharts'
 
 /* ─── Data ─────────────────────────────────────────────────────── */
 const stats = [
   {
-    id:      'restaurants',
-    value:   '2,000+',
-    label:   'Restaurants',
-    sub:     'Active partners',
-    fill:    '#ff6a00',
-    pct:     82,
+    id: 'restaurants',
+    value: '2,000+',
+    label: 'Partner kitchens',
+    sub: 'Cooking with FoodReel',
   },
   {
-    id:      'foodies',
-    value:   '100k+',
-    label:   'Foodies',
-    sub:     'Registered users',
-    fill:    '#ffb800',
-    pct:     94,
+    id: 'foodies',
+    value: '100k+',
+    label: 'Foodies',
+    sub: 'Registered members',
   },
   {
-    id:      'cities',
-    value:   '50+',
-    label:   'Cities',
-    sub:     'Across India',
-    fill:    '#ff6a00',
-    pct:     68,
+    id: 'cities',
+    value: '50+',
+    label: 'Cities',
+    sub: 'Across India',
   },
   {
-    id:      'rating',
-    value:   '4.8',
-    label:   'Avg. rating',
-    sub:     'From 24k reviews',
-    fill:    '#ffb800',
-    pct:     96,
+    id: 'rating',
+    value: '4.8',
+    label: 'Average rating',
+    sub: 'From 24k reviews',
   },
 ]
-
-/* ─── Single radial stat card ──────────────────────────────────── */
-const StatCard = ({ value, label, sub, fill, pct }) => {
-  const chartData = [{ name: label, value: pct, fill }]
-
-  return (
-    <div
-      className="flex flex-col items-center gap-2 rounded-2xl px-6 py-4 transition-transform hover:-translate-y-0.5"
-      style={{
-        background: 'var(--color-background-white)',
-        border:     '1px solid var(--color-border-light)',
-        boxShadow:  'var(--shadow-sm)',
-      }}
-    >
-      {/* Radial chart */}
-      <div className="relative h-24 w-24">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart
-            innerRadius="88%"
-            outerRadius="125%"
-            data={chartData}
-            startAngle={220}
-            endAngle={-40}
-            barSize={6}
-          >
-            <RadialBar
-              dataKey="value"
-              cornerRadius={6}
-              background={{ fill: 'var(--color-border-light)' }}
-            />
-          </RadialBarChart>
-        </ResponsiveContainer>
-
-        {/* Centre value */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span
-            className="font-display text-xl font-extrabold leading-none tracking-tight"
-            style={{ color: fill }}
-          >
-            {value}
-          </span>
-        </div>
-      </div>
-
-      {/* Labels */}
-      <div className="text-center space-y-0.5 ">
-        <p
-          className="text-sm font-bold font-sans"
-          style={{ color: 'var(--color-text-base)' }}
-        >
-          {label}
-        </p>
-        <p
-          className="text-xs font-sans"
-          style={{ color: 'var(--color-text-faint)' }}
-        >
-          {sub}
-        </p>
-      </div>
-    </div>
-  )
-}
 
 /* ─── Section ──────────────────────────────────────────────────── */
 const SocialProofSection = () => {
@@ -110,31 +35,69 @@ const SocialProofSection = () => {
       className="border-y"
       style={{
         borderColor: 'var(--color-border-light)',
-        background:  'var(--color-surface-muted)',
+        background: 'var(--color-surface-muted)',
       }}
     >
-      <div className="mx-auto max-w-7xl px-6 py-4">
-        {/* Header */}
-        <div className="mb-10 text-center space-y-1">
-          <p
-            className="text-xs font-bold uppercase tracking-widest font-sans"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            By the numbers
-          </p>
-          <h2
-            className="font-serif text-2xl font-bold"
-            style={{ color: 'var(--color-text-base)' }}
-          >
-            Trusted by foodies &amp; partners across India
-          </h2>
-        </div>
+      <div className="mx-auto max-w-7xl px-6 py-12 md:py-16">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-16">
+          {/* Claim */}
+          <div>
+            <p
+              className="font-sans text-xs font-bold uppercase tracking-[0.22em]"
+              style={{ color: '#c2410c' }}
+            >
+              By the numbers
+            </p>
+            <h2
+              className="mt-3 font-serif text-3xl font-bold leading-tight sm:text-4xl"
+              style={{ color: 'var(--color-text-base)', textWrap: 'balance' }}
+            >
+              Trusted by foodies &amp; partners across India
+            </h2>
+            <p
+              className="mt-4 max-w-md font-sans text-sm leading-relaxed"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              One feed for discovery, one checkout for dinner — built with kitchens in
+              every city we call home.
+            </p>
+          </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {stats.map((s) => (
-            <StatCard key={s.id} {...s} />
-          ))}
+          {/* Proof */}
+          <div
+            className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border md:grid-cols-4"
+            style={{
+              background: 'var(--color-border-light)',
+              borderColor: 'var(--color-border-light)',
+            }}
+          >
+            {stats.map((stat) => (
+              <div
+                key={stat.id}
+                className="px-4 py-5 sm:px-5 sm:py-6"
+                style={{ background: 'var(--color-background-white)' }}
+              >
+                <p
+                  className="font-serif text-2xl font-black leading-none sm:text-3xl"
+                  style={{ color: 'var(--color-primary-dark)' }}
+                >
+                  {stat.value}
+                </p>
+                <p
+                  className="mt-2 font-sans text-[10px] font-bold uppercase tracking-[0.16em]"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  {stat.label}
+                </p>
+                <p
+                  className="mt-1.5 font-sans text-[11px] leading-snug"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  {stat.sub}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

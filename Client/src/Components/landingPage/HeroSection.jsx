@@ -39,7 +39,7 @@ const HeroSection = () => {
               <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            <span className="text-sm font-semibold text-primary font-sans">Now live across 50+ cities</span>
+            <span className="text-sm font-semibold text-[#9a3412] font-sans">Now live across 50+ cities</span>
           </div>
 
           {/* Headline */}
@@ -59,35 +59,43 @@ const HeroSection = () => {
 
           {/* CTAs */}
           <div className="flex flex-wrap gap-4">
-            <Link to="/reels">
-              <button className="flex items-center gap-2.5 rounded-xl bg-primary px-8 py-4 font-bold text-white shadow-glow hover:bg-primary-dark active:scale-[0.97] transition-all cursor-pointer font-sans">
-                <PlayCircle className="w-5 h-5 flex-shrink-0" />
-                Watch Reels
-              </button>
+            <Link
+              to="/reels"
+              className="pressable inline-flex items-center gap-2.5 rounded-xl bg-primary px-8 py-4 font-sans font-bold text-white shadow-glow transition-colors duration-200 hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <PlayCircle className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+              Watch Reels
             </Link>
             <button
+              type="button"
               onClick={() => navigate(isAuthenticated ? '/cart' : '/login')}
-              className="flex items-center gap-2 rounded-xl border-2 border-border-light bg-background-white px-8 py-4 font-bold text-text-base hover:border-border-medium hover:bg-surface-muted active:scale-[0.97] transition-all cursor-pointer font-sans"
+              className="pressable inline-flex items-center gap-2 rounded-xl border-2 border-border-light bg-background-white px-8 py-4 font-sans font-bold text-text-base transition-colors duration-200 hover:border-border-medium hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {isAuthenticated ? 'View Cart' : 'Order Now'}
-              <ChevronRight className="w-4 h-4 opacity-50" />
+              <ChevronRight className="h-4 w-4 opacity-50" aria-hidden="true" />
             </button>
           </div>
 
           {/* Social proof mini */}
           <div className="flex items-center gap-4 pt-2">
             <div className="flex -space-x-2.5">
-              {['bg-orange-100', 'bg-yellow-100', 'bg-green-100', 'bg-blue-100'].map((bg, i) => (
+              {[
+                { initials: 'AR', background: 'linear-gradient(135deg, #8c5a2b, #c99a4a)' },
+                { initials: 'MK', background: 'linear-gradient(135deg, #3f4a3c, #7d8a6f)' },
+                { initials: 'SD', background: 'linear-gradient(135deg, #6b3a2a, #a8674f)' },
+                { initials: 'JP', background: 'linear-gradient(135deg, #3c3a4a, #7c7890)' },
+              ].map((avatar) => (
                 <div
-                  key={i}
-                  className={`w-9 h-9 rounded-full ${bg} border-2 border-white flex items-center justify-center text-base`}
-                  aria-hidden
+                  key={avatar.initials}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white font-sans text-[10px] font-bold tracking-wide text-white shadow-sm"
+                  style={{ background: avatar.background }}
+                  aria-hidden="true"
                 >
-                  {['🧑‍🍳', '😋', '👩', '🍜'][i]}
+                  {avatar.initials}
                 </div>
               ))}
             </div>
-            <p className="text-sm text-text-muted font-sans">
+            <p className="font-sans text-sm text-text-muted">
               <span className="font-bold text-text-base">100k+</span> foodies ordering daily
             </p>
           </div>
@@ -115,8 +123,8 @@ const HeroSection = () => {
                   </div>
                 ) : (
                   <img
-                    src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=1300&fit=crop&auto=format&q=80"
-                    alt="Freshly baked pizza on a wooden board"
+                    src="https://images.pexels.com/photos/7394819/pexels-photo-7394819.jpeg?auto=compress&cs=tinysrgb&w=600&h=1300&fit=crop"
+                    alt="Fragrant biryani served in a clay pot"
                     className="absolute inset-0 w-full h-full object-cover animate-fade-in"
                     loading="eager"
                     fetchPriority="high"
@@ -179,8 +187,8 @@ const HeroSection = () => {
                 {/* Bottom info — same shape as ReelBottomInfo */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <div className="flex items-center gap-2 mb-2.5">
-                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">T</div>
-                    <span className="text-white text-xs font-medium font-sans truncate">Tandoori Nights</span>
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">B</div>
+                    <span className="text-white text-xs font-medium font-sans truncate">Biryani House</span>
                     <span className="text-white/70 text-[10px] font-sans truncate hidden sm:inline">Kolkata</span>
                     <span
                       className="ml-auto text-[10px] font-bold rounded-full px-2 py-0.5 font-sans flex-shrink-0"
@@ -190,7 +198,7 @@ const HeroSection = () => {
                     </span>
                   </div>
                   <p className="text-white text-sm font-bold font-sans mb-2.5">
-                    Wood-Fired Margherita Pizza
+                    Hyderabadi Dum Biryani
                   </p>
                   {/* Order bar */}
                   <div

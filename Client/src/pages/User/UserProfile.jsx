@@ -122,10 +122,12 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center">
-          <Loader2 className="animate-spin h-6 w-6 mr-3 text-blue-600" />
-          Loading profile...
+      <div className="flex min-h-screen items-center justify-center" style={{ background: '#f7f2e8' }}>
+        <div className="sk-surface flex items-center gap-3 rounded-2xl px-5 py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--color-primary)]" aria-hidden="true" />
+          <span className="font-sans text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+            Loading your profile…
+          </span>
         </div>
       </div>
     )
@@ -136,38 +138,48 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-        <Navbar />
-      <div className="mx-auto bg-white min-h-screen px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen" style={{ background: '#f7f2e8' }}>
+      <Navbar />
+      <div className="mx-auto min-h-screen bg-[#fffdf8] px-4 font-sans text-[var(--color-text-base)] sm:px-6 lg:px-8">
 
         {/* Error Message */}
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm">
+          <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-sans text-sm font-medium text-red-800">
             {error}
           </div>
         )}
 
         {/* Header/Profile Section */}
-        <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div
+          className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8"
+          style={{ background: 'radial-gradient(ellipse at top, rgba(255,184,0,0.14), transparent 68%)' }}
+        >
           <div className="flex flex-col sm:flex-row gap-6 mb-6">
             {/* Profile Picture */}
             <div className="flex justify-center sm:justify-start">
-              <div className="relative w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-r from-orange-500 via-yellow-500 to-amber-600 p-0.5 flex-shrink-0">
-                <div className="w-full h-full rounded-full bg-white p-1">
-                  <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden relative group">
+              <div
+                className="relative h-24 w-24 flex-shrink-0 rounded-full p-[3px] shadow-[0_10px_28px_rgba(255,106,0,0.22)] sm:h-32 sm:w-32 md:h-36 md:w-36"
+                style={{ background: 'conic-gradient(from 140deg, #ff6a00, #ffb800, #e55a00, #ff6a00)' }}
+              >
+                <div className="h-full w-full rounded-full bg-[#fffdf8] p-1">
+                  <div className="group relative flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#ffe8cc]">
                     {getProfileImageUrl(user) ? (
-                      <img src={getProfileImageUrl(user)} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
+                      <img
+                        src={getProfileImageUrl(user)}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <User className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-gray-600" />
+                      <User className="h-10 w-10 text-[#e55a00] sm:h-12 sm:w-12" aria-hidden="true" />
                     )}
                     {/* Change-photo affordance */}
                     <Link
                       to="/profile/settings"
                       aria-label="Change profile photo"
                       title="Change profile photo"
-                      className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
+                      className="absolute inset-0 flex cursor-pointer items-center justify-center bg-[#1a1208]/50 opacity-0 transition-opacity duration-200 focus:opacity-100 group-hover:opacity-100"
                     >
-                      <Camera className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                      <Camera className="h-7 w-7 text-[#fffcef] md:h-8 md:w-8" aria-hidden="true" />
                     </Link>
                   </div>
                 </div>
@@ -177,38 +189,36 @@ const UserProfile = () => {
             {/* Profile Info */}
             <div className="flex-1 text-center sm:text-left min-w-0">
               <div className="mb-4">
-                <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-gray-900 truncate">
+                <div className="mb-3 flex items-center justify-center gap-2 sm:justify-start">
+                  <h2 className="truncate font-serif text-3xl font-black leading-tight tracking-[-0.02em] text-[var(--color-text-base)] sm:text-4xl">
                     {user.firstName} {user.lastName}
                   </h2>
-                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1.5">
-                    <Shield className="w-3 h-3 text-white" />
+                  <div className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]" title="Verified account">
+                    <Shield className="h-3 w-3 text-[#1a1208]" aria-hidden="true" />
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row justify-center sm:justify-start gap-2">
-                  <button onClick={handleEditBio} className="px-4 py-2 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" style={{ background: 'var(--color-primary)' }}>
-                    <Edit3 className="w-4 h-4" />
+                <div className="flex flex-col justify-center gap-2 sm:flex-row sm:justify-start">
+                  <button onClick={handleEditBio} className="pressable inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 font-sans text-sm font-bold text-[#fffcef] transition-opacity duration-160 ease-out hover:opacity-90">
+                    <Edit3 className="h-4 w-4" aria-hidden="true" />
                     Edit Profile
                   </button>
                   <Link
                     to="/profile/settings"
                     aria-label="Settings"
                     title="Settings"
-                    className="px-3 py-2 rounded-xl text-sm font-medium transition-all hover:bg-gray-100 flex items-center justify-center cursor-pointer"
-                    style={{ border: '1px solid var(--color-border-light)', color: 'var(--color-text-base)' }}
+                    className="pressable inline-flex items-center justify-center rounded-xl border border-[var(--color-border-medium)] bg-white px-3 py-2 text-[var(--color-text-base)] transition-[border-color,background-color] duration-160 ease-out hover:border-[var(--color-primary)] hover:bg-[#fff3e6]"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="h-4 w-4" aria-hidden="true" />
                   </Link>
                   <button
                     onClick={handleLogout}
                     aria-label="Log out"
                     title="Log out"
-                    className="px-3 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-90 flex items-center justify-center cursor-pointer"
-                    style={{ background: 'rgba(220,38,38,0.10)', color: '#dc2626' }}
+                    className="pressable inline-flex items-center justify-center rounded-xl border border-[#f5c2bd] bg-[#fef3f2] px-3 py-2 text-[#b42318] transition-colors duration-160 ease-out hover:bg-[#fee4e2]"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -216,36 +226,36 @@ const UserProfile = () => {
           </div>
 
           {/* Bio Section */}
-          <div className="mb-4 text-center sm:text-left">
-            <div className="text-sm text-gray-900 leading-relaxed mb-3">
+          <div className="mb-5 text-center sm:text-left">
+            <div className="mb-3 font-sans text-sm leading-relaxed text-[var(--color-text-muted)]">
               {isEditingBio ? (
                 <div className="space-y-2">
                   <textarea
                     value={bioText}
                     onChange={(e) => setBioText(e.target.value.substring(0, 150))}
                     placeholder="Write something about yourself..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full resize-none rounded-xl border border-[var(--color-border-medium)] bg-white px-4 py-3 font-sans text-sm text-[var(--color-text-base)] outline-none transition-[border-color,box-shadow] duration-160 ease-out focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[rgba(255,106,0,0.18)]"
                     rows="3"
                     maxLength="150"
                   />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">{bioText.length}/150</span>
+                    <span className="font-sans text-xs tabular-nums text-[var(--color-text-faint)]">{bioText.length}/150</span>
                     <div className="flex gap-2">
                       <button
                         onClick={handleCancelBio}
                         disabled={savingBio}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-md transition-colors disabled:opacity-50 hover:cursor-pointer"
+                        className="pressable rounded-xl border border-[var(--color-border-medium)] bg-white px-3 py-1.5 font-sans text-sm font-semibold text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-text-base)] disabled:opacity-50"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleSaveBio}
                         disabled={savingBio}
-                        className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors disabled:opacity-50 flex items-center gap-1 hover:cursor-pointer"
+                        className="pressable inline-flex items-center gap-1 rounded-xl bg-[var(--color-primary)] px-3 py-1.5 font-sans text-sm font-bold text-[#fffcef] transition-opacity hover:opacity-90 disabled:opacity-50"
                       >
                         {savingBio ? (
                           <>
-                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                             Saving...
                           </>
                         ) : (
@@ -256,89 +266,98 @@ const UserProfile = () => {
                   </div>
                 </div>
               ) : (
-                <div className="relative group">
-                  <p className="text-gray-700 whitespace-pre-wrap">
+                <div className="group relative">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-muted)] sm:text-base">
                     {user?.bio || 'No bio yet. Click edit to add one.'}
                   </p>
                   <button
                     onClick={handleEditBio}
-                    className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded-full"
+                    aria-label="Edit bio"
+                    className="absolute -right-1 -top-1 rounded-full p-1.5 text-[var(--color-text-faint)] opacity-100 transition-[opacity,background-color,color] hover:bg-[#fff3e6] hover:text-[var(--color-primary)] focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   >
-                    <Edit3 className="w-3 h-3 text-gray-600" />
+                    <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
               )}
             </div>
 
             {/* Contact Info */}
-            <div className="space-y-1 text-xs text-gray-600 flex flex-col items-center sm:items-start">
+            <div className="flex flex-col items-center space-y-1.5 font-sans text-xs text-[var(--color-text-muted)] sm:items-start">
               <div className="flex items-center gap-2">
-                <Mail className="w-3 h-3 flex-shrink-0" />
+                <Mail className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-faint)]" aria-hidden="true" />
                 <span className="truncate">{user.email}</span>
               </div>
               {user.mobile && (
                 <div className="flex items-center gap-2">
-                  <Phone className="w-3 h-3 flex-shrink-0" />
+                  <Phone className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-faint)]" aria-hidden="true" />
                   <span>{user.mobile}</span>
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <Calendar className="w-3 h-3 flex-shrink-0" />
+                <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-faint)]" aria-hidden="true" />
                 <span>Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
               </div>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="flex justify-around sm:justify-center sm:gap-28 mb-4 text-sm">
+          <div className="mb-5 flex justify-around rounded-2xl border border-[var(--color-border-light)] bg-white/70 px-4 py-4 text-sm sm:justify-center sm:gap-28">
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">{userPosts.length}</span>
-              <span className="text-gray-600 text-xs">posts</span>
+              <span className="block font-serif text-2xl font-bold leading-none text-[var(--color-text-base)]">{userPosts.length}</span>
+              <span className="mt-1 block font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">posts</span>
             </div>
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">{user?.followersCount || 0}</span>
-              <span className="text-gray-600 text-xs">followers</span>
+              <span className="block font-serif text-2xl font-bold leading-none text-[var(--color-text-base)]">{user?.followersCount || 0}</span>
+              <span className="mt-1 block font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">followers</span>
             </div>
             <div className="text-center">
-              <span className="font-semibold text-gray-900 block">{user?.followingCount || 0}</span>
-              <span className="text-gray-600 text-xs">following</span>
+              <span className="block font-serif text-2xl font-bold leading-none text-[var(--color-text-base)]">{user?.followingCount || 0}</span>
+              <span className="mt-1 block font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">following</span>
             </div>
           </div>
 
           {/* Create Post Button */}
-          <div className="flex justify-center sm:justify-start mb-4">
+          <div className="mb-5 flex justify-center sm:justify-start">
             <button
               onClick={() => navigate('/create-post')}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer shadow-sm hover:shadow-md"
+              className="pressable inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 py-2.5 font-sans text-sm font-bold text-[#fffcef] transition-opacity duration-160 ease-out hover:opacity-90"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Create Post
             </button>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-t border-gray-200">
+        <div className="border-t border-[var(--color-border-light)]">
           <div className="flex justify-center">
-            <div className="flex w-full sm:w-auto">
+            <div role="tablist" aria-label="Profile sections" className="flex w-full sm:w-auto">
               <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'posts'}
                 onClick={() => setActiveTab('posts')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'posts'
-                  ? 'text-gray-900 border-t-2 border-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 border-t-2 px-4 py-3 font-sans text-xs font-bold uppercase tracking-widest transition-[color,border-color,background-color] duration-160 ease-out sm:flex-initial sm:px-6 ${
+                  activeTab === 'posts'
+                    ? 'border-[var(--color-primary)] bg-[#fffaf3] text-[var(--color-text-base)]'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:bg-[#fffaf3] hover:text-[var(--color-text-base)]'
+                }`}
               >
-                <Grid3X3 className="w-4 h-4" />
+                <Grid3X3 className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Posts</span>
               </button>
               <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'saved'}
                 onClick={() => setActiveTab('saved')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 sm:px-6 py-3 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${activeTab === 'saved'
-                  ? 'text-gray-900 border-t-2 border-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 border-t-2 px-4 py-3 font-sans text-xs font-bold uppercase tracking-widest transition-[color,border-color,background-color] duration-160 ease-out sm:flex-initial sm:px-6 ${
+                  activeTab === 'saved'
+                    ? 'border-[var(--color-primary)] bg-[#fffaf3] text-[var(--color-text-base)]'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:bg-[#fffaf3] hover:text-[var(--color-text-base)]'
+                }`}
               >
-                <Bookmark className="w-4 h-4" />
+                <Bookmark className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Saved ({savedItems.length})</span>
                 <span className="sm:hidden">{savedItems.length}</span>
               </button>
@@ -347,34 +366,38 @@ const UserProfile = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="pb-8">
+        <div className="pb-8" role="tabpanel">
           {activeTab === 'posts' && (
             <div className="px-4 py-6">
               {userPosts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
                   {userPosts.map((post) => (
-                    <div key={post._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
+                    <div
+                      key={post._id}
+                      className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[#efe7d8] shadow-[0_4px_14px_rgba(26,18,8,0.06)] transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(26,18,8,0.12)]"
+                    >
                       {post.type === 'video' ? (
                         <video
                           src={post.video}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <img
                           src={post.image}
                           alt={post.title}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
                         />
                       )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                        <div className="opacity-0 group-hover:opacity-100 text-white text-sm space-y-1 text-center">
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#1a1208]/0 transition-colors duration-200 group-hover:bg-[#1a1208]/25">
+                        <div className="space-y-1 text-center font-sans text-xs font-semibold text-[#fffcef] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                           <div className="flex items-center justify-center gap-4">
                             <span className="flex items-center gap-1">
-                              <Heart className="w-4 h-4" fill="white" />
+                              <Heart className="h-4 w-4" fill="currentColor" aria-hidden="true" />
                               {post.likeCount || 0}
                             </span>
                             <span className="flex items-center gap-1">
-                              <MessageCircle className="w-4 h-4" fill="white" />
+                              <MessageCircle className="h-4 w-4" fill="currentColor" aria-hidden="true" />
                               {post.commentCount || 0}
                             </span>
                           </div>
@@ -384,20 +407,19 @@ const UserProfile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,106,0,0.10)' }}>
-                    <Grid3X3 className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
+                <div className="rounded-2xl border border-dashed border-[var(--color-border-medium)] bg-white/50 px-4 py-16 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff3e6] ring-1 ring-[#ffd9b8]">
+                    <Grid3X3 className="h-6 w-6 text-[var(--color-primary)]" aria-hidden="true" />
                   </div>
-                  <h3 className="text-xl font-serif font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>No Posts Yet</h3>
-                  <p className="text-sm mb-5 font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                  <h3 className="mb-2 font-serif text-2xl font-bold text-[var(--color-text-base)]">No Posts Yet</h3>
+                  <p className="mb-5 font-sans text-sm text-[var(--color-text-muted)]">
                     Share your food experiences with the community
                   </p>
                   <button
                     onClick={() => navigate('/create-post')}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] cursor-pointer"
-                    style={{ background: 'var(--color-primary)' }}
+                    className="pressable inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 py-3 font-sans text-sm font-bold text-[#fffcef] transition-opacity hover:opacity-90"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="h-4 w-4" aria-hidden="true" />
                     Create Your First Post
                   </button>
                 </div>
@@ -408,25 +430,29 @@ const UserProfile = () => {
           {activeTab === 'saved' && (
             <div className="px-4 py-6">
               {savedItems.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
                   {savedItems.map((item) => (
-                    <div key={item._id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity relative group">
+                    <div
+                      key={item._id}
+                      className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[#efe7d8] shadow-[0_4px_14px_rgba(26,18,8,0.06)] transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(26,18,8,0.12)]"
+                    >
                       {item.itemType === 'food' ? (
                         <FoodMedia
                           foodItem={item}
-                          className="w-full h-full"
-                          imgClass="w-full h-full object-cover"
+                          className="h-full w-full"
+                          imgClass="h-full w-full object-cover"
                           alt={item.name}
                         />
                       ) : (
                         <img
                           src={getImageKitThumbnail(item.video || item.image) || ''}
                           alt={item.title}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
                         />
                       )}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <p className="text-white text-xs font-medium truncate">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#1a1208]/75 to-transparent p-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <p className="truncate font-sans text-xs font-semibold text-[#fffcef]">
                           {item.itemType === 'food' ? item.name : item.title}
                         </p>
                       </div>
@@ -434,18 +460,17 @@ const UserProfile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,106,0,0.10)' }}>
-                    <Bookmark className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
+                <div className="rounded-2xl border border-dashed border-[var(--color-border-medium)] bg-white/50 px-4 py-16 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff3e6] ring-1 ring-[#ffd9b8]">
+                    <Bookmark className="h-6 w-6 text-[var(--color-primary)]" aria-hidden="true" />
                   </div>
-                  <h3 className="text-xl font-serif font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>No Saved Items</h3>
-                  <p className="text-sm mb-5 font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                  <h3 className="mb-2 font-serif text-2xl font-bold text-[var(--color-text-base)]">No Saved Items</h3>
+                  <p className="mb-5 font-sans text-sm text-[var(--color-text-muted)]">
                     Tap the bookmark on any reel to save it here for later
                   </p>
                   <button
                     onClick={() => navigate('/reels')}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold font-sans text-white transition-all hover:opacity-90 active:scale-[0.97] cursor-pointer"
-                    style={{ background: 'var(--color-primary)' }}
+                    className="pressable inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 py-3 font-sans text-sm font-bold text-[#fffcef] transition-opacity hover:opacity-90"
                   >
                     Browse reels
                   </button>

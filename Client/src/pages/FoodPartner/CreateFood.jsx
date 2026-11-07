@@ -1,889 +1,1327 @@
-import React, { useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
-import { showWarning, showError, showLoading, updateToSuccess } from '../../utils/toast'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { animate, stagger } from 'animejs'
+import { showWarning, showError, showLoading, updateToSuccess, updateToError } from '../../utils/toast'
 import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
-import { 
-  UtensilsCrossed, 
-  Upload, 
-  Video, 
-  Image as ImageIcon, 
-  ArrowLeft, 
-  Loader2, 
-  X,
-  Plus,
-  Hash,
-  Tag as TagIcon,
-  ShoppingBag,
-  Megaphone,
-  IndianRupee,
+import { usePartnerData } from '../../hooks/usePartnerData'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  ChevronDown,
   Clock,
-  Calendar
+  Hash,
+  Image as ImageIcon,
+  IndianRupee,
+  Loader2,
+  Megaphone,
+  Pencil,
+  Plus,
+  ShoppingBag,
+  Sparkles,
+  Tag as TagIcon,
+  Upload,
+  UtensilsCrossed,
+  Video,
+  X
 } from 'lucide-react'
 import Navbar from '../../Components/Navbar'
 import ErrorBoundary from '../../Components/ErrorBoundary'
 
+const PROMO_TYPES_REQUIRING_PRICES = ['discount', 'combo']
+
+const FIELD_BASE =
+  'w-full rounded-xl border bg-[#fffdf8] px-4 py-3 font-sans text-[#1a1208] placeholder:text-[#9e9890] shadow-[inset_0_2px_4px_rgba(26,18,8,0.07),0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:ring-2 focus:ring-[#ff6a00]/25'
+
+const fieldClass = (hasError) =>
+  `${FIELD_BASE} ${
+    hasError
+      ? 'border-red-500 focus:border-red-500'
+      : 'border-[#d9cbb4] focus:border-[#ff6a00]'
+  }`
+
+const labelClass =
+  'mb-2 block font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-[#6b6460]'
+
+const errorClass = 'mt-1.5 font-sans text-xs font-medium text-red-600'
+
+const sectionClass =
+  'rounded-2xl border border-[#e6d9c4]/80 bg-[#fffdf8]/65 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:p-6'
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center gap-2 rounded-2xl border border-[#c94e00] bg-gradient-to-b from-[#ff8533] to-[#e55a00] px-6 py-3.5 font-sans text-base font-bold text-white shadow-[0_6px_0_#b64a00,0_12px_22px_rgba(229,90,0,0.28),inset_0_1px_0_rgba(255,255,255,0.55)] transition-all duration-200 hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] focus-visible:ring-offset-2 active:translate-y-[3px] active:shadow-[0_3px_0_#b64a00,0_6px_12px_rgba(229,90,0,0.22),inset_0_1px_0_rgba(255,255,255,0.5)] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:translate-y-0'
+
+
+const toDateTimeLocal = (value) => {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (number) => String(number).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`
+}
+
+const emptyForm = {
+  postType: '',
+  name: '',
+  description: '',
+  type: 'image',
+  tags: [],
+  price: '',
+  currency: 'INR',
+  isAvailable: true,
+  preparationTime: '',
+  promotionType: '',
+  prices: { original: '', discounted: '' },
+  validUntil: '',
+  promoCode: ''
+}
+
+/* ─── Animated SVG mark ─────────────────────────────────────────
+   The steam, dome outline and plate line are drawn with anime.js.
+   Every path is visible by default, so reduced-motion users get the
+   finished illustration without any animation. */
+const KitchenMark = () => {
+  const rootRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return undefined
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+
+    const drawPaths = root.querySelectorAll('.cf-draw')
+    drawPaths.forEach((path) => {
+      path.style.strokeDasharray = '1'
+      path.style.strokeDashoffset = '1'
+    })
+
+    const draw = animate(drawPaths, {
+      strokeDashoffset: [1, 0],
+      delay: stagger(110),
+      duration: 1000,
+      easing: 'easeOutExpo'
+    })
+
+    const steam = animate(root.querySelectorAll('.cf-steam'), {
+      translateY: [5, -6],
+      opacity: [0.25, 0.9],
+      delay: stagger(260),
+      duration: 2100,
+      loop: true,
+      alternate: true,
+      easing: 'easeInOutSine'
+    })
+
+    const glow = animate(root.querySelectorAll('.cf-glow'), {
+      opacity: [0.35, 0.8],
+      duration: 2400,
+      loop: true,
+      alternate: true,
+      easing: 'easeInOutSine'
+    })
+
+    return () => {
+      draw.pause()
+      steam.pause()
+      glow.pause()
+    }
+  }, [])
+
+  return (
+    <svg
+      ref={rootRef}
+      viewBox="0 0 160 160"
+      className="h-28 w-28"
+      role="img"
+      aria-label="A steaming cloche"
+    >
+      <defs>
+        <linearGradient id="cf-dome" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fffdf8" />
+          <stop offset="100%" stopColor="#ffd9b3" />
+        </linearGradient>
+        <radialGradient id="cf-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffb800" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#ff6a00" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <circle className="cf-glow" cx="80" cy="86" r="58" fill="url(#cf-glow)" opacity="0.5" />
+
+      <g
+        className="cf-steam"
+        fill="none"
+        stroke="#ff6a00"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.55"
+      >
+        <path d="M62 46c-6-7 6-11 0-18" />
+        <path d="M80 42c-6-7 6-11 0-18" />
+        <path d="M98 46c-6-7 6-11 0-18" />
+      </g>
+
+      <path
+        className="cf-draw"
+        pathLength="1"
+        d="M40 104a40 40 0 0 1 80 0Z"
+        fill="url(#cf-dome)"
+        stroke="#1a1208"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        className="cf-draw"
+        pathLength="1"
+        d="M72 64V56a8 8 0 0 1 16 0v8"
+        fill="#ff6a00"
+        stroke="#1a1208"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        className="cf-draw"
+        pathLength="1"
+        d="M28 104h104"
+        fill="none"
+        stroke="#1a1208"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        className="cf-draw"
+        pathLength="1"
+        d="M38 104c0 9 18 15 42 15s42-6 42-15"
+        fill="none"
+        stroke="#1a1208"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        className="cf-draw"
+        pathLength="1"
+        d="M58 88c10-10 34-10 44 0"
+        fill="none"
+        stroke="#ffb800"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <circle cx="122" cy="48" r="4" fill="#ff6a00" />
+      <circle cx="38" cy="54" r="3" fill="#ffb800" />
+    </svg>
+  )
+}
+
+const PostTypeCard = ({ active, onClick, icon, title, description, bullets, tone }) => {
+  const iconTone =
+    tone === 'accent'
+      ? 'bg-gradient-to-b from-[#fff8d6] to-[#ffe58a] text-[#8a5a00]'
+      : 'bg-gradient-to-b from-[#fff3e0] to-[#ffd9b3] text-[#e55a00]'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`sk-surface group relative overflow-hidden p-6 text-left transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] focus-visible:ring-offset-2 ${
+        active ? 'ring-2 ring-[#ff6a00]/70' : ''
+      }`}
+    >
+      {active && (
+        <span className="absolute right-4 top-4 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c94e00] bg-gradient-to-b from-[#ff8533] to-[#e55a00] text-[#1a1208] shadow-[0_2px_0_#b64a00,inset_0_1px_0_rgba(255,255,255,0.5)]">
+          <Check className="h-4 w-4" strokeWidth={3} />
+        </span>
+      )}
+
+      <span
+        className={`sk-icon mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_3px_6px_rgba(26,18,8,0.12)] ${iconTone}`}
+      >
+        {React.createElement(icon, { className: 'h-7 w-7' })}
+      </span>
+
+      <h2 className="sk-label font-serif text-2xl font-bold">{title}</h2>
+      <p className="mt-2 font-sans text-sm leading-relaxed text-[#6b6460]">{description}</p>
+
+      <ul className="mt-4 space-y-1.5">
+        {bullets.map((bullet) => (
+          <li key={bullet} className="flex items-center gap-2 font-sans text-sm text-[#4a4038]">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#ffb800]/25 text-[#b07a00]">
+              <Check className="h-3 w-3" strokeWidth={3} />
+            </span>
+            {bullet}
+          </li>
+        ))}
+      </ul>
+    </button>
+  )
+}
+
+const StepPill = ({ number, label, active, done, onClick }) => {
+  const Tag = onClick ? 'button' : 'div'
+  return (
+    <Tag
+      {...(onClick ? { type: 'button', onClick } : {})}
+      className={`flex items-center gap-2.5 rounded-full px-1 py-1 font-sans text-sm font-semibold transition-colors ${
+        onClick ? 'cursor-pointer hover:text-[#e55a00]' : ''
+      } ${active ? 'text-[#1a1208]' : 'text-[#9e9890]'}`}
+    >
+      <span
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_2px_4px_rgba(26,18,8,0.1)] ${
+          active
+            ? 'border-[#c94e00] bg-gradient-to-b from-[#ff8533] to-[#e55a00] text-[#1a1208]'
+            : 'border-[#d9cbb4] bg-[#fffdf8] text-[#9e9890]'
+        }`}
+      >
+        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : number}
+      </span>
+      <span className="hidden sm:inline">{label}</span>
+    </Tag>
+  )
+}
+
 const CreateFood = () => {
   const navigate = useNavigate()
-  const [formData, setFormData] = useState({
-    postType: '', // 'food' or 'advertisement'
-    name: '',
-    description: '',
-    type: 'image', // 'image' or 'video'
-    tags: [],
-    // Food-specific fields
-    price: '',
-    currency: 'INR',
-    isAvailable: true,
-    preparationTime: '',
-    // Advertisement-specific fields
-    promotionType: '',
-    prices: {
-      original: '',
-      discounted: ''
-    },
-    validUntil: '',
-    promoCode: ''
-  })
+  const [searchParams] = useSearchParams()
+  const { posts, loading: partnerLoading, error: partnerError, refresh } = usePartnerData()
+
+  const editId = searchParams.get('edit') || ''
+  const editTypeParam = searchParams.get('type') || ''
+  const isEditMode = Boolean(editId)
+
+  const [formData, setFormData] = useState(emptyForm)
   const [file, setFile] = useState(null)
   const [filePreview, setFilePreview] = useState(null)
+  const [existingMedia, setExistingMedia] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
-  const [currentStep, setCurrentStep] = useState(1) // 1: Post Type, 2: Details Form
+  const [currentStep, setCurrentStep] = useState(isEditMode ? 2 : 1)
+  const [prefillDone, setPrefillDone] = useState(!isEditMode)
+  const [loadError, setLoadError] = useState('')
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }))
+  const minValidUntil = useMemo(
+    () => toDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000)),
+    []
+  )
+
+  // Load the post being edited from the already-cached partner context.
+  // `my-posts` includes unavailable items, unlike the public /food/:id route.
+  useEffect(() => {
+    if (!isEditMode || prefillDone || partnerLoading) return
+
+    if (!posts) {
+      setLoadError(
+        partnerError || 'We could not load your posts. Return to the dashboard and try again.'
+      )
+      setPrefillDone(true)
+      return
     }
+
+    const foodMatch = (posts.food || []).find((item) => item._id === editId)
+    const advertisementMatch = (posts.advertisement || []).find((item) => item._id === editId)
+    const resolvedType =
+      editTypeParam === 'advertisement' || (!editTypeParam && advertisementMatch && !foodMatch)
+        ? 'advertisement'
+        : 'food'
+    const item = resolvedType === 'food' ? foodMatch : advertisementMatch
+
+    if (!item) {
+      setLoadError('This post could not be found. It may have been deleted.')
+      setPrefillDone(true)
+      return
+    }
+
+    const mediaUrl = item.image || item.video || item.file || null
+
+    setExistingMedia(mediaUrl ? { url: mediaUrl, type: item.type || 'image' } : null)
+    setFilePreview(mediaUrl)
+    setFormData({
+      postType: resolvedType,
+      name: item.name || '',
+      description: item.description || '',
+      type: item.type || 'image',
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      price: item.price ?? '',
+      currency: item.currency || 'INR',
+      isAvailable: item.isAvailable !== false,
+      preparationTime: item.preparationTime ?? '',
+      promotionType: item.promotionType || '',
+      prices: {
+        original: item.prices?.original ?? '',
+        discounted: item.prices?.discounted ?? ''
+      },
+      validUntil: toDateTimeLocal(item.validUntil),
+      promoCode: item.promoCode || ''
+    })
+    setPrefillDone(true)
+  }, [isEditMode, prefillDone, partnerLoading, partnerError, posts, editId, editTypeParam])
+
+  const updateField = (event) => {
+    const { name, value } = event.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
   }
 
-  const handlePostTypeSelect = (postType) => {
-    setFormData(prev => ({ ...prev, postType }))
-    setCurrentStep(2)
+  const updatePrice = (key, value) => {
+    const errorKey = key === 'original' ? 'originalPrice' : 'discountedPrice'
+    setFormData((prev) => ({ ...prev, prices: { ...prev.prices, [key]: value } }))
+    if (errors[errorKey]) setErrors((prev) => ({ ...prev, [errorKey]: '' }))
   }
 
-  const handleTypeChange = (type) => {
-    setFormData(prev => ({ ...prev, type }))
+  const selectPostType = (postType) => {
+    setFormData((prev) => ({ ...prev, postType }))
+    setErrors({})
+  }
+
+  const changeType = (nextType) => {
+    if (nextType === formData.type) return
+    setFormData((prev) => ({ ...prev, type: nextType }))
     setFile(null)
-    setFilePreview(null)
+    setErrors((prev) => ({ ...prev, file: '' }))
+    // Restore the saved media when switching back to its original format.
+    setFilePreview(existingMedia && existingMedia.type === nextType ? existingMedia.url : null)
   }
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0]
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files?.[0]
     if (!selectedFile) return
 
-    // Validate file type
     const isImage = selectedFile.type.startsWith('image/')
     const isVideo = selectedFile.type.startsWith('video/')
-    
+
     if (formData.type === 'image' && !isImage) {
       showWarning('Please select an image file')
+      event.target.value = ''
       return
     }
-    
     if (formData.type === 'video' && !isVideo) {
       showWarning('Please select a video file')
+      event.target.value = ''
       return
     }
 
-    // File size validation — must mirror the server's FILE_SIZE_LIMITS
-    // (IMAGE 5MB / VIDEO 10MB). 
+    // Must mirror the server limits: IMAGE 5MB / VIDEO 10MB.
     const sizeLimit = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024
     if (selectedFile.size > sizeLimit) {
       showWarning(`File size must be less than ${isVideo ? '10MB' : '5MB'}`)
+      event.target.value = ''
       return
     }
 
     setFile(selectedFile)
-    
-    // Create preview
+    setErrors((prev) => ({ ...prev, file: '' }))
+
     const reader = new FileReader()
-    reader.onload = () => {
-      setFilePreview(reader.result)
-    }
+    reader.onload = () => setFilePreview(reader.result)
     reader.readAsDataURL(selectedFile)
+
+    // Allow selecting the same file again after removing it.
+    event.target.value = ''
+  }
+
+  const clearMedia = () => {
+    setFile(null)
+    setFilePreview(existingMedia && existingMedia.type === formData.type ? existingMedia.url : null)
+    setErrors((prev) => ({ ...prev, file: '' }))
   }
 
   const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()]
-      }))
+    const nextTag = tagInput.trim()
+    if (!nextTag) return
+    if (formData.tags.includes(nextTag)) {
       setTagInput('')
+      return
     }
+    setFormData((prev) => ({ ...prev, tags: [...prev.tags, nextTag] }))
+    setTagInput('')
   }
 
   const removeTag = (tagToRemove) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter((tag) => tag !== tagToRemove)
     }))
   }
 
   const validateForm = () => {
-    const newErrors = {}
+    const nextErrors = {}
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required'
+    if (!formData.name.trim()) nextErrors.name = 'Give this post a name.'
+    if (!formData.description.trim()) nextErrors.description = 'Add a short description.'
+
+    const mediaRequired = !isEditMode || !existingMedia || formData.type !== existingMedia.type
+    if (mediaRequired && !file) {
+      nextErrors.file = `Upload ${formData.type === 'image' ? 'an image' : 'a video'} to publish.`
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required'
-    }
-
-    if (!file) {
-      newErrors.file = `${formData.type === 'image' ? 'Image' : 'Video'} is required`
-    }
-
-    // Food-specific validation
     if (formData.postType === 'food') {
-      if (!formData.price || formData.price <= 0) {
-        newErrors.price = 'Valid price is required'
+      const price = Number(formData.price)
+      if (formData.price === '' || Number.isNaN(price) || price <= 0) {
+        nextErrors.price = 'Enter a price greater than ₹0.'
       }
-      if (!formData.preparationTime.trim()) {
-        newErrors.preparationTime = 'Preparation time is required'
+
+      const preparationTime = Number(formData.preparationTime)
+      if (
+        formData.preparationTime === '' ||
+        Number.isNaN(preparationTime) ||
+        preparationTime < 0
+      ) {
+        nextErrors.preparationTime = 'Enter the preparation time in minutes.'
       }
     }
 
-    // Advertisement-specific validation
     if (formData.postType === 'advertisement') {
-      if (!formData.promotionType) {
-        newErrors.promotionType = 'Promotion type is required'
-      }
-      // For promotion types that require pricing, validate prices
-      const promoTypesRequiringPrices = ['discount', 'sale', 'combo'];
-      if (promoTypesRequiringPrices.includes(formData.promotionType)) {
-        const original = parseFloat(formData.prices?.original || '')
-        const discounted = parseFloat(formData.prices?.discounted || '')
+      if (!formData.promotionType) nextErrors.promotionType = 'Choose a promotion type.'
 
-        if (!original || isNaN(original) || original <= 0) {
-          newErrors.originalPrice = 'Original price is required and must be positive'
+      const requiresPrices = PROMO_TYPES_REQUIRING_PRICES.includes(formData.promotionType)
+      const hasAnyPrice =
+        formData.prices.original !== '' || formData.prices.discounted !== ''
+
+      if (requiresPrices || hasAnyPrice) {
+        const original = Number(formData.prices.original)
+        const discounted = Number(formData.prices.discounted)
+
+        if (formData.prices.original === '' || Number.isNaN(original) || original <= 0) {
+          nextErrors.originalPrice = 'Enter the original price.'
         }
-        if (!discounted || isNaN(discounted) || discounted <= 0) {
-          newErrors.discountedPrice = 'Discounted price is required and must be positive'
+        if (
+          formData.prices.discounted === '' ||
+          Number.isNaN(discounted) ||
+          discounted <= 0
+        ) {
+          nextErrors.discountedPrice = 'Enter the discounted price.'
         }
-        if (!newErrors.discountedPrice && !newErrors.originalPrice && discounted >= original) {
-          newErrors.discountedPrice = 'Discounted price must be less than original price'
+        if (
+          !nextErrors.originalPrice &&
+          !nextErrors.discountedPrice &&
+          discounted >= original
+        ) {
+          nextErrors.discountedPrice = 'Discounted price must be lower than the original.'
         }
       }
+
       if (!formData.validUntil) {
-        newErrors.validUntil = 'Valid until date is required'
+        nextErrors.validUntil = 'Choose when this offer ends.'
+      } else if (new Date(formData.validUntil).getTime() <= Date.now()) {
+        nextErrors.validUntil = 'Choose a date and time in the future.'
       }
     }
 
-    return newErrors
+    return nextErrors
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (loading) return
 
-    // Validate form
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      showWarning('Please fill up form correctly')
-      setLoading(false)
+      showWarning('Please fix the highlighted fields')
+      const firstKey = Object.keys(validationErrors)[0]
+      const firstField = document.getElementById(firstKey === 'file' ? 'file-upload' : firstKey)
+      firstField?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      firstField?.focus({ preventScroll: true })
       return
     }
 
-    // Check file upload
-    if (!file) {
-      showWarning('Please select a file to upload')
-      setLoading(false)
-      return
-    }
+    setLoading(true)
+    let loadingToast
 
     try {
-      // Create FormData for file upload
       const submitData = new FormData()
-      submitData.append('name', formData.name)
-      submitData.append('description', formData.description)
+      submitData.append('name', formData.name.trim())
+      submitData.append('description', formData.description.trim())
       submitData.append('type', formData.type)
       submitData.append('postType', formData.postType)
       submitData.append('tags', JSON.stringify(formData.tags))
-      
-      // Add post-type specific fields
+
       if (formData.postType === 'food') {
-        if (formData.price) {
-          submitData.append('price', formData.price)
-          submitData.append('currency', formData.currency)
+        submitData.append('price', formData.price)
+        submitData.append('currency', formData.currency)
+        submitData.append('preparationTime', formData.preparationTime)
+        submitData.append('isAvailable', String(formData.isAvailable))
+      } else {
+        submitData.append('promotionType', formData.promotionType)
+        submitData.append('validUntil', formData.validUntil)
+        // On edit, send empty values too — otherwise clearing a promo code or
+        // the promo prices leaves the previous values in the database.
+        if (formData.promoCode.trim() || isEditMode) {
+          submitData.append('promoCode', formData.promoCode.trim().toUpperCase())
         }
-        if (formData.preparationTime) {
-          submitData.append('preparationTime', formData.preparationTime)
-        }
-        // Always send isAvailable status
-        submitData.append('isAvailable', formData.isAvailable)
-      } else if (formData.postType === 'advertisement') {
-        if (formData.promotionType) {
-          submitData.append('promotionType', formData.promotionType)
-        }
-        if (formData.prices.original || formData.prices.discounted) {
-          submitData.append('prices', JSON.stringify(formData.prices))
-        }
-        if (formData.validUntil) {
-          submitData.append('validUntil', formData.validUntil)
-        }
-        if (formData.promoCode) {
-          submitData.append('promoCode', formData.promoCode)
+        if (formData.prices.original !== '' || formData.prices.discounted !== '') {
+          submitData.append(
+            'prices',
+            JSON.stringify({
+              original: Number(formData.prices.original),
+              discounted: Number(formData.prices.discounted)
+            })
+          )
+        } else if (isEditMode) {
+          submitData.append('prices', JSON.stringify({}))
         }
       }
-      
-      // Always use 'file' as the field name to match backend expectation
-      submitData.append('file', file)
 
-      const loadingToast = showLoading('Uploading your post...')
-      
-      // Use different API endpoints based on post type
-       const apiUrl = formData.postType === 'food' 
-        ? API_ENDPOINTS.food.create
-        : API_ENDPOINTS.advertisement.create
-      
-      const response = await axios.post(apiUrl, submitData, multipartConfig)
+      if (file) submitData.append('file', file)
 
-      // console.log(response)
-      // console.log('Post created successfully:', response.data)
-      if (response.data) {
-          updateToSuccess(
-            loadingToast,
-            `${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully! Redirecting...`
-          )
-        }
-      
-      
-      setTimeout(() => navigate('/partner-profile'), 2000)
-      
+      const endpoint = isEditMode
+        ? formData.postType === 'food'
+          ? API_ENDPOINTS.food.update(editId)
+          : API_ENDPOINTS.advertisement.update(editId)
+        : formData.postType === 'food'
+          ? API_ENDPOINTS.food.create
+          : API_ENDPOINTS.advertisement.create
+
+      loadingToast = showLoading(isEditMode ? 'Saving your changes...' : 'Uploading your post...')
+
+      if (isEditMode) {
+        await axios.put(endpoint, submitData, multipartConfig)
+      } else {
+        await axios.post(endpoint, submitData, multipartConfig)
+      }
+
+      updateToSuccess(
+        loadingToast,
+        isEditMode
+          ? 'Post updated successfully!'
+          : `${formData.postType === 'food' ? 'Food' : 'Advertisement'} post created successfully!`
+      )
+
+      // Pull fresh posts before navigating so the profile/dashboard never
+      // renders a stale list after a create or edit.
+      await refresh()
+
+      setTimeout(() => navigate(isEditMode ? '/partner-dashboard' : '/partner-profile'), 1200)
     } catch (error) {
       console.error('Create post error:', error)
-      const serverMsg = error?.response?.data?.error || error?.message || 'Failed to create post'
-      showError(serverMsg)
+      const serverMsg =
+        error?.response?.data?.error || error?.message || 'Failed to save post'
+      if (loadingToast) {
+        updateToError(loadingToast, serverMsg)
+      } else {
+        showError(serverMsg)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
-          
-          <div className="text-center">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UtensilsCrossed className="w-8 h-8 text-orange-600" />
+  if (isEditMode && !prefillDone) {
+    return (
+      <div className="min-h-screen bg-[#f7f2e8] text-[#1a1208]">
+        <Navbar />
+        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-24">
+          <div className="sk-surface flex h-20 w-20 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#ff6a00]" />
+          </div>
+          <p className="mt-5 font-sans text-sm font-semibold text-[#6b6460]">
+            Loading your post…
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isEditMode && loadError) {
+    return (
+      <div className="min-h-screen bg-[#f7f2e8] text-[#1a1208]">
+        <Navbar />
+        <div className="mx-auto max-w-xl px-4 py-20">
+          <div className="sk-surface p-8 text-center">
+            <div className="mx-auto mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fff3e0] text-[#e55a00] shadow-[inset_0_2px_4px_rgba(26,18,8,0.08)]">
+              <UtensilsCrossed className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Food Post</h1>
-            <p className="text-gray-600">Share your delicious creations with the world</p>
+            <h1 className="font-serif text-3xl font-bold">Post not available</h1>
+            <p className="mt-3 font-sans text-sm leading-relaxed text-[#6b6460]">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/partner-dashboard')}
+              className={`${primaryButtonClass} mt-6`}
+            >
+              Back to dashboard
+            </button>
           </div>
         </div>
+      </div>
+    )
+  }
 
-        {/* Form */}
-        <ErrorBoundary>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-          {/* Step Indicator */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  currentStep >= 1 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  1
-                </div>
-                <span className="text-sm font-medium">Choose Type</span>
-              </div>
-              <div className={`flex-1 h-0.5 mx-4 ${currentStep >= 2 ? 'bg-orange-200' : 'bg-gray-200'}`}></div>
-              <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  currentStep >= 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  2
-                </div>
-                <span className="text-sm font-medium">Add Details</span>
-              </div>
-            </div>
-          </div>
+  const mediaRequired = !isEditMode || !existingMedia || formData.type !== existingMedia.type
+  const isFood = formData.postType === 'food'
 
-          {currentStep === 1 ? (
-            // Step 1: Post Type Selection
-            <div className="space-y-6">
-              <div className="text-center mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">What would you like to create?</h2>
-                <p className="text-gray-600">Choose the type of content you want to share</p>
-              </div>
+  return (
+    <div className="min-h-screen bg-[#f7f2e8] text-[#1a1208]">
+      <Navbar />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Food Post Option */}
-                <div
-                  onClick={() => handlePostTypeSelect('food')}
-                  className={`cursor-pointer p-6 rounded-lg border-2 transition-all hover:shadow-md ${
-                    formData.postType === 'food'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                      formData.postType === 'food'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      <ShoppingBag className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Food Item</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Share a food item that customers can order with pricing details
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                        <IndianRupee className="w-4 h-4" />
-                        <span>Set pricing</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                        <Clock className="w-4 h-4" />
-                        <span>Preparation time</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+      <div className="relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_18%_0%,rgba(255,184,0,0.16),transparent_42%),radial-gradient(circle_at_82%_10%,rgba(255,106,0,0.14),transparent_46%)]"
+        />
 
-                {/* Advertisement Post Option */}
-                <div
-                  onClick={() => handlePostTypeSelect('advertisement')}
-                  className={`cursor-pointer p-6 rounded-lg border-2 transition-all hover:shadow-md ${
-                    formData.postType === 'advertisement'
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                      formData.postType === 'advertisement'
-                        ? 'bg-purple-100 text-purple-600'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      <Megaphone className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Advertisement</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Create promotional content like offers, discounts, or announcements
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-center gap-2 text-sm text-purple-600">
-                        <TagIcon className="w-4 h-4" />
-                        <span>Promotion type</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-sm text-purple-600">
-                        <Calendar className="w-4 h-4" />
-                        <span>Validity period</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {formData.postType && (
-                <div className="text-center pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-8 rounded-md transition-colors"
-                  >
-                    Continue to Details
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            // Step 2: Detailed Form
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Back Button */}
+        <div className="relative mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+          <header className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
               <button
                 type="button"
-                onClick={() => setCurrentStep(1)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                onClick={() => navigate(-1)}
+                className="mb-5 inline-flex items-center gap-2 rounded-full px-1 py-1 font-sans text-sm font-semibold text-[#6b6460] transition-colors hover:text-[#1a1208] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00]"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to Type Selection</span>
+                <ArrowLeft className="h-4 w-4" />
+                Back
               </button>
 
-              {/* Selected Post Type Indicator */}
-              <div className={`p-4 rounded-lg border ${
-                formData.postType === 'food' 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'bg-purple-50 border-purple-200'
-              }`}>
-                <div className="flex items-center gap-3">
-                  {formData.postType === 'food' ? (
-                    <ShoppingBag className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <Megaphone className="w-5 h-5 text-purple-600" />
-                  )}
-                  <span className={`font-medium ${
-                    formData.postType === 'food' ? 'text-green-800' : 'text-purple-800'
-                  }`}>
-                    Creating {formData.postType === 'food' ? 'Food Item' : 'Advertisement'} Post
-                  </span>
-                </div>
-              </div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d9c4] bg-[#fffdf8]/85 px-3 py-1 font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-[#e55a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Partner studio
+              </span>
 
-              {/* Content Type Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Content Type
-                </label>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => handleTypeChange('image')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                      formData.type === 'image'
-                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    Image Post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTypeChange('video')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                      formData.type === 'video'
-                        ? 'bg-red-50 border-red-200 text-red-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Video className="w-4 h-4" />
-                    Video Reel
-                  </button>
-                </div>
-              </div>
-
-              {/* Food Name/Title */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  {formData.postType === 'food' ? 'Food Name' : 'Advertisement Title'} *
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder={formData.postType === 'food' 
-                    ? "e.g. Biriyani, Margherita Pizza, Burger..." 
-                    : "e.g. 50% Off Weekend Special, Buy 1 Get 1 Free..."
-                  }
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+              <h1 className="mt-4 font-serif text-4xl font-black leading-[1.05] sm:text-5xl">
+                {isEditMode ? (
+                  <>
+                    Polish your <span className="italic text-[#ff6a00]">post.</span>
+                  </>
+                ) : (
+                  <>
+                    Create something <span className="italic text-[#ff6a00]">delicious.</span>
+                  </>
                 )}
-              </div>
+              </h1>
 
-              {/* Description */}
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows={4}
-                  placeholder={formData.postType === 'food'
-                    ? "Describe your dish, ingredients, preparation method..."
-                    : "Describe your offer, terms and conditions, promotional details..."
-                  }
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none ${
-                    errors.description ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-                )}
-              </div>
+              <p className="mt-3 max-w-xl font-sans text-sm leading-relaxed text-[#6b6460] sm:text-base">
+                {isEditMode
+                  ? 'Update the details, swap the media, or change availability. Your changes go live as soon as you save.'
+                  : 'Add a dish customers can order or run a promotion that fills the feed. Everything is saved to your partner profile.'}
+              </p>
+            </div>
 
-              {/* Conditional Fields based on Post Type */}
-              {formData.postType === 'food' ? (
-                // Food-specific fields
-                <div className="space-y-6 border-t pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                    <ShoppingBag className="w-5 h-5 text-green-600" />
-                    Food Details
-                  </h3>
-<div className='grid grid-cols-2 gap-4'>
-                  {/* Price */}
-                  <div>
-                    <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
-                      Price *
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <IndianRupee className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
-                        type="number"
-                        id="price"
-                        name="price"
-                        value={formData.price}
-                        onChange={handleInputChange}
-                        placeholder="Enter price"
-                        min="0"
-                        step="0.01"
-                        className={`w-full px-8 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                          errors.price ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {/* <div className="absolute inset-y-0 right-0 flex items-center"> */}
-                        {/* <select
-                          name="currency"
-                          value={formData.currency}
-                          onChange={handleInputChange}
-                          className="h-full py-0 pl-2 pr-7 border-transparent bg-transparent text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                        >
-                          <option value="INR">INR</option>
-                          <option value="USD">USD</option>
-                        </select> */}
-                      {/* </div> */}
-                    </div>
-                    {errors.price && (
-                      <p className="mt-1 text-sm text-red-600">{errors.price}</p>
-                    )}
+            <div className="sk-surface sk-icon flex h-36 w-36 shrink-0 items-center justify-center self-start sm:self-center">
+              <KitchenMark />
+            </div>
+          </header>
+
+          <ErrorBoundary>
+            <div className="sk-surface overflow-hidden p-5 sm:p-8">
+              {isEditMode ? (
+                <div className="mb-7 flex items-start gap-3 rounded-2xl border border-[#ffd04d]/70 bg-[#fff7dc] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-[#b07a00]" />
+                  <p className="font-sans text-sm leading-relaxed text-[#6b5a2a]">
+                    Editing <span className="font-bold text-[#1a1208]">{formData.name || 'your post'}</span>.
+                    Upload new media only if you want to replace the current file.
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-8 flex items-center gap-3">
+                  <StepPill
+                    number={1}
+                    label="Choose type"
+                    active={currentStep >= 1}
+                    done={currentStep > 1}
+                    onClick={currentStep === 2 ? () => setCurrentStep(1) : undefined}
+                  />
+                  <div
+                    className={`h-0.5 flex-1 rounded-full transition-colors ${
+                      currentStep >= 2 ? 'bg-[#ff6a00]' : 'bg-[#d9cbb4]'
+                    }`}
+                  />
+                  <StepPill
+                    number={2}
+                    label="Add details"
+                    active={currentStep >= 2}
+                  />
+                </div>
+              )}
+
+              {currentStep === 1 ? (
+                <div>
+                  <div className="mb-7 text-center">
+                    <h2 className="font-serif text-2xl font-bold sm:text-3xl">
+                      What are you sharing today?
+                    </h2>
+                    <p className="mt-2 font-sans text-sm text-[#6b6460]">
+                      Pick a format, then continue to the details.
+                    </p>
                   </div>
 
-                  {/* Preparation Time */}
-                  <div>
-                    <label htmlFor="preparationTime" className="block text-sm font-medium text-gray-700 mb-2">
-                      Preparation Time *
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input 
-                      required
-                        type="number"
-                        id="preparationTime"
-                        name="preparationTime"
-                        value={formData.preparationTime}
-                        onChange={handleInputChange}
-                        placeholder="Enter time in minutes"
-                        min="0"
-                        className="w-full px-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      />
-                      {/* <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">min</span>
-                      </div> */}
-                    </div>
-                  </div>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <PostTypeCard
+                      active={formData.postType === 'food'}
+                      onClick={() => selectPostType('food')}
+                      icon={ShoppingBag}
+                      title="Food item"
+                      description="A dish customers can add to their cart, with pricing and availability."
+                      bullets={['Set a price', 'Prep time & availability']}
+                      tone="primary"
+                    />
+                    <PostTypeCard
+                      active={formData.postType === 'advertisement'}
+                      onClick={() => selectPostType('advertisement')}
+                      icon={Megaphone}
+                      title="Advertisement"
+                      description="A promotion, discount or announcement that appears in the reels feed."
+                      bullets={['Promotion type', 'Validity window']}
+                      tone="accent"
+                    />
                   </div>
 
-                  {/* Availability Toggle */}
-                  <div className="pt-4 border-t">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-5 h-5 rounded flex items-center justify-center ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}>
-                          {formData.isAvailable && (
-                            <svg className="w-4 h-4 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-                              <path d="M5 13l4 4L19 7"></path>
-                            </svg>
-                          )}
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">Currently Available for Order</span>
-                          <p className="text-xs text-gray-500">Toggle this when item is out of stock</p>
-                        </div>
-                      </div>
-                      <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out">
-                        <input
-                          type="checkbox"
-                          checked={formData.isAvailable}
-                          onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
-                          className="opacity-0 w-0 h-0 peer"
-                        />
-                        {/* <span className={`absolute cursor-pointer inset-0 rounded-full transition duration-200 ${formData.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                        <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${formData.isAvailable ? 'translate-x-6' : ''}`}></span> */}
-                      </div>
-                    </label>
+                  <div className="mt-8 flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={!formData.postType}
+                      onClick={() => setCurrentStep(2)}
+                      className={primaryButtonClass}
+                    >
+                      Continue to details
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                    <p className="font-sans text-xs text-[#9e9890]">
+                      You can go back and change the format before publishing.
+                    </p>
                   </div>
                 </div>
               ) : (
-                // Advertisement-specific fields
-                <div className="space-y-6 border-t pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                    <Megaphone className="w-5 h-5 text-purple-600" />
-                    Promotion Details
-                  </h3>
+                <form onSubmit={handleSubmit} noValidate className="space-y-7">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d9c4] bg-[#fffdf8] px-3.5 py-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#4a4038] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                      {isFood ? (
+                        <ShoppingBag className="h-4 w-4 text-[#e55a00]" />
+                      ) : (
+                        <Megaphone className="h-4 w-4 text-[#b07a00]" />
+                      )}
+                      {isFood ? 'Food item' : 'Advertisement'}
+                    </span>
 
-                  {/* Promotion Type */}
-                  <div>
-                    <label htmlFor="promotionType" className="block text-sm font-medium text-gray-700 mb-2">
-                      Promotion Type *
-                    </label>
-                    <select
-                      id="promotionType"
-                      name="promotionType"
-                      value={formData.promotionType}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        errors.promotionType ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="">Select promotion type</option>
-                      <option value="discount">Discount Offer</option>
-                      <option value="bogo">Buy One Get One</option>
-                      <option value="combo">Combo Deal</option>
-                      <option value="seasonal">Seasonal Special</option>
-                      <option value="announcement">General Announcement</option>
-                    </select>
-                    {errors.promotionType && (
-                      <p className="mt-1 text-sm text-red-600">{errors.promotionType}</p>
-                    )}
-                  </div>
-
-                  {/* Promotional Prices (Optional) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Promotional Pricing (Optional)
-                    </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="originalPrice" className="block text-xs text-gray-600 mb-1">Original Price</label>
-                        <div className="relative">
-                          <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="number"
-                            id="originalPrice"
-                            name="prices.original"
-                            value={formData.prices.original}
-                            onChange={(e) => setFormData(prev => ({
-                              ...prev,
-                              prices: { ...prev.prices, original: e.target.value }
-                            }))}
-                            placeholder="0"
-                            min="0"
-                            step="0.01"
-                            className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label htmlFor="discountedPrice" className="block text-xs text-gray-600 mb-1">Discounted Price</label>
-                        <div className="relative">
-                          <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="number"
-                            id="discountedPrice"
-                            name="prices.discounted"
-                            value={formData.prices.discounted}
-                            onChange={(e) => setFormData(prev => ({
-                              ...prev,
-                              prices: { ...prev.prices, discounted: e.target.value }
-                            }))}
-                            placeholder="0"
-                            min="0"
-                            step="0.01"
-                            className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Valid Until */}
-                  <div>
-                    <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700 mb-2">
-                      Valid Until
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        type="datetime-local"
-                        id="validUntil"
-                        name="validUntil"
-                        value={formData.validUntil}
-                        onChange={handleInputChange}
-                        className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Promo Code */}
-                  <div>
-                    <label htmlFor="promoCode" className="block text-sm font-medium text-gray-700 mb-2">
-                      Promo Code (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      id="promoCode"
-                      name="promoCode"
-                      value={formData.promoCode}
-                      onChange={handleInputChange}
-                      placeholder="e.g. SAVE20, WEEKEND50"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                    />
-                  </div>
-                </div>
-              )}
-              {/* File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {formData.type === 'image' ? 
-                    (formData.postType === 'food' ? 'Food Image' : 'Advertisement Image') : 
-                    (formData.postType === 'food' ? 'Food Video' : 'Advertisement Video')
-                  } *
-                </label>
-                
-                {!filePreview ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                    <input
-                      type="file"
-                      accept={formData.type === 'image' ? 'image/*' : 'video/*'}
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-2">
-                        Click to upload {formData.type === 'image' ? 'an image' : 'a video'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {formData.type === 'image' ? 'PNG, JPG, GIF up to 5MB' : 'MP4, MOV up to 10MB'}
-                      </p>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    {formData.type === 'image' ? (
-                      <img
-                        src={filePreview}
-                        alt="Preview"
-                        className="w-full max-h-64 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <video
-                        src={filePreview}
-                        controls
-                        className="w-full max-h-64 rounded-lg"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFile(null)
-                        setFilePreview(null)
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                
-                {errors.file && (
-                  <p className="mt-1 text-sm text-red-600">{errors.file}</p>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tags (Optional)
-                </label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                    placeholder="Add a tag..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={addTag}
-                    className="bg-blue-500 text-white px-3 py-2 hover:bg-blue-600 transition-colors rounded-2xl"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                {formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+                    {!isEditMode && (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(1)}
+                        className="inline-flex items-center gap-2 rounded-full px-1 py-1 font-sans text-sm font-semibold text-[#6b6460] transition-colors hover:text-[#1a1208] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00]"
                       >
-                        <Hash className="w-3 h-3 flex-shrink-0" />
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-200 hover:cursor-pointer rounded-full p-1 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:cursor-pointer ${
-                  formData.postType === 'food'
-                    ? 'bg-green-500 hover:bg-green-600 disabled:bg-green-400 focus:ring-green-500'
-                    : 'bg-purple-500 hover:bg-purple-600 disabled:bg-purple-400 focus:ring-purple-500'
-                } text-white`}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Creating Post...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    {formData.postType === 'food' ? (
-                      <ShoppingBag className="h-4 w-4 mr-2" />
-                    ) : (
-                      <Megaphone className="h-4 w-4 mr-2" />
+                        <ArrowLeft className="h-4 w-4" />
+                        Change type
+                      </button>
                     )}
-                    Create {formData.postType === 'food' ? 'Food' : 'Advertisement'} Post
                   </div>
-                )}
-              </button>
-            </form>
-          )}
-          </div>
-        </ErrorBoundary>
+
+                  <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="space-y-6">
+                      <section className={sectionClass}>
+                        <div className="mb-5 flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#fff3e0] text-[#e55a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(26,18,8,0.08)]">
+                            <ImageIcon className="h-4 w-4" />
+                          </span>
+                          <h2 className="font-serif text-xl font-bold">The basics</h2>
+                        </div>
+
+                        <div className="space-y-5">
+                          <div>
+                            <span className={labelClass}>Content format</span>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => changeType('image')}
+                                aria-pressed={formData.type === 'image'}
+                                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 font-sans text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] ${
+                                  formData.type === 'image'
+                                    ? 'border-[#ff6a00] bg-[#fff3e0] text-[#1a1208] shadow-[inset_0_2px_4px_rgba(255,106,0,0.12),0_1px_0_rgba(255,255,255,0.9)]'
+                                    : 'border-[#d9cbb4] bg-[#fffdf8] text-[#6b6460] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] hover:border-[#c4b49b]'
+                                }`}
+                              >
+                                <ImageIcon className="h-4 w-4" />
+                                Image post
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => changeType('video')}
+                                aria-pressed={formData.type === 'video'}
+                                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 font-sans text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] ${
+                                  formData.type === 'video'
+                                    ? 'border-[#ff6a00] bg-[#fff3e0] text-[#1a1208] shadow-[inset_0_2px_4px_rgba(255,106,0,0.12),0_1px_0_rgba(255,255,255,0.9)]'
+                                    : 'border-[#d9cbb4] bg-[#fffdf8] text-[#6b6460] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] hover:border-[#c4b49b]'
+                                }`}
+                              >
+                                <Video className="h-4 w-4" />
+                                Video reel
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label htmlFor="name" className={labelClass}>
+                              {isFood ? 'Food name' : 'Advertisement title'} *
+                            </label>
+                            <input
+                              id="name"
+                              name="name"
+                              type="text"
+                              value={formData.name}
+                              onChange={updateField}
+                              placeholder={
+                                isFood
+                                  ? 'e.g. Hyderabadi Dum Biryani'
+                                  : 'e.g. 50% off weekend special'
+                              }
+                              aria-invalid={Boolean(errors.name)}
+                              className={fieldClass(errors.name)}
+                            />
+                            {errors.name && <p className={errorClass}>{errors.name}</p>}
+                          </div>
+
+                          <div>
+                            <label htmlFor="description" className={labelClass}>
+                              Description *
+                            </label>
+                            <textarea
+                              id="description"
+                              name="description"
+                              rows={4}
+                              value={formData.description}
+                              onChange={updateField}
+                              placeholder={
+                                isFood
+                                  ? 'Describe the dish, ingredients and what makes it special...'
+                                  : 'Describe the offer, terms and promotional details...'
+                              }
+                              aria-invalid={Boolean(errors.description)}
+                              className={`${fieldClass(errors.description)} resize-none leading-relaxed`}
+                            />
+                            {errors.description && (
+                              <p className={errorClass}>{errors.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className={sectionClass}>
+                        <div className="mb-5 flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#fff8d6] text-[#b07a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(26,18,8,0.08)]">
+                            {isFood ? (
+                              <UtensilsCrossed className="h-4 w-4" />
+                            ) : (
+                              <TagIcon className="h-4 w-4" />
+                            )}
+                          </span>
+                          <h2 className="font-serif text-xl font-bold">
+                            {isFood ? 'Food details' : 'Promotion details'}
+                          </h2>
+                        </div>
+
+                        {isFood ? (
+                          <div className="space-y-5">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor="price" className={labelClass}>
+                                  Price *
+                                </label>
+                                <div className="relative">
+                                  <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                                  <input
+                                    id="price"
+                                    name="price"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    value={formData.price}
+                                    onChange={updateField}
+                                    placeholder="249"
+                                    aria-invalid={Boolean(errors.price)}
+                                    className={`${fieldClass(errors.price)} pl-10`}
+                                  />
+                                </div>
+                                {errors.price && <p className={errorClass}>{errors.price}</p>}
+                              </div>
+
+                              <div>
+                                <label htmlFor="preparationTime" className={labelClass}>
+                                  Preparation time *
+                                </label>
+                                <div className="relative">
+                                  <Clock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                                  <input
+                                    id="preparationTime"
+                                    name="preparationTime"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    inputMode="numeric"
+                                    value={formData.preparationTime}
+                                    onChange={updateField}
+                                    placeholder="25"
+                                    aria-invalid={Boolean(errors.preparationTime)}
+                                    className={`${fieldClass(errors.preparationTime)} pl-10 pr-12`}
+                                  />
+                                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-sans text-xs font-semibold text-[#9e9890]">
+                                    min
+                                  </span>
+                                </div>
+                                {errors.preparationTime && (
+                                  <p className={errorClass}>{errors.preparationTime}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#e6d9c4] bg-[#fffdf8] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                              <div>
+                                <p className="font-sans text-sm font-bold text-[#1a1208]">
+                                  Available for order
+                                </p>
+                                <p className="mt-0.5 font-sans text-xs text-[#6b6460]">
+                                  Turn this off when the dish is out of stock.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={formData.isAvailable}
+                                aria-label="Available for order"
+                                onClick={() =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    isAvailable: !prev.isAvailable
+                                  }))
+                                }
+                                className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] focus-visible:ring-offset-2 ${
+                                  formData.isAvailable
+                                    ? 'border-[#c94e00] bg-gradient-to-b from-[#ff8533] to-[#e55a00]'
+                                    : 'border-[#c4b49b] bg-[#d9cbb4]'
+                                } shadow-[inset_0_2px_5px_rgba(26,18,8,0.25)]`}
+                              >
+                                <span
+                                  className={`ml-1 inline-block h-6 w-6 rounded-full border border-white/70 bg-[#fffdf8] shadow-[0_2px_4px_rgba(26,18,8,0.28),inset_0_1px_0_rgba(255,255,255,0.9)] transition-transform duration-200 ${
+                                    formData.isAvailable ? 'translate-x-6' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-5">
+                            <div>
+                              <label htmlFor="promotionType" className={labelClass}>
+                                Promotion type *
+                              </label>
+                              <div className="relative">
+                                <select
+                                  id="promotionType"
+                                  name="promotionType"
+                                  value={formData.promotionType}
+                                  onChange={updateField}
+                                  aria-invalid={Boolean(errors.promotionType)}
+                                  className={`${fieldClass(errors.promotionType)} appearance-none pr-10`}
+                                >
+                                  <option value="">Select promotion type</option>
+                                  <option value="discount">Discount offer</option>
+                                  <option value="bogo">Buy one get one</option>
+                                  <option value="combo">Combo deal</option>
+                                  <option value="seasonal">Seasonal special</option>
+                                  <option value="announcement">General announcement</option>
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                              </div>
+                              {errors.promotionType && (
+                                <p className={errorClass}>{errors.promotionType}</p>
+                              )}
+                            </div>
+
+                            <div>
+                              <span className={labelClass}>
+                                Promotional pricing{' '}
+                                <span className="normal-case tracking-normal text-[#9e9890]">
+                                  (optional unless the offer needs it)
+                                </span>
+                              </span>
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                  <label
+                                    htmlFor="originalPrice"
+                                    className="mb-1.5 block font-sans text-xs font-semibold text-[#6b6460]"
+                                  >
+                                    Original price
+                                  </label>
+                                  <div className="relative">
+                                    <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                                    <input
+                                      id="originalPrice"
+                                      name="prices.original"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      inputMode="decimal"
+                                      value={formData.prices.original}
+                                      onChange={(event) =>
+                                        updatePrice('original', event.target.value)
+                                      }
+                                      placeholder="399"
+                                      aria-invalid={Boolean(errors.originalPrice)}
+                                      className={`${fieldClass(errors.originalPrice)} pl-10`}
+                                    />
+                                  </div>
+                                  {errors.originalPrice && (
+                                    <p className={errorClass}>{errors.originalPrice}</p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label
+                                    htmlFor="discountedPrice"
+                                    className="mb-1.5 block font-sans text-xs font-semibold text-[#6b6460]"
+                                  >
+                                    Discounted price
+                                  </label>
+                                  <div className="relative">
+                                    <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                                    <input
+                                      id="discountedPrice"
+                                      name="prices.discounted"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      inputMode="decimal"
+                                      value={formData.prices.discounted}
+                                      onChange={(event) =>
+                                        updatePrice('discounted', event.target.value)
+                                      }
+                                      placeholder="299"
+                                      aria-invalid={Boolean(errors.discountedPrice)}
+                                      className={`${fieldClass(errors.discountedPrice)} pl-10`}
+                                    />
+                                  </div>
+                                  {errors.discountedPrice && (
+                                    <p className={errorClass}>{errors.discountedPrice}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label htmlFor="validUntil" className={labelClass}>
+                                Valid until *
+                              </label>
+                              <div className="relative">
+                                <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                                <input
+                                  id="validUntil"
+                                  name="validUntil"
+                                  type="datetime-local"
+                                  min={minValidUntil}
+                                  value={formData.validUntil}
+                                  onChange={updateField}
+                                  aria-invalid={Boolean(errors.validUntil)}
+                                  className={`${fieldClass(errors.validUntil)} pl-10`}
+                                />
+                              </div>
+                              {errors.validUntil && (
+                                <p className={errorClass}>{errors.validUntil}</p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label htmlFor="promoCode" className={labelClass}>
+                                Promo code{' '}
+                                <span className="normal-case tracking-normal text-[#9e9890]">
+                                  (optional)
+                                </span>
+                              </label>
+                              <input
+                                id="promoCode"
+                                name="promoCode"
+                                type="text"
+                                value={formData.promoCode}
+                                onChange={updateField}
+                                placeholder="WEEKEND50"
+                                className={`${fieldClass(false)} uppercase placeholder:normal-case`}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    </div>
+
+                    <div className="space-y-6">
+                      <section className={sectionClass}>
+                        <div className="mb-4 flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#fff3e0] text-[#e55a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(26,18,8,0.08)]">
+                            <Upload className="h-4 w-4" />
+                          </span>
+                          <h2 className="font-serif text-xl font-bold">Media</h2>
+                        </div>
+
+                        <input
+                          id="file-upload"
+                          type="file"
+                          accept={formData.type === 'image' ? 'image/*' : 'video/*'}
+                          onChange={handleFileChange}
+                          className="sr-only"
+                        />
+
+                        {!filePreview ? (
+                          <label
+                            htmlFor="file-upload"
+                            className={`flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors focus-within:ring-2 focus-within:ring-[#ff6a00]/30 ${
+                              errors.file
+                                ? 'border-red-400 bg-red-50/40'
+                                : 'border-[#d9cbb4] bg-[#fffdf8]/75 hover:border-[#ffb800] hover:bg-[#fff8d6]/40'
+                            }`}
+                          >
+                            <span className="sk-icon inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-b from-[#fff3e0] to-[#ffd9b3] text-[#e55a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_3px_6px_rgba(26,18,8,0.12)]">
+                              <Upload className="h-6 w-6" />
+                            </span>
+                            <span className="mt-3 font-sans text-sm font-bold text-[#1a1208]">
+                              Upload {formData.type === 'image' ? 'an image' : 'a video'}
+                            </span>
+                            <span className="mt-1 font-sans text-xs text-[#6b6460]">
+                              {formData.type === 'image'
+                                ? 'JPG, PNG or GIF · up to 5MB'
+                                : 'MP4 or MOV · up to 10MB'}
+                            </span>
+                          </label>
+                        ) : (
+                          <div className="relative overflow-hidden rounded-2xl border-4 border-[#fffdf8] shadow-[0_10px_24px_rgba(26,18,8,0.16)]">
+                            {formData.type === 'image' ? (
+                              <img
+                                src={filePreview}
+                                alt={`${formData.name || 'Post'} preview`}
+                                className="max-h-64 w-full object-cover"
+                              />
+                            ) : (
+                              <video
+                                src={filePreview}
+                                controls
+                                className="max-h-64 w-full bg-black object-contain"
+                              />
+                            )}
+
+                            <div className="absolute right-2 top-2 flex gap-2">
+                              <label
+                                htmlFor="file-upload"
+                                title="Replace media"
+                                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/60 bg-white/90 text-[#1a1208] shadow-md transition-colors hover:bg-white focus-within:ring-2 focus-within:ring-[#ff6a00]"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </label>
+                              {(file || !existingMedia) && (
+                                <button
+                                  type="button"
+                                  onClick={clearMedia}
+                                  title="Remove media"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/60 bg-white/90 text-red-500 shadow-md transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            {!file && existingMedia && (
+                              <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-white backdrop-blur">
+                                Current media
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {errors.file && <p className={errorClass}>{errors.file}</p>}
+
+                        <p className="mt-3 font-sans text-[11px] leading-relaxed text-[#9e9890]">
+                          {mediaRequired
+                            ? formData.type === 'image'
+                              ? 'A clear photo helps customers decide faster.'
+                              : 'Keep it short and appetising — reels autoplay in the feed.'
+                            : 'Your current file stays in place unless you upload a replacement.'}
+                        </p>
+                      </section>
+
+                      <section className={sectionClass}>
+                        <div className="mb-4 flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#fff8d6] text-[#b07a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(26,18,8,0.08)]">
+                            <Hash className="h-4 w-4" />
+                          </span>
+                          <h2 className="font-serif text-xl font-bold">Tags</h2>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <div className="relative min-w-0 flex-1">
+                            <Hash className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9e9890]" />
+                            <input
+                              type="text"
+                              value={tagInput}
+                              onChange={(event) => setTagInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault()
+                                  addTag()
+                                }
+                              }}
+                              placeholder="biryani, spicy..."
+                              className={`${fieldClass(false)} pl-10`}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={addTag}
+                            aria-label="Add tag"
+                            className="inline-flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-xl border border-[#c94e00] bg-gradient-to-b from-[#ff8533] to-[#e55a00] text-[#1a1208] shadow-[0_3px_0_#b64a00,inset_0_1px_0_rgba(255,255,255,0.5)] transition active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6a00] focus-visible:ring-offset-2"
+                          >
+                            <Plus className="h-5 text-white w-5" strokeWidth={3} />
+                          </button>
+                        </div>
+
+                        {formData.tags.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {formData.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[#e6d9c4] bg-[#fffdf8] px-3 py-1.5 font-sans text-xs font-bold text-[#1a1208] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(26,18,8,0.06)]"
+                              >
+                                <Hash className="h-3 w-3 text-[#ff6a00]" />
+                                {tag}
+                                <button
+                                  type="button"
+                                  onClick={() => removeTag(tag)}
+                                  aria-label={`Remove ${tag}`}
+                                  className="ml-0.5 rounded-full p-0.5 text-[#9e9890] transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className="mt-3 font-sans text-[11px] leading-relaxed text-[#9e9890]">
+                          Optional. Tags help people find this post in search and discovery.
+                        </p>
+                      </section>
+                    </div>
+                  </div>
+
+                  <button type="submit" disabled={loading} className={`${primaryButtonClass} w-full`}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        {isEditMode ? 'Saving changes...' : 'Publishing...'}
+                      </>
+                    ) : (
+                      <>
+                        {isFood ? (
+                          <ShoppingBag className="h-5 w-5" />
+                        ) : (
+                          <Megaphone className="h-5 w-5" />
+                        )}
+                        {isEditMode
+                          ? 'Save changes'
+                          : `Publish ${isFood ? 'food item' : 'advertisement'}`}
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   )

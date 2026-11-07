@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth'
  * Provides: partnerProfile, posts, loading, error, refresh
  */
 export const PartnerDataProvider = ({ children }) => {
-  const { isAuthenticated, authType } = useAuth()
+  const { isAuthenticated, authType, loading: authLoading } = useAuth()
   const [partnerProfile, setPartnerProfile] = useState(null)
   const [posts, setPosts] = useState(null) // { food: [], advertisement: [] }
   const [loading, setLoading] = useState(true)
@@ -63,6 +63,7 @@ export const PartnerDataProvider = ({ children }) => {
   // Partner data is per-account: load it for a partner session only, and clear
   // the previous partner's data on logout/login so it never leaks.
   useEffect(() => {
+    if (authLoading) return // Wait for auth to finish loading before fetching partner data   
     if (authType === 'partner' && isAuthenticated) {
       fetchPartnerData()
     } else {
@@ -71,7 +72,7 @@ export const PartnerDataProvider = ({ children }) => {
       setError('')
       setLoading(false)
     }
-  }, [authType, isAuthenticated, fetchPartnerData])
+  }, [authType, isAuthenticated, authLoading, fetchPartnerData])
 
   const refresh = useCallback(() => fetchPartnerData(true), [fetchPartnerData])
 

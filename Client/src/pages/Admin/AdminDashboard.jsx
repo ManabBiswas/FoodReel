@@ -15,6 +15,8 @@ import OrdersTab from '../../Components/admin/tabs/OrdersTab'
 import CancelRequestsTab from '../../Components/admin/tabs/CancelRequestsTab'
 import ReviewsTab from '../../Components/admin/tabs/ReviewsTab'
 import AnalyticsTab from '../../Components/admin/tabs/AnalyticsTab'
+import EventProposalsTab from '../../Components/admin/tabs/EventProposalsTab'
+import EventManagementTab from '../../Components/admin/tabs/EventManagementTab'
 
 /* ═══════════════════════════════════════════════════════
    ADMIN DASHBOARD — Thin Shell
@@ -136,6 +138,8 @@ const AdminDashboard = () => {
           {activeTab === 'content' && <ContentTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'orders' && <OrdersTab navigate={navigate} setError={setError} />}
       {activeTab === 'cancels' && <CancelRequestsTab navigate={navigate} setError={setError} />}
+      {activeTab === 'event-proposals' && <EventProposalsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
+      {activeTab === 'events' && <EventManagementTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'reviews' && <ReviewsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'analytics' && <AnalyticsTab navigate={navigate} setError={setError} />}
         </div>
