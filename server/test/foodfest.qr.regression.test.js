@@ -1,0 +1,294 @@
+/**
+ * Regressions from the FoodFest QR / webhook pass.
+ *
+ * The QR bug was the worst class of failure in this repo's history: a single
+ * truthiness check against a property that does not exist made every FoodFest
+ * ticket purchase fail, and nothing caught it because no test exercised the
+ * upload path or the storage service's real return shape.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+const storageService = (await import('../src/services/storage.service.js')).default;
+const qrService = (await import('../src/services/foodfest.qr.service.js')).default;
+
+// ---------- 1. the QR upload contract ----------
+
+test('storage.uploadFile returns no `success` flag (the trap that broke QR)', async () => {
+    // Read the real shape rather than assume it: this mismatch is what made
+    // `if (!uploadResponse.success)` throw on every successful upload.
+    const src = read('src/services/storage.service.js');
+    const fn = src.slice(src.indexOf('async function uploadFile'));
+    const ret = fn.slice(fn.indexOf('return {'), fn.indexOf('}', fn.indexOf('return {')));
+    assert.doesNotMatch(ret, /success\s*:/, 'uploadFile must not be read as if it returned success');
+    assert.match(ret, /url:/, 'it returns url');
+});
+
+test('createQRImage succeeds when the upload returns a url', async () => {
+    const real = storageService.uploadFile;
+    storageService.uploadFile = async () => ({
+        url: 'https://ik.imagekit.io/abc/tickets/1.png',
+        fileId: 'file-1',
+        name: '1.png',
+        isVideo: false
+    });
+    try {
+        const url = await qrService.createQRImage('signed.token.payload');
+        assert.match(url, /^https:\/\//, 'a successful upload must yield the stored URL');
+    } finally {
+        storageService.uploadFile = real;
+    }
+});
+
+test('createQRImage still throws when the upload yields no url', async () => {
+    const real = storageService.uploadFile;
+    storageService.uploadFile = async () => ({ fileId: 'x', name: 'x.png', isVideo: false });
+    try {
+        await assert.rejects(
+            () => qrService.createQRImage('signed.token.payload'),
+            /no URL returned/,
+            'a missing URL must be reported, not silently returned'
+        );
+    } finally {
+        storageService.uploadFile = real;
+    }
+});
+
+test('createQRImage propagates a storage failure', async () => {
+    const real = storageService.uploadFile;
+    storageService.uploadFile = async () => { throw new Error('ImageKit 503'); };
+    try {
+        await assert.rejects(() => qrService.createQRImage('signed.token.payload'), /ImageKit 503/);
+    } finally {
+        storageService.uploadFile = real;
+    }
+});
+
+// ---------- 2. every upload route verifies content ----------
+
+test('every upload route runs verifyFileSignature', () => {
+    const routes = ['auth.route.js', 'user.route.js', 'food.route.js', 'userPost.route.js', 'advertisement.route.js'];
+    for (const file of routes) {
+        const src = read(`src/routes/${file}`);
+        const starts = [...src.matchAll(/upload\.single\([^)]*\)/g)];
+        assert.ok(starts.length > 0, `${file} should have at least one upload route`);
+        for (const start of starts) {
+            // Everything between this upload and the next router.* statement
+            // (or end of line) is that route's middleware chain.
+            const rest = src.slice(start.index + start[0].length);
+            const boundary = rest.search(/\n\s*router\./);
+            const chain = boundary === -1 ? rest : rest.slice(0, boundary);
+            assert.match(
+                chain,
+                /verifyFileSignature\(/,
+                `${file}: an upload route is missing verifyFileSignature`
+            );
+        }
+    }
+});
+
+test('fileUpload exports verifyFileSignature both named and on the default', () => {
+    const src = read('src/middlewares/fileUpload.js');
+    assert.match(src, /export const verifyFileSignature/);
+    const defaultExport = src.slice(src.indexOf('export default {'));
+    assert.match(
+        defaultExport,
+        /verifyFileSignature/,
+        'the default export must include verifyFileSignature so both import styles work'
+    );
+});
+
+// ---------- 3. webhook records what it actually did ----------
+
+test('the foodfest webhook branch records a real outcome', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf("foodfest_ticket");
+    assert.ok(start > -1, 'the foodfest branch must exist');
+    const block = src.slice(start - 400, start + 1400);
+    assert.match(block, /recordWebhookOutcome\(/, 'the branch must update the ledger');
+    assert.match(block, /result\?\.success/, 'must read the documented success field, not `ok`');
+    assert.doesNotMatch(
+        block,
+        /handled: 'foodfest_ticket_failed'/,
+        'a transient failure must not be acknowledged with 200 or Razorpay will never retry'
+    );
+});
+
+test('the foodfest branch does not swallow errors', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf("kind === 'foodfest_ticket'");
+    const block = src.slice(start, start + 1600);
+    assert.doesNotMatch(
+        block,
+        /catch\s*\([^)]*\)\s*\{\s*\n?\s*return res\.status\(200\)/,
+        'an inner catch returning 200 would silently drop a paid ticket'
+    );
+});
+
+test('the foodfest webhook asks Razorpay to retry a pending refund', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf("kind === 'foodfest_ticket'");
+    const block = src.slice(start, start + 2400);
+    assert.match(block, /result\?\.retryable/, 'must use the finaliser retry flag');
+    assert.match(block, /res\.status\(503\)/, 'a pending refund must not be acknowledged with 200');
+});
+
+test('a failed webhook event is replayed instead of acked as a duplicate', () => {
+    const src = read('src/controllers/payment.controller.js');
+    const start = src.indexOf('Claim the event before doing any work');
+    assert.ok(start > -1, 'the event claim must exist');
+    const block = src.slice(start, start + 2000);
+    assert.match(
+        block,
+        /create\(\{ eventId, event, outcome: 'error' \}\)/,
+        'a crash mid-delivery must stay retryable'
+    );
+    assert.match(block, /deleteOne\(\{ eventId, outcome: 'error' \}\)/, 'only failed attempts may be replayed');
+    assert.match(block, /deletedCount === 1/, 'the delete is the retry claim');
+});
+
+test('finalizeTicketPayment reports success, not ok', () => {
+    const src = read('src/services/foodfest.ticket.service.js');
+    assert.match(src, /return \{ success: true, ticket \}/);
+});
+
+// ---------- 4. tokenVersion is honoured everywhere ----------
+
+test('every auth surface checks tokenVersion', () => {
+    for (const rel of [
+        'src/middlewares/isLoggedin.js',
+        'src/middlewares/isUserOrPartner.js',
+        'src/middlewares/isAdmin.js',
+        'src/middlewares/isFoodPartnerLoggedin.js',
+        'src/middlewares/optionalAuth.js',
+        'src/services/foodfest.socket.service.js'
+    ]) {
+        const src = read(rel);
+        assert.match(
+            src,
+            /decoded\.tv/,
+            `${rel} must check tokenVersion so a password change revokes old tokens`
+        );
+    }
+});
+
+test('optionalAuth selects tokenVersion', () => {
+    const src = read('src/middlewares/optionalAuth.js');
+    assert.match(src, /select\([^)]*tokenVersion/, 'the field must be selected or it is always undefined');
+});
+
+test('the socket handshake selects tokenVersion for users', () => {
+    const src = read('src/services/foodfest.socket.service.js');
+    assert.match(src, /select\([^)]*tokenVersion/);
+});
+
+test('the socket handshake selects tokenVersion for every principal', () => {
+    const src = read('src/services/foodfest.socket.service.js');
+    const selects = [...src.matchAll(/findById\(decoded\.id\)\.select\(([^)]*)\)/g)]
+        .map((m) => m[1]);
+    assert.equal(selects.length, 3, 'user, partner and admin lookups must all select it');
+    for (const fields of selects) {
+        assert.match(fields, /tokenVersion/, `socket lookup selects "${fields}" without tokenVersion`);
+    }
+});
+
+// ---------- 5. public FoodFest surface ----------
+
+test('public event details only expose published and live events', () => {
+    const src = read('src/controllers/foodfest/ticket.user.controller.js');
+    const start = src.indexOf('export const getEventDetails');
+    assert.ok(start > -1, 'getEventDetails must exist');
+    const block = src.slice(start, start + 900);
+    assert.match(
+        block,
+        /status:\s*\{\s*\$in:\s*\[\s*'published',\s*'live'\s*\]\s*\}/,
+        'draft, cancelled and completed events must not leak their details'
+    );
+    assert.match(block, /isValidObjectId/, 'malformed ids must 404, not 500');
+});
+
+test('ticket purchase validates event and tier state in the reserve query', () => {
+    const src = read('src/controllers/foodfest/ticket.user.controller.js');
+    const start = src.indexOf('export const purchaseTicket');
+    assert.ok(start > -1, 'purchaseTicket must exist');
+    const block = src.slice(start, start + 2600);
+    assert.match(block, /status:\s*\{\s*\$in:\s*\[\s*'published',\s*'live'\s*\]/, 'only published/live events may sell');
+    assert.match(block, /active:\s*true/, 'inactive tiers must not sell');
+    assert.match(block, /salesStart/, 'the tier sales window must be enforced');
+    assert.match(block, /salesEnd/);
+});
+
+test('checkout releases the zone seat atomically', () => {
+    const src = read('src/controllers/foodfest/scan.gate.controller.js');
+    const start = src.indexOf('export const checkoutTicket');
+    assert.ok(start > -1, 'checkoutTicket must exist');
+    const block = src.slice(start, start + 3200);
+    assert.match(block, /startSession\(/, 'ticket release and zone decrement must share a transaction');
+    assert.match(block, /currentCount: \{ \$gt: 0 \}/, 'the decrement must be floored at zero');
+    assert.match(block, /\$set: \{ checkedOutAt/, 'the ticket update must use atomic operators');
+});
+
+test('FoodFest admin routes have a dedicated rate limiter', () => {
+    const src = read('src/routes/foodfest/admin.routes.js');
+    assert.match(src, /adminRateLimiter/);
+});
+
+test('FoodFest admin list routes are registered behind isAdmin', () => {
+    const src = read('src/routes/foodfest/admin.routes.js');
+    for (const [method, route] of [
+        ['get', '/events'],
+        ['get', '/events/:eventId/zones'],
+        ['get', '/events/:eventId/tiers']
+    ]) {
+        const pattern = new RegExp(`router\\.${method}\\(\\s*'${route.replace(/[/:]/g, '\\$&')}',\\s*isAdmin`);
+        assert.match(src, pattern, `${method.toUpperCase()} ${route} must be admin-only`);
+    }
+});
+
+test('the admin event list includes drafts', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    const start = src.indexOf('export const listEvents');
+    assert.ok(start > -1, 'listEvents must exist');
+    const end = src.indexOf('export const', start + 1);
+    const block = src.slice(start, end === -1 ? undefined : end);
+    assert.doesNotMatch(block, /status\s*:/, 'the admin list must not filter drafts out');
+    assert.match(block, /FoodFestEvent\.find\(\)/);
+});
+
+test('admin zone and tier lists are scoped to the event and validate it', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    for (const [fn, model] of [['listZones', 'FoodFestZone'], ['listTiers', 'FoodFestTier']]) {
+        const start = src.indexOf(`export const ${fn}`);
+        assert.ok(start > -1, `${fn} must exist`);
+        const block = src.slice(start, start + 700);
+        assert.match(block, /FoodFestEvent\.exists\(\{ _id: eventId \}\)/, `${fn} must 404 an unknown event`);
+        assert.match(block, new RegExp(`${model}\\.find\\(\\{ eventId \\}\\)`), `${fn} must only return the event's rows`);
+    }
+});
+
+test('admin tier updates cannot shrink below sold + reserved', () => {
+    const src = read('src/controllers/foodfest/event.admin.controller.js');
+    const start = src.indexOf('export const updateTier');
+    assert.ok(start > -1, 'updateTier must exist');
+    const block = src.slice(start, start + 1200);
+    assert.match(block, /\$expr:\s*\{\s*\$gte:/, 'quantity must be guarded atomically');
+    assert.match(block, /\$sold.*\$reserved|sold.*reserved/, 'the guard must include both counters');
+});
+
+// ---------- 5. sanitizeFilter stays off (V-13) ----------
+
+test('sanitizeFilter is deliberately NOT enabled', async () => {
+    // Proven against a real mongod: with sanitizeFilter on, both capacity
+    // guards throw "$expr is not allowed with sanitizeFilter", silently
+    // disabling zone capacity and ticket oversell protection.
+    const src = read('src/db/db.js');
+    assert.doesNotMatch(src, /mongoose\.set\('sanitizeFilter',\s*true\)/);
+    assert.match(src, /mongoose\.set\('strictQuery',\s*true\)/, 'strictQuery is safe and stays on');
+    assert.match(src, /\$expr/, 'db.js should document why sanitizeFilter is off');
+});

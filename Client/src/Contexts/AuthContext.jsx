@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useCallback, useMemo } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
+import { showWarning } from '../utils/toast'
 
 // Create Auth Context
 const AuthContext = createContext(null)
@@ -117,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || error.message || 'Login failed'
+        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed'
       }
     } finally {
       setLoading(false)
@@ -150,7 +151,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || error.message || 'Login failed'
+        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed'
       }
     } finally {
       setLoading(false)
@@ -192,8 +193,20 @@ export const AuthProvider = ({ children }) => {
 
   // Logout
   const logout = useCallback(async () => {
+    setLoading(true)
+    const clearSession = () => {
+      setUser(null)
+      setPartner(null)
+      setAdmin(null)
+      setIsAuthenticated(false)
+      setAuthType(null)
+    }
+    const verifyEndpoint =
+      authType === 'partner' ? API_ENDPOINTS.auth.partnerCheck
+      : authType === 'admin' ? API_ENDPOINTS.auth.adminVerify
+      : API_ENDPOINTS.auth.userVerify
+
     try {
-      setLoading(true)
       if (authType === 'user') {
         await axios.post(API_ENDPOINTS.auth.userLogout, {}, axiosConfig)
       } else if (authType === 'partner') {
@@ -201,14 +214,23 @@ export const AuthProvider = ({ children }) => {
       } else if (authType === 'admin') {
         await axios.post(API_ENDPOINTS.auth.adminLogout, {}, axiosConfig)
       }
+      clearSession()
     } catch (error) {
+      // The cookie may still be valid, so re-check before claiming logout.
       console.error('Logout error:', error)
+      let stillActive = false
+      try {
+        const res = await axios.get(verifyEndpoint, axiosConfig)
+        stillActive = res.data?.isAuthenticated === true
+      } catch {
+        stillActive = false
+      }
+      if (stillActive) {
+        showWarning('Signed out on this device failed — your session is still active. Please try again.')
+      } else {
+        clearSession()
+      }
     } finally {
-      setUser(null)
-      setPartner(null)
-      setAdmin(null)
-      setIsAuthenticated(false)
-      setAuthType(null)
       setLoading(false)
     }
   }, [authType])

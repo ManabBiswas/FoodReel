@@ -38,7 +38,7 @@ export const createComment = async (req, res) => {
     // Populate user info
     await comment.populate({
       path: 'postedBy',
-      select: 'firstName lastName profileImage email'
+      select: 'firstName lastName profileImage'
     })
 
     // Update parent comment's replies if this is a reply
@@ -67,7 +67,7 @@ export const createComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to create comment',
-      error: error.message
+
     })
   }
 }
@@ -96,13 +96,13 @@ export const getCommentsByPost = async (req, res) => {
     })
       .populate({
         path: 'postedBy',
-        select: 'firstName lastName profileImage email'
+        select: 'firstName lastName profileImage'
       })
       .populate({
         path: 'replies',
         populate: {
           path: 'postedBy',
-          select: 'firstName lastName profileImage email'
+          select: 'firstName lastName profileImage'
         }
       })
       .sort(sort)
@@ -131,7 +131,7 @@ export const getCommentsByPost = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch comments',
-      error: error.message
+
     })
   }
 }
@@ -144,13 +144,13 @@ export const getComment = async (req, res) => {
     const comment = await Comment.findById(commentId)
       .populate({
         path: 'postedBy',
-        select: 'firstName lastName profileImage email'
+        select: 'firstName lastName profileImage'
       })
       .populate({
         path: 'replies',
         populate: {
           path: 'postedBy',
-          select: 'firstName lastName profileImage email'
+          select: 'firstName lastName profileImage'
         }
       })
 
@@ -171,7 +171,7 @@ export const getComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch comment',
-      error: error.message
+
     })
   }
 }
@@ -214,7 +214,7 @@ export const updateComment = async (req, res) => {
 
     await comment.populate({
       path: 'postedBy',
-      select: 'firstName lastName profileImage email'
+      select: 'firstName lastName profileImage'
     })
 
     return res.status(200).json({
@@ -227,7 +227,7 @@ export const updateComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update comment',
-      error: error.message
+
     })
   }
 }
@@ -285,7 +285,7 @@ export const deleteComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to delete comment',
-      error: error.message
+
     })
   }
 }
@@ -343,7 +343,7 @@ export const likeComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to like comment',
-      error: error.message
+
     })
   }
 }
@@ -382,7 +382,7 @@ export const unlikeComment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to unlike comment',
-      error: error.message
+
     })
   }
 }
@@ -408,7 +408,7 @@ export const getUserCommentLikes = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch user comment likes',
-      error: error.message
+
     })
   }
 }

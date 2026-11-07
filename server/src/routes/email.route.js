@@ -1,7 +1,12 @@
 import express from "express";  
 import emailController from "../controllers/email.controller.js";
+import isAdmin from "../middlewares/isAdmin.js";
 
 const router = express.Router();
+
+// Email endpoints are admin-only: legitimate transactional emails are sent directly from controllers via emailService — these HTTP endpoints must never be open (they previously allowed anyone to send arbitrary mail).
+
+router.use(isAdmin);
 
 // Custom email
 router.post("/send", emailController.sendEmailController);

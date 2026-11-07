@@ -1,12 +1,44 @@
 import emailService from "../services/email.service.js";
+import userModel from "../models/user.Model.js";
+import foodPartnerModel from "../models/foodPartner.Model.js";
+import { serverError } from "../utils/apiError.js";
+
+// Arbitrary mail relay guard.
+async function isKnownRecipient(address) {
+    const normalized = String(address || '').trim().toLowerCase();
+    if (!normalized) return false;
+    const [user, partner] = await Promise.all([
+        userModel.exists({ email: normalized }),
+        foodPartnerModel.exists({ email: normalized })
+    ]);
+    return Boolean(user || partner);
+}
 
 const sendEmailController = async (req, res) => {
     const { to, subject, message, html } = req.body;
     try {
+        if (!to || !subject || !message) {
+            return res.status(400).json({ error: 'to, subject and message are required' });
+        }
+
+        // to may be a comma-separated list; every recipient must be known.
+        const recipients = String(to).split(',').map((a) => a.trim()).filter(Boolean);
+        const unknown = [];
+        for (const address of recipients) {
+            if (!(await isKnownRecipient(address))) unknown.push(address);
+        }
+        if (unknown.length > 0) {
+            return res.status(400).json({
+                error: 'Recipient must be an existing user or food partner',
+                unknownRecipients: unknown
+            });
+        }
+
         await emailService.sendEmail(to, subject, message, html);
         res.status(200).json({ message: "Email sent successfully" });
     } catch (error) {
-        res.status(500).json({ error: "Failed to send email" });
+        console.error('Send email error:', error);
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -17,7 +49,7 @@ const sendWelcomeEmailController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Welcome email sent successfully' });
     } catch (error) {
         console.error('Send welcome email error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -31,7 +63,7 @@ const sendOrderConfirmationController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Order confirmation email sent successfully' });
     } catch (error) {
         console.error('Send order confirmation error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -45,7 +77,7 @@ const sendOrderCancelledController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Order cancelled email sent successfully' });
     } catch (error) {
         console.error('Send order cancelled error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -59,7 +91,7 @@ const sendOrderShippedController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Order shipped email sent successfully' });
     } catch (error) {
         console.error('Send order shipped error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -73,7 +105,7 @@ const sendPasswordResetController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Password reset email sent successfully' });
     } catch (error) {
         console.error('Send password reset error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -87,7 +119,7 @@ const sendPartnerApprovedController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Partner approved email sent successfully' });
     } catch (error) {
         console.error('Send partner approved error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -101,7 +133,7 @@ const sendPartnerRejectedController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Partner rejected email sent successfully' });
     } catch (error) {
         console.error('Send partner rejected error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 
@@ -115,7 +147,7 @@ const sendContactResponseController = async (req, res) => {
         res.status(200).json({ success: true, message: 'Contact response email sent successfully' });
     } catch (error) {
         console.error('Send contact response error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error, 'Failed to send email');
     }
 };
 

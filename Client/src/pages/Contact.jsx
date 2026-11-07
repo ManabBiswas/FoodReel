@@ -1,22 +1,23 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
+import axios from 'axios'
+import {
+  AlertCircle,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Loader2,
+  Send
+} from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
 import BackToTop from '../Components/BackToTop'
-import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
-import { 
-  Send, 
-  Mail, 
-  User, 
-  MessageSquare, 
-  MapPin, 
-  Phone, 
-  Clock, 
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Sparkles
-} from 'lucide-react'
+
+const fieldClass =
+  'w-full rounded-xl border border-[#d9cdb9] bg-white px-4 py-3 font-sans text-[15px] text-[#1a1208] placeholder:text-[#9e9890] transition-colors focus:border-[#ff6a00] focus:outline-none focus:ring-2 focus:ring-[#ff6a00]/15'
+
+const labelClass = 'mb-1.5 block font-sans text-[13px] font-semibold text-[#3f3428]'
 
 const Contact = () => {
   const [name, setName] = useState('')
@@ -24,239 +25,238 @@ const Contact = () => {
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState(null)
 
-  const submit = async (e) => {
-    e.preventDefault()
+  const submit = async (event) => {
+    event.preventDefault()
     setStatus('sending')
     try {
-      await axios.post(API_ENDPOINTS.contact.send, { name, email, message }, axiosConfig)
+      await axios.post(
+        API_ENDPOINTS.contact.send,
+        { name, email, message },
+        axiosConfig
+      )
       setStatus('sent')
       setName('')
       setEmail('')
       setMessage('')
-    } catch (err) {
-      console.error(err)
+    } catch (error) {
+      console.error(error)
       setStatus('error')
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col  md:pb-0">
+    <div className="min-h-screen bg-[#f7f2e8]">
       <Navbar />
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative bg-gradient-to-br from-orange-400 via-red-400 to-red-500 text-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-            <div className="text-center relative z-10">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
-                <Sparkles className="w-4 h-4 text-yellow-200" />
-                <span className="text-sm font-medium">We'd love to hear from you</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4">
-                Contact Us
+      <main>
+        <section className="border-b border-[#e6d9c4] px-5 pb-14 pt-14 sm:px-8 md:pb-20 md:pt-20">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-end">
+            <div>
+              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9a3412]">
+                Contact
+              </p>
+              <h1
+                className="mt-4 max-w-3xl font-serif text-5xl font-black leading-[0.98] text-[#1a1208] sm:text-6xl lg:text-7xl"
+                style={{ textWrap: 'balance' }}
+              >
+                Tell us what&apos;s{' '}
+                <span className="italic text-[#e55a00]">cooking.</span>
               </h1>
-              <p className="text-lg md:text-xl text-red-100 max-w-2xl mx-auto font-medium">
-                Have a question, partnership inquiry, or feedback? We're here to help!
+              <p className="mt-6 max-w-xl font-sans text-base leading-relaxed text-[#5f5548] sm:text-lg">
+                Questions about an order, a partnership, or a FoodFest? Send a note and
+                we&apos;ll route it to the right desk.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 border-t border-[#e6d9c4] pt-5 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+              <span aria-hidden="true" className="h-px w-10 bg-[#ffb800]" />
+              <p className="font-sans text-sm leading-relaxed text-[#6b6460]">
+                One form. The right team. A reply by email.
               </p>
             </div>
           </div>
-          
-          {/* Decorative shapes */}
-          <div className="absolute top-10 left-10 opacity-20 hidden md:block">
-            <div className="w-20 h-20 bg-yellow-300 rounded-full animate-bounce"></div>
-          </div>
-          <div className="absolute bottom-10 right-10 opacity-20 hidden md:block">
-            <div className="w-16 h-16 bg-white rounded-full animate-pulse"></div>
-          </div>
         </section>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
-            
-            {/* Contact Form */}
-            <div className="lg:col-span-3">
-              <div className="bg-white shadow-xl rounded-2xl p-6 md:p-8 border border-gray-100">
-                <div className="mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-2">
-                    Send us a Message
-                  </h2>
-                  <p className="text-gray-500 font-medium">
-                    Fill out the form below and we'll get back to you within a few business days.
-                  </p>
+        <section className="px-5 py-14 sm:px-8 md:py-20">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <div className="rounded-[1.75rem] border border-[#e6d9c4] bg-[#fffdf8] p-6 sm:p-8 md:p-10">
+              <h2 className="font-serif text-3xl font-bold text-[#1a1208]">
+                Send a message
+              </h2>
+              <p className="mt-2 font-sans text-sm leading-relaxed text-[#6b6460]">
+                All fields are required.
+              </p>
+
+              <form onSubmit={submit} className="mt-8 space-y-5">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="contact-name" className={labelClass}>
+                      Your name
+                    </label>
+                    <input
+                      id="contact-name"
+                      name="name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      required
+                      autoComplete="name"
+                      placeholder="Manab Biswas"
+                      className={fieldClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="contact-email" className={labelClass}>
+                      Email
+                    </label>
+                    <input
+                      id="contact-email"
+                      name="email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      required
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      className={fieldClass}
+                    />
+                  </div>
                 </div>
 
-                <form onSubmit={submit} className="space-y-5">
-                  {/* Name Field */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Your Name
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        required 
-                        placeholder="John Doe"
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200 text-gray-900 placeholder:text-gray-400" 
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="contact-message" className={labelClass}>
+                    Message
+                  </label>
+                  <textarea
+                    id="contact-message"
+                    name="message"
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    required
+                    rows={6}
+                    placeholder="How can we help?"
+                    className={`${fieldClass} resize-y`}
+                  />
+                </div>
 
-                  {/* Email Field */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input 
-                        type="email" 
-                        value={email} 
-                        onChange={e => setEmail(e.target.value)} 
-                        required 
-                        placeholder="john@example.com"
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200 text-gray-900 placeholder:text-gray-400" 
-                      />
-                    </div>
-                  </div>
+                <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:items-center">
+                  <button
+                    type="submit"
+                    disabled={status === 'sending'}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff6a00] px-6 py-3.5 font-sans text-sm font-bold text-[#1a1208] transition-colors hover:bg-[#ffb800] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {status === 'sending' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" aria-hidden="true" />
+                        Send message
+                      </>
+                    )}
+                  </button>
 
-                  {/* Message Field */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Your Message
-                    </label>
-                    <div className="relative">
-                      <MessageSquare className="absolute left-3 top-4 w-5 h-5 text-gray-400" />
-                      <textarea 
-                        value={message} 
-                        onChange={e => setMessage(e.target.value)} 
-                        rows={5} 
-                        required 
-                        placeholder="How can we help you?"
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all duration-200 text-gray-900 placeholder:text-gray-400 resize-none" 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
-                    <button 
-                      type="submit" 
-                      disabled={status === 'sending'}
-                      className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold tracking-wide hover:from-orange-600 hover:to-red-600 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                      {status === 'sending' ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-5 h-5" />
-                          Send Message
-                        </>
-                      )}
-                    </button>
-                    
-                    {/* Status Messages */}
+                  <div aria-live="polite">
                     {status === 'sent' && (
-                      <div className="flex items-center gap-2 text-green-600 font-medium">
-                        <CheckCircle className="w-5 h-5" />
-                        <span>Message sent — thanks!</span>
-                      </div>
+                      <p className="inline-flex items-center gap-2 font-sans text-sm font-medium text-[#15803d]">
+                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                        Message sent. We&apos;ll reply by email.
+                      </p>
                     )}
                     {status === 'error' && (
-                      <div className="flex items-center gap-2 text-red-600 font-medium">
-                        <AlertCircle className="w-5 h-5" />
-                        <span>Failed to send. Try again later.</span>
-                      </div>
+                      <p className="inline-flex items-center gap-2 font-sans text-sm font-medium text-[#b91c1c]">
+                        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                        Couldn&apos;t send that. Please try again.
+                      </p>
                     )}
                   </div>
-                </form>
-              </div>
+                </div>
+              </form>
             </div>
 
-            {/* Contact Info Sidebar */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Quick Contact Cards */}
-              <div className="bg-white shadow-lg rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-orange-100 rounded-xl">
-                    <Mail className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Email Support</h4>
-                    <p className="text-gray-500 text-sm mb-2">Our team is here to help</p>
-                    <a href="mailto:support@foodreel.example" className="text-orange-600 font-semibold hover:text-orange-700 transition-colors">
-                      support@foodreel.example
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white shadow-lg rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-green-100 rounded-xl">
-                    <Phone className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Phone</h4>
-                    <p className="text-gray-500 text-sm mb-2">Mon-Fri from 9am to 6pm</p>
-                    <a href="tel:+1234567890" className="text-green-600 font-semibold hover:text-green-700 transition-colors">
-                      +1 (234) 567-890
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white shadow-lg rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <MapPin className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Visit Us</h4>
-                    <p className="text-gray-500 text-sm mb-2">Come say hello</p>
-                    <p className="text-blue-600 font-semibold">
-                      123 Food Street, Flavor Town
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white shadow-lg rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-purple-100 rounded-xl">
-                    <Clock className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Response Time</h4>
-                    <p className="text-gray-500 text-sm mb-2">Average response</p>
-                    <p className="text-purple-600 font-semibold">
-                      Within 24-48 hours
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* FAQ Teaser */}
-              <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-6 text-white">
-                <h4 className="font-bold text-lg mb-2">Need Quick Answers?</h4>
-                <p className="text-orange-100 text-sm mb-4 leading-relaxed">
-                  Check out our FAQ section for answers to common questions about orders, partnerships, and more.
+            <aside className="space-y-6">
+              <div className="rounded-[1.75rem] border border-[#e6d9c4] bg-[#fffdf8] p-6 sm:p-8">
+                <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9a3412]">
+                  What happens next
                 </p>
-                <a 
-                  href="/about" 
-                  className="inline-flex items-center gap-2 bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg transition-all"
-                >
-                  Learn More
-                </a>
+                <ol className="mt-6 space-y-6">
+                  {[
+                    {
+                      number: '01',
+                      title: 'We read it',
+                      copy: 'Your note lands with the FoodReel team, not a queue.'
+                    },
+                    {
+                      number: '02',
+                      title: 'We route it',
+                      copy: 'Orders, partnerships, and FoodFest questions go to the right desk.'
+                    },
+                    {
+                      number: '03',
+                      title: 'You hear back',
+                      copy: 'We reply by email with the next step.'
+                    }
+                  ].map((step) => (
+                    <li key={step.number} className="flex gap-4">
+                      <span className="font-serif text-lg italic text-[#c2410c]">
+                        {step.number}
+                      </span>
+                      <div>
+                        <h3 className="font-sans text-sm font-bold text-[#1a1208]">
+                          {step.title}
+                        </h3>
+                        <p className="mt-1 font-sans text-sm leading-relaxed text-[#6b6460]">
+                          {step.copy}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
               </div>
-            </div>
+
+              <div className="relative overflow-hidden rounded-[1.75rem] bg-[#1a1208] p-6 text-[#fffdf8] sm:p-8">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-40"
+                  style={{
+                    background:
+                      'radial-gradient(circle, rgba(255,184,0,0.35) 0%, transparent 70%)'
+                  }}
+                />
+                <div className="relative">
+                  <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[#ffd04d]">
+                    FoodFest
+                  </p>
+                  <h2 className="mt-3 font-serif text-3xl font-bold leading-tight text-[#fffdf8]">
+                    Host your own event.
+                  </h2>
+                  <p className="mt-3 font-sans text-sm leading-relaxed text-white/70">
+                    Propose a festival, get admin approval, and run ticket sales from
+                    your organizer studio.
+                  </p>
+                  <div className="mt-6 flex flex-wrap items-center gap-4">
+                    <Link
+                      to="/events/host"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-4 py-2.5 font-sans text-sm font-bold text-[#1a1208] transition-colors hover:bg-[#ffb800]"
+                    >
+                      Propose an event
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <Link
+                      to="/events"
+                      className="inline-flex items-center gap-2 font-sans text-sm font-semibold text-white/75 transition-colors hover:text-white"
+                    >
+                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                      Browse events
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
-        </div>
+        </section>
       </main>
 
       <Footer />

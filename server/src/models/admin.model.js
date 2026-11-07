@@ -22,6 +22,14 @@ const adminSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    tokenVersion: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true

@@ -1,9 +1,11 @@
-// Remove trailing slash from base URL to prevent double slashes
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const API_VERSION = import.meta.env.VITE_API_VERSION || '';
 
 // Construct base API URL
 const BASE_URL = API_VERSION ? `${API_BASE_URL}/api/${API_VERSION}` : `${API_BASE_URL}/api`;
+
+// Socket.io shares the API origin. The handshake authenticates with the same HTTP-only cookie, so the client must connect with `withCredentials: true`.
+export const SOCKET_URL = API_BASE_URL;
 
 // API endpoints configuration
 export const API_ENDPOINTS = {
@@ -26,8 +28,7 @@ export const API_ENDPOINTS = {
     partnerProfile: `${BASE_URL}/auth/partner/profile`,
     partnerBio: `${BASE_URL}/auth/partner/bio`,
     partnerReviews: `${BASE_URL}/auth/partner/reviews`,
-    partnerStatistics: `${BASE_URL}/auth/partner/statistics`,
-    // Admin  
+    // Admin
     adminLogin: `${BASE_URL}/auth/admin/login`,
     adminLogout: `${BASE_URL}/auth/admin/logout`,
     adminVerify: `${BASE_URL}/auth/admin/verify`,
@@ -38,6 +39,8 @@ export const API_ENDPOINTS = {
   admin: {    
     // Dashboard
     dashboard: `${BASE_URL}/admin/dashboard`,
+    dashboardLive: `${BASE_URL}/admin/dashboard/live`,
+    dashboardSeries: (range) => `${BASE_URL}/admin/dashboard/timeseries?range=${range}`,
     
     // User Management
     users: `${BASE_URL}/admin/users`,
@@ -65,11 +68,16 @@ export const API_ENDPOINTS = {
     // Reviews
     reviews: `${BASE_URL}/admin/reviews`,
     deleteReview: (reviewId) => `${BASE_URL}/admin/reviews/${reviewId}`,
+    updateReviewStatus: (reviewId) => `${BASE_URL}/admin/reviews/${reviewId}/status`,
     
     // Orders
     orders: `${BASE_URL}/admin/orders`,
     orderDetails: (orderId) => `${BASE_URL}/admin/orders/${orderId}`,
-    
+
+    // Partner cancellation requests (food already being prepared)
+    cancelRequests: `${BASE_URL}/admin/cancel-requests`,
+    decideCancelRequest: (orderId) => `${BASE_URL}/admin/orders/${orderId}/cancel-request/decision`,
+
     // Analytics
     revenueAnalytics: `${BASE_URL}/admin/analytics/revenue`,
     userAnalytics: `${BASE_URL}/admin/analytics/users`,
@@ -86,10 +94,7 @@ export const API_ENDPOINTS = {
     activity: `${BASE_URL}/user/activity`,
     profilePicture: `${BASE_URL}/user/profile-picture`,
     preferences: `${BASE_URL}/user/preferences`,
-    favorites: `${BASE_URL}/user/favorites`,  
     bio: `${BASE_URL}/user/bio`,
-    reviews: `${BASE_URL}/user/reviews`,
-    saved: `${BASE_URL}/user/saved`,
     address: `${BASE_URL}/user/address`,
     addAddress: `${BASE_URL}/user/address`,
     addressById: (id) => `${BASE_URL}/user/address/${id}`,
@@ -146,8 +151,10 @@ export const API_ENDPOINTS = {
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
     partnerCancel: (id) => `${BASE_URL}/orders/partner/${id}/cancel`,
+    partnerCancelRequest: (id) => `${BASE_URL}/orders/partner/${id}/cancel-request`,
     statistics: `${BASE_URL}/orders/partner/statistics`,
     getById: (id) => `${BASE_URL}/orders/${id}`,
+    partnerGetById: (id) => `${BASE_URL}/orders/partner/${id}`,
     cancel: (id) => `${BASE_URL}/orders/${id}/cancel`,
   },
   
@@ -167,8 +174,6 @@ export const API_ENDPOINTS = {
     createOrder: `${BASE_URL}/payment/create-order`,
     verify: `${BASE_URL}/payment/verify`,
     failure: `${BASE_URL}/payment/failure`,
-    refund: `${BASE_URL}/payment/refund`,
-    webhook: `${BASE_URL}/payment/webhook`,
   },
   
   // Follow endpoints
@@ -194,11 +199,6 @@ export const API_ENDPOINTS = {
     respond: (reviewId) => `${BASE_URL}/reviews/${reviewId}/respond`,
   },
   
-  // Partner follow endpoint
-  partner: {
-    follow: (id) => `${BASE_URL}/foodpartner/${id}/follow`,
-  },
-  
   // Comment endpoints (all routes live under /api/comments)
   comments: {
     create:   `${BASE_URL}/comments/create`,
@@ -211,22 +211,66 @@ export const API_ENDPOINTS = {
     myLikes:  (postId)     => `${BASE_URL}/comments/my-likes/${postId}`,
   },
 
+  // FoodFest endpoints
+  foodfest: {
+    // User (public reads, authenticated purchase)
+    events: `${BASE_URL}/foodfest/user/events`,
+    event: (eventId) => `${BASE_URL}/foodfest/user/events/${eventId}`,
+    ticketPurchase: `${BASE_URL}/foodfest/user/tickets/purchase`, // requires Idempotency-Key
+    ticketVerify: `${BASE_URL}/foodfest/user/tickets/verify`,
+    myTickets: `${BASE_URL}/foodfest/user/my-tickets`,
+    proposals: `${BASE_URL}/foodfest/user/proposals`,
+    myProposals: `${BASE_URL}/foodfest/user/my-proposals`,
+
+    // Admin
+    adminEventsList: `${BASE_URL}/foodfest/admin/events`,
+    adminCreateEvent: `${BASE_URL}/foodfest/admin/events`,
+    adminEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}`,
+    adminEventZones: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/zones`,
+    adminCreateZone: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/zones`,
+    adminZone: (zoneId) => `${BASE_URL}/foodfest/admin/zones/${zoneId}`,
+    adminEventTiers: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/tiers`,
+    adminCreateTier: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/tiers`,
+    adminTier: (tierId) => `${BASE_URL}/foodfest/admin/tiers/${tierId}`,
+    adminApplications: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/applications`,
+    adminApproveApplication: (appId) => `${BASE_URL}/foodfest/admin/applications/${appId}/approve`,
+    adminRejectApplication: (appId) => `${BASE_URL}/foodfest/admin/applications/${appId}/reject`,
+    adminCapacityCheck: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/capacity-check`,
+    adminPublishEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/publish`,
+    adminGoLive: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/go-live`,
+    adminCompleteEvent: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/complete`,
+    adminProposals: `${BASE_URL}/foodfest/admin/proposals`,
+    adminApproveProposal: (proposalId) => `${BASE_URL}/foodfest/admin/proposals/${proposalId}/approve`,
+    adminRejectProposal: (proposalId) => `${BASE_URL}/foodfest/admin/proposals/${proposalId}/reject`,
+    adminOrganizerAccess: (eventId) => `${BASE_URL}/foodfest/admin/events/${eventId}/organizer-access`,
+
+    // Organizer (user-hosted event after admin grants access)
+    organizerEvents: `${BASE_URL}/foodfest/organizer/events`,
+    organizerEvent: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}`,
+    organizerEventSummary: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/summary`,
+    organizerEventTiers: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/tiers`,
+    organizerTier: (tierId) => `${BASE_URL}/foodfest/organizer/tiers/${tierId}`,
+    organizerEventZones: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/zones`,
+    organizerZone: (zoneId) => `${BASE_URL}/foodfest/organizer/zones/${zoneId}`,
+    organizerEventTickets: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/tickets`,
+    organizerPublish: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/publish`,
+    organizerGoLive: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/go-live`,
+    organizerComplete: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/complete`,
+
+    // Partner
+    partnerAvailableEvents: `${BASE_URL}/foodfest/partner/available-events`,
+    partnerApply: (eventId) => `${BASE_URL}/foodfest/partner/events/${eventId}/apply`,
+    partnerToggleStall: (stallId) => `${BASE_URL}/foodfest/partner/stalls/${stallId}/toggle-open`,
+    partnerMyApplications: `${BASE_URL}/foodfest/partner/my-applications`,
+
+    // Gate (admin-only today)
+    gateScan: `${BASE_URL}/foodfest/gate/scan`,
+    gateCheckout: `${BASE_URL}/foodfest/gate/checkout`,
+  },
+
   // Contact endpoint
   contact: {
     send: `${BASE_URL}/contact`,
-  },
-
-  // emails endpoint
-  emails: {
-    send: `${BASE_URL}/emails/send`,
-    welcome: `${BASE_URL}/emails/welcome`,
-    passwordReset: `${BASE_URL}/emails/password-reset`,
-    orderConfirmation: `${BASE_URL}/emails/order-confirmation`,
-    orderCancelled: `${BASE_URL}/emails/order-cancelled`,
-    orderShipped: `${BASE_URL}/emails/order-shipped`,
-    partnerApproved: `${BASE_URL}/emails/partner-approved`,
-    partnerRejected: `${BASE_URL}/emails/partner-rejected`,
-    contactResponse: `${BASE_URL}/emails/contact-response`,
   },
 };
 

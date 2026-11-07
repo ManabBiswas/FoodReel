@@ -1,11 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { PlayCircle, ChevronRight } from 'lucide-react'
+import { PlayCircle, ChevronRight, Heart, Star, BookmarkCheck, ShoppingBag, MoreVertical } from 'lucide-react'
+import Logo from '../../assets/logo.png'
+
+// Same abbreviation rules as Reel.jsx's formatCount, so mock counts read
+// exactly like the real feed (8.2K, not 8.2k).
+const formatCount = (count) => {
+  if (!count) return '0'
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
+  return count.toString()
+}
 
 const HeroSection = () => {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const [heroImageFailed, setHeroImageFailed] = useState(false)
 
   return (
     <section className="relative px-6 py-20 md:py-28 bg-background-light overflow-hidden">
@@ -28,7 +39,7 @@ const HeroSection = () => {
               <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            <span className="text-sm font-semibold text-primary font-sans">Now live across 50+ cities</span>
+            <span className="text-sm font-semibold text-[#9a3412] font-sans">Now live across 50+ cities</span>
           </div>
 
           {/* Headline */}
@@ -48,35 +59,43 @@ const HeroSection = () => {
 
           {/* CTAs */}
           <div className="flex flex-wrap gap-4">
-            <Link to="/reels">
-              <button className="flex items-center gap-2.5 rounded-xl bg-primary px-8 py-4 font-bold text-white shadow-glow hover:bg-primary-dark active:scale-[0.97] transition-all cursor-pointer font-sans">
-                <PlayCircle className="w-5 h-5 flex-shrink-0" />
-                Watch Reels
-              </button>
+            <Link
+              to="/reels"
+              className="pressable inline-flex items-center gap-2.5 rounded-xl bg-primary px-8 py-4 font-sans font-bold text-white shadow-glow transition-colors duration-200 hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <PlayCircle className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+              Watch Reels
             </Link>
             <button
+              type="button"
               onClick={() => navigate(isAuthenticated ? '/cart' : '/login')}
-              className="flex items-center gap-2 rounded-xl border-2 border-border-light bg-background-white px-8 py-4 font-bold text-text-base hover:border-border-medium hover:bg-surface-muted active:scale-[0.97] transition-all cursor-pointer font-sans"
+              className="pressable inline-flex items-center gap-2 rounded-xl border-2 border-border-light bg-background-white px-8 py-4 font-sans font-bold text-text-base transition-colors duration-200 hover:border-border-medium hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {isAuthenticated ? 'View Cart' : 'Order Now'}
-              <ChevronRight className="w-4 h-4 opacity-50" />
+              <ChevronRight className="h-4 w-4 opacity-50" aria-hidden="true" />
             </button>
           </div>
 
           {/* Social proof mini */}
           <div className="flex items-center gap-4 pt-2">
             <div className="flex -space-x-2.5">
-              {['bg-orange-100', 'bg-yellow-100', 'bg-green-100', 'bg-blue-100'].map((bg, i) => (
+              {[
+                { initials: 'AR', background: 'linear-gradient(135deg, #8c5a2b, #c99a4a)' },
+                { initials: 'MK', background: 'linear-gradient(135deg, #3f4a3c, #7d8a6f)' },
+                { initials: 'SD', background: 'linear-gradient(135deg, #6b3a2a, #a8674f)' },
+                { initials: 'JP', background: 'linear-gradient(135deg, #3c3a4a, #7c7890)' },
+              ].map((avatar) => (
                 <div
-                  key={i}
-                  className={`w-9 h-9 rounded-full ${bg} border-2 border-white flex items-center justify-center text-base`}
-                  aria-hidden
+                  key={avatar.initials}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white font-sans text-[10px] font-bold tracking-wide text-white shadow-sm"
+                  style={{ background: avatar.background }}
+                  aria-hidden="true"
                 >
-                  {['🧑‍🍳', '😋', '👩', '🍜'][i]}
+                  {avatar.initials}
                 </div>
               ))}
             </div>
-            <p className="text-sm text-text-muted font-sans">
+            <p className="font-sans text-sm text-text-muted">
               <span className="font-bold text-text-base">100k+</span> foodies ordering daily
             </p>
           </div>
@@ -94,55 +113,92 @@ const HeroSection = () => {
               }}
             >
               <div className="relative bg-black" style={{ aspectRatio: '9/19.5' }}>
-                <img
-                  src="https://images.unsplash.com/photo-1612874742237-415c88e21331?w=400&h=850&fit=crop"
-                  alt="Food reel preview"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
+                {heroImageFailed ? (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+                    style={{ background: 'linear-gradient(160deg, var(--color-primary-dark) 0%, var(--color-primary) 45%, var(--color-accent) 100%)' }}
+                  >
+                    <img src={Logo} alt="FoodReel" className="h-10 w-auto object-contain" />
+                    <span className="text-white/80 text-xs font-semibold font-sans">Fresh reels, daily</span>
+                  </div>
+                ) : (
+                  <img
+                    src="https://images.pexels.com/photos/7394819/pexels-photo-7394819.jpeg?auto=compress&cs=tinysrgb&w=600&h=1300&fit=crop"
+                    alt="Fragrant biryani served in a clay pot"
+                    className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
+                    onError={() => setHeroImageFailed(true)}
+                  />
+                )}
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/40" />
 
-                {/* Top bar */}
-                <div className="absolute top-3 left-4 right-4 flex justify-between items-center">
-                  <span className="text-white text-xs font-bold font-sans tracking-wide">FoodReel</span>
-                  <span
-                    className="text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full font-sans"
-                    style={{ background: 'var(--color-primary)' }}
-                  >
-                    LIVE
-                  </span>
+                {/* Top bar — mirrors ReelPageHeader: logo + "Reels" + overflow menu.
+                    There is no LIVE badge on the real reel page. */}
+                <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-10">
+                  <div className="flex items-center gap-1.5">
+                    <img
+                      src={Logo}
+                      alt="FoodReel"
+                      className="h-5 w-auto object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]"
+                    />
+                    <span
+                      className="text-white/80 text-[9px] font-semibold uppercase tracking-[0.18em] font-sans"
+                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}
+                    >
+                      Reels
+                    </span>
+                  </div>
+                  <div className="w-6 h-6 flex items-center justify-center rounded-full">
+                    <MoreVertical className="w-4 h-4 text-white" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.7))' }} />
+                  </div>
                 </div>
 
-                {/* Side actions */}
-                <div className="absolute right-3 bottom-32 flex flex-col items-center gap-4">
-                  {[
-                    { icon: '❤️', count: '8.2k' },
-                    { icon: '💬', count: '340' },
-                    { icon: '↗️', count: 'Share' },
-                  ].map(({ icon, count }) => (
-                    <div key={count} className="flex flex-col items-center gap-0.5">
-                      <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm">
-                        {icon}
-                      </div>
-                      <span className="text-white text-[9px] font-sans">{count}</span>
+                {/* Side actions — mirrors the real reel rail for a food post:
+                    like (with count) → review → save → shop. No share action,
+                    because ReelActionButtons has no share control. */}
+                <div className="absolute right-3 bottom-28 flex flex-col items-center gap-3.5">
+                  {/* Like */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <div className="w-8 h-8 rounded-full bg-red-500/30 backdrop-blur-sm flex items-center justify-center">
+                      <Heart className="w-4 h-4 fill-red-500 text-red-500" />
                     </div>
-                  ))}
+                    <span className="text-white text-[9px] font-sans">{formatCount(8234)}</span>
+                  </div>
+
+                  {/* Review (shown because this is a tagged food post) */}
+                  <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                    <Star className="w-4 h-4 text-white" />
+                  </div>
+
+                  {/* Save */}
+                  <div className="w-8 h-8 rounded-full bg-orange-500/30 backdrop-blur-sm flex items-center justify-center">
+                    <BookmarkCheck className="w-4 h-4 text-orange-400 fill-orange-400" />
+                  </div>
+
+                  {/* Shop */}
+                  <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                    <ShoppingBag className="w-4 h-4 text-white" />
+                  </div>
                 </div>
 
-                {/* Bottom info */}
+                {/* Bottom info — same shape as ReelBottomInfo */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <div className="flex items-center gap-2 mb-2.5">
-                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">A</div>
-                    <span className="text-white text-xs font-medium font-sans">Arsalan · Kolkata</span>
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">B</div>
+                    <span className="text-white text-xs font-medium font-sans truncate">Biryani House</span>
+                    <span className="text-white/70 text-[10px] font-sans truncate hidden sm:inline">Kolkata</span>
                     <span
-                      className="ml-auto text-xs font-bold rounded-full px-2 py-0.5 font-sans"
+                      className="ml-auto text-[10px] font-bold rounded-full px-2 py-0.5 font-sans flex-shrink-0"
                       style={{ color: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}
                     >
-                      + Follow
+                      Following
                     </span>
                   </div>
                   <p className="text-white text-sm font-bold font-sans mb-2.5">
-                    Chef's Signature Biryani
+                    Hyderabadi Dum Biryani
                   </p>
                   {/* Order bar */}
                   <div
@@ -151,7 +207,7 @@ const HeroSection = () => {
                   >
                     <div>
                       <p className="text-[9px] text-white/75 font-sans">One tap order</p>
-                      <p className="text-white font-bold text-sm font-sans">₹380</p>
+                      <p className="text-white font-bold text-sm font-sans">₹349</p>
                     </div>
                     <span className="text-white text-xs font-bold font-sans">Order now →</span>
                   </div>
@@ -162,7 +218,7 @@ const HeroSection = () => {
 
           {/* Floating notification card */}
           <div
-            className="absolute -left-6 top-1/3 z-20 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 font-sans"
+            className="absolute -left-6 top-1/3 z-20 hidden lg:flex items-center gap-3 rounded-2xl bg-white px-4 py-3 font-sans"
             style={{ boxShadow: 'var(--shadow-xl)', animation: 'float 3s ease-in-out infinite 1s' }}
           >
             <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -178,7 +234,7 @@ const HeroSection = () => {
 
           {/* Floating rating card */}
           <div
-            className="absolute -right-4 bottom-1/4 z-20 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-sans"
+            className="absolute -right-4 bottom-1/4 z-20 hidden lg:flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-sans"
             style={{ boxShadow: 'var(--shadow-xl)', animation: 'float 3s ease-in-out infinite 0.5s' }}
           >
             <span className="text-xl">⭐</span>

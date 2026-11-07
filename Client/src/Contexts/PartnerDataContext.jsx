@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { PartnerDataContext } from '../config/contexts'
+import { useAuth } from '../hooks/useAuth'
 
 /**
  * PartnerDataProvider - Simple storage for partner data
  * Provides: partnerProfile, posts, loading, error, refresh
  */
 export const PartnerDataProvider = ({ children }) => {
+  const { isAuthenticated, authType, loading: authLoading } = useAuth()
   const [partnerProfile, setPartnerProfile] = useState(null)
   const [posts, setPosts] = useState(null) // { food: [], advertisement: [] }
   const [loading, setLoading] = useState(true)
@@ -17,7 +19,7 @@ export const PartnerDataProvider = ({ children }) => {
   /**
    * Fetch all partner data - simple, no transformations
    */
-  const fetchPartnerData = async (isRefresh = false) => {
+  const fetchPartnerData = useCallback(async (isRefresh = false) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true)
       setError('')
@@ -44,28 +46,51 @@ export const PartnerDataProvider = ({ children }) => {
 
       setPosts({ food: foodPosts, advertisement: adPosts })
     } catch (err) {
+      if (err.response?.status === 401) {
+        setPartnerProfile(null)
+        setPosts(null)
+        setError('')
+        return
+      }
       console.error('Partner data fetch error:', err)
-      setError(err.response?.data?.message || 'Failed to load partner data')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load partner data')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }
-
-  // Fetch once on mount
-  useEffect(() => {
-    fetchPartnerData()
   }, [])
 
-  const value = {
+  // Partner data is per-account: load it for a partner session only, and clear
+  // the previous partner's data on logout/login so it never leaks.
+  useEffect(() => {
+    if (authLoading) return // Wait for auth to finish loading before fetching partner data   
+    if (authType === 'partner' && isAuthenticated) {
+      fetchPartnerData()
+    } else {
+      setPartnerProfile(null)
+      setPosts(null)
+      setError('')
+      setLoading(false)
+    }
+  }, [authType, isAuthenticated, authLoading, fetchPartnerData])
+
+  const refresh = useCallback(() => fetchPartnerData(true), [fetchPartnerData])
+
+  // Patch partner profile  
+  const patchPartnerProfile = useCallback((patch) => {
+    setPartnerProfile(prev => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
+  const value = useMemo(() => ({
     partnerProfile,
     posts, // { food: [], advertisement: [] }
     loading,
     refreshing,
     error,
-    refresh: () => fetchPartnerData(true)
-  }
-
+    refresh,       // Function to refresh partner data
+    patchPartnerProfile // patchPartnerProfile function to update partner profile in context
+  }), [partnerProfile, posts, loading, refreshing, error, refresh, patchPartnerProfile])
+// Provide the context value to children  
   return (
     <PartnerDataContext.Provider value={value}>
       {children}

@@ -1,48 +1,47 @@
 import foodModel from "../models/food.model.js";
+import { serverError } from "../utils/apiError.js";
+import { resolveSort, FOOD_SORT_FIELDS } from '../utils/sortQuery.js';
 import storageService from "../services/storage.service.js";
+import { updateFoodPartnerRatings } from "./review.controller.js";
 import { v4 as uuid } from "uuid";
 import mongoose from "mongoose";
 
 
 const createFood = async (req, res) => {
     try {
-        const { 
-            name, 
-            description, 
-            type, 
+        const {
+            name,
+            description,
+            type,
             postType = 'food',
-            duration, 
+            duration,
             tags,
-            // Food-specific fields
             price,
             currency = 'INR',
             preparationTime,
             isAvailable,
-            // Advertisement-specific fields
             promotionType,
             prices,
             validUntil,
             promoCode
         } = req.body;
-        
-        // Basic validation
+
         if (!name || !name.trim()) {
             return res.status(400).json({ error: "Name is required" });
         }
-        
+
         if (!type || !['video', 'image'].includes(type)) {
             return res.status(400).json({ error: "Valid type (video/image) is required" });
         }
-        
+
         if (!postType || !['food', 'advertisement'].includes(postType)) {
             return res.status(400).json({ error: "Valid post type (food/advertisement) is required" });
         }
-        
+
         if (!req.file) {
             return res.status(400).json({ error: `${type} file is required` });
         }
-        
-        // Post type specific validation
+
         if (postType === 'food') {
             if (price && (isNaN(price) || price < 0)) {
                 return res.status(400).json({ error: "Price must be a valid positive number" });
@@ -58,190 +57,158 @@ const createFood = async (req, res) => {
                 return res.status(400).json({ error: "Valid until date must be in the future" });
             }
         }
-        
-        // Validate file type based on selected type
-        const isVideo = req.file.mimetype.startsWith('video/');
-        const isImage = req.file.mimetype.startsWith('image/');
-        
-        if (type === 'video' && !isVideo) {
+
+        // Validate file type against declared type
+        const mimeIsVideo = req.file.mimetype.startsWith('video/');
+        const mimeIsImage = req.file.mimetype.startsWith('image/');
+
+        if (type === 'video' && !mimeIsVideo) {
             return res.status(400).json({ error: "Please upload a valid video file" });
         }
-        
-        if (type === 'image' && !isImage) {
+        if (type === 'image' && !mimeIsImage) {
             return res.status(400).json({ error: "Please upload a valid image file" });
         }
-        
-        // console.log("Food Partner:", req.foodPartner);
-        // console.log("Request Body:", req.body);
-        // console.log("File Info:", {
-    //         originalname: req.file.originalname,
-    //         mimetype: req.file.mimetype,
-    //         size: req.file.size
-    //     }
-    // );
-        
-        // Upload file to storage
-        const fileUploadResult = await storageService.uploadImage(req.file.buffer, uuid());
-        // console.log("File upload result:", fileUploadResult);
-        
-        // Parse tags from string to array
+
+        // ── FIXED UPLOAD ─────────────────────────────────────────────
+        // Pass mimetype so storage.service enforces the correct extension.
+        // Without this, ImageKit stores UUID filenames with no extension and
+        // the /ik-thumbnail.jpg API silently returns nothing for videos.
+        const { url: fileUrl, isVideo: uploadedAsVideo } = await storageService.uploadFile(
+            req.file.buffer,
+            req.file.originalname,   // e.g. "biryani.mp4" — kept for human readability
+            req.file.mimetype        // e.g. "video/mp4"   — enforces extension on ImageKit
+        );
+        // ─────────────────────────────────────────────────────────────
+
         let parsedTags = [];
         if (tags) {
             try {
                 parsedTags = JSON.parse(tags);
-            } catch (e) {
-                // If parsing fails, treat as comma-separated string
+            } catch {
                 parsedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
             }
         }
-        
-        // Parse prices for advertisements
+
         let parsedPrices = null;
         if (postType === 'advertisement' && prices) {
             try {
                 parsedPrices = JSON.parse(prices);
-                // Validate prices object
                 if (parsedPrices.original && (isNaN(parsedPrices.original) || parsedPrices.original < 0)) {
                     return res.status(400).json({ error: "Original price must be a valid positive number" });
                 }
                 if (parsedPrices.discounted && (isNaN(parsedPrices.discounted) || parsedPrices.discounted < 0)) {
                     return res.status(400).json({ error: "Discounted price must be a valid positive number" });
                 }
-            } catch (e) {
+            } catch {
                 return res.status(400).json({ error: "Invalid prices format" });
             }
         }
-        
-        // Create food document with appropriate fields
+
         const foodData = {
             name: name.trim(),
             description: description?.trim() || "",
-            type,
             postType,
             foodPartner: req.foodPartner._id,
             tags: parsedTags,
         };
-        
-        // Set the appropriate media field based on type
-        if (type === 'video') {
-            foodData.video = fileUploadResult;
-            if (duration) {
-                foodData.duration = duration;
-            }
+
+        // ── Set media fields from actual upload result (not from client's declared type) ──
+        if (uploadedAsVideo) {
+            foodData.video = fileUrl;
+            foodData.type = 'video';           // ground truth: mimetype wins over client field
+            if (duration) foodData.duration = duration;
         } else {
-            foodData.image = fileUploadResult;
+            foodData.image = fileUrl;
+            foodData.type = 'image';
         }
-        
-        // Add post-type specific fields
+
         if (postType === 'food') {
-            if (price) {
-                foodData.price = parseFloat(price);
-                foodData.currency = currency;
-            }
-            if (preparationTime) {
-                foodData.preparationTime = parseInt(preparationTime);
-            }
-            // Set availability status (default to true if not provided)
-            foodData.isAvailable = isAvailable !== undefined ? (isAvailable === 'true' || isAvailable === true) : true;
+            if (price) foodData.price = parseFloat(price);
+            if (currency) foodData.currency = currency;
+            if (preparationTime) foodData.preparationTime = parseInt(preparationTime);
+            foodData.isAvailable = isAvailable !== undefined
+                ? (isAvailable === 'true' || isAvailable === true)
+                : true;
         } else if (postType === 'advertisement') {
-            if (promotionType) {
-                foodData.promotionType = promotionType;
-            }
-            if (parsedPrices) {
-                foodData.prices = {
-                    original: parsedPrices.original ? parseFloat(parsedPrices.original) : undefined,
-                    discounted: parsedPrices.discounted ? parseFloat(parsedPrices.discounted) : undefined
-                };
-            }
-            if (validUntil) {
-                foodData.validUntil = new Date(validUntil);
-            }
-            if (promoCode) {
-                foodData.promoCode = promoCode.trim().toUpperCase();
-            }
+            if (promotionType) foodData.promotionType = promotionType;
+            if (parsedPrices) foodData.prices = {
+                original: parsedPrices.original ? parseFloat(parsedPrices.original) : undefined,
+                discounted: parsedPrices.discounted ? parseFloat(parsedPrices.discounted) : undefined
+            };
+            if (validUntil) foodData.validUntil = new Date(validUntil);
+            if (promoCode) foodData.promoCode = promoCode.trim().toUpperCase();
         }
-        
+
         const newFoodItem = await foodModel.create(foodData);
-        
-        // Populate the food partner info for response
-        await newFoodItem.populate('foodPartner', 'restaurantName email verified');
-        
+        await newFoodItem.populate('foodPartner', 'companyName email verified');
+
         res.status(201).json({
             message: `${postType === 'food' ? 'Food item' : 'Advertisement'} created successfully`,
             food: newFoodItem
         });
     } catch (error) {
         console.error("Error creating food/advertisement:", error);
-        res.status(500).json({ 
-            error: "Failed to create post",
-            details: error.message 
-        });
+        serverError(res, error, "Failed to create post");
     }
 };
 
 const getFoodItems = async (req, res) => {
     try {
         const { postType, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-        
-        // Build filter for partner's posts (no isActive filter for partner's own posts)
+
         const filter = { foodPartner: req.foodPartner._id };
         if (postType && ['food', 'advertisement'].includes(postType)) {
             filter.postType = postType;
         }
-        
-        // Build sort object
-        const sortObj = {};
-        sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
-        
+
+        const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: FOOD_SORT_FIELDS });
+
         const foods = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified')
+            .populate('foodPartner', 'companyName email verified')
             .sort(sortObj);
-            
-        // Group by post type for easier frontend handling
+
         const groupedFoods = {
             food: foods.filter(item => item.postType === 'food'),
             advertisement: foods.filter(item => item.postType === 'advertisement'),
             all: foods
         };
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             message: "Partner posts retrieved successfully",
             counts: {
                 total: foods.length,
                 food: groupedFoods.food.length,
                 advertisement: groupedFoods.advertisement.length
             },
-            foods: postType ? foods : groupedFoods 
+            foods: postType ? foods : groupedFoods
         });
     } catch (error) {
         console.error("Error getting partner foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Get active advertisements (for promotional display)
 const getActiveAdvertisements = async (req, res) => {
     try {
         const { limit = 10 } = req.query;
         const validLimit = Math.min(parseInt(limit), 50);
-        
         const currentDate = new Date();
-        
+
         const advertisements = await foodModel
             .find({
                 postType: 'advertisement',
                 isActive: true,
                 $or: [
-                    { validUntil: { $gte: currentDate } }, // Valid advertisements
-                    { validUntil: { $exists: false } }     // Advertisements without expiry
+                    { validUntil: { $gte: currentDate } },
+                    { validUntil: { $exists: false } }
                 ]
             })
-            .populate('foodPartner', 'restaurantName email verified profileImage')
+            .populate('foodPartner', 'companyName email verified profileImage')
             .sort({ createdAt: -1 })
             .limit(validLimit)
             .lean();
-        
+
         res.status(200).json({
             message: "Active advertisements retrieved successfully",
             count: advertisements.length,
@@ -249,68 +216,51 @@ const getActiveAdvertisements = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting active advertisements:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Get food items with pricing (for ordering)
 const getFoodItemsWithPricing = async (req, res) => {
     try {
         const { minPrice, maxPrice, currency = 'INR', limit = 20 } = req.query;
         const validLimit = Math.min(parseInt(limit), 100);
-        
-        // Build filter for food items with pricing
+
         const filter = {
             postType: 'food',
             isActive: true,
+            isAvailable: { $ne: false },
             price: { $exists: true, $gt: 0 }
         };
-        
-        // Add price range filters
-        if (minPrice) {
-            filter.price = { ...filter.price, $gte: parseFloat(minPrice) };
-        }
-        if (maxPrice) {
-            filter.price = { ...filter.price, $lte: parseFloat(maxPrice) };
-        }
-        
-        // Add currency filter
-        if (currency) {
-            filter.currency = currency;
-        }
-        
+
+        if (minPrice) filter.price = { ...filter.price, $gte: parseFloat(minPrice) };
+        if (maxPrice) filter.price = { ...filter.price, $lte: parseFloat(maxPrice) };
+        if (currency) filter.currency = currency;
+
         const foodItems = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified profileImage address')
-            .sort({ price: 1 }) // Sort by price ascending
+            .populate('foodPartner', 'companyName email verified profileImage address')
+            .sort({ price: 1 })
             .limit(validLimit)
             .lean();
-        
+
         res.status(200).json({
             message: "Food items with pricing retrieved successfully",
             count: foodItems.length,
-            filters: {
-                minPrice: minPrice || 'none',
-                maxPrice: maxPrice || 'none',
-                currency
-            },
+            filters: { minPrice: minPrice || 'none', maxPrice: maxPrice || 'none', currency },
             foodItems
         });
     } catch (error) {
         console.error("Error getting food items with pricing:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Get post statistics for partners
 const getPostStatistics = async (req, res) => {
     try {
         const partnerId = req.foodPartner._id;
-        
+
         const stats = await foodModel.aggregate([
-            {
-                $match: { foodPartner: partnerId, isActive: true }
-            },
+            { $match: { foodPartner: partnerId, isActive: true } },
             {
                 $group: {
                     _id: "$postType",
@@ -324,154 +274,112 @@ const getPostStatistics = async (req, res) => {
                 }
             }
         ]);
-        
-        // Format statistics
+
+        const empty = { count: 0, totalLikes: 0, totalComments: 0, totalSaves: 0, avgLikes: 0, avgComments: 0, avgSaves: 0 };
         const formattedStats = {
-            food: stats.find(s => s._id === 'food') || { count: 0, totalLikes: 0, totalComments: 0, totalSaves: 0, avgLikes: 0, avgComments: 0, avgSaves: 0 },
-            advertisement: stats.find(s => s._id === 'advertisement') || { count: 0, totalLikes: 0, totalComments: 0, totalSaves: 0, avgLikes: 0, avgComments: 0, avgSaves: 0 },
+            food: stats.find(s => s._id === 'food') || empty,
+            advertisement: stats.find(s => s._id === 'advertisement') || empty,
             total: {
-                count: stats.reduce((sum, s) => sum + s.count, 0),
-                totalLikes: stats.reduce((sum, s) => sum + s.totalLikes, 0),
-                totalComments: stats.reduce((sum, s) => sum + s.totalComments, 0),
-                totalSaves: stats.reduce((sum, s) => sum + s.totalSaves, 0)
+                count: stats.reduce((s, x) => s + x.count, 0),
+                totalLikes: stats.reduce((s, x) => s + x.totalLikes, 0),
+                totalComments: stats.reduce((s, x) => s + x.totalComments, 0),
+                totalSaves: stats.reduce((s, x) => s + x.totalSaves, 0)
             }
         };
-        
-        res.status(200).json({
-            message: "Post statistics retrieved successfully",
-            statistics: formattedStats
-        });
+
+        res.status(200).json({ message: "Post statistics retrieved successfully", statistics: formattedStats });
     } catch (error) {
         console.error("Error getting post statistics:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
 const getTrendingFoods = async (req, res) => {
     try {
-        // Get limit from query parameter, default to 3 if not provided
         const { limit = 3, postType } = req.query;
-        
-        const maxLimit = 50; 
-        const validLimit = Math.min(parseInt(limit), maxLimit);
-        
-        // Build match filter
-        const matchFilter = { isActive: true };
+        const validLimit = Math.min(parseInt(limit), 50);
+
+        const matchFilter = { isActive: true, isAvailable: { $ne: false } };
         if (postType && ['food', 'advertisement'].includes(postType)) {
             matchFilter.postType = postType;
         }
-        
-        // Calculate trending score based on likes, comments, and saves
+
         const foods = await foodModel.aggregate([
-            {
-                $match: matchFilter
-            },
+            { $match: matchFilter },
             {
                 $addFields: {
                     trendingScore: {
                         $add: [
-                            { $multiply: ["$likeCount", 1] },      // likes weight: 1
-                            { $multiply: ["$commentCount", 2] },   // comments weight: 2
-                            { $multiply: ["$savesCount", 3] }      // saves weight: 3
+                            { $multiply: ["$likeCount", 1] },
+                            { $multiply: ["$commentCount", 2] },
+                            { $multiply: ["$savesCount", 3] }
                         ]
                     }
                 }
             },
-            {
-                $sort: { trendingScore: -1 } // Sort by trending score descending
-            },
-            {
-                $limit: validLimit // Use dynamic limit
-            },
+            { $sort: { trendingScore: -1 } },
+            { $limit: validLimit },
             {
                 $lookup: {
-                    from: "foodpartners", // Collection name (lowercase + plural)
+                    from: "foodpartners",
                     localField: "foodPartner",
                     foreignField: "_id",
                     as: "foodPartner"
                 }
             },
-            {
-                $unwind: "$foodPartner"
-            },
+            { $unwind: "$foodPartner" },
             {
                 $project: {
-                    name: 1,
-                    video: 1,
-                    image: 1,
-                    description: 1,
-                    type: 1,
-                    postType: 1,
-                    duration: 1,
-                    // Food-specific fields
-                    price: 1,
-                    currency: 1,
-                    preparationTime: 1,
-                    // Advertisement-specific fields
-                    promotionType: 1,
-                    prices: 1,
-                    validUntil: 1,
-                    promoCode: 1,
-                    // Common fields
-                    likeCount: 1,
-                    commentCount: 1,
-                    savesCount: 1,
-                    tags: 1,
-                    trendingScore: 1,
-                    createdAt: 1,
-                    "foodPartner.restaurantName": 1,
+                    name: 1, video: 1, image: 1, description: 1,
+                    type: 1, postType: 1, duration: 1,
+                    price: 1, currency: 1, preparationTime: 1,
+                    promotionType: 1, prices: 1, validUntil: 1, promoCode: 1,
+                    likeCount: 1, commentCount: 1, savesCount: 1,
+                    tags: 1, trendingScore: 1, createdAt: 1,
+                    "foodPartner.companyName": 1,
                     "foodPartner.email": 1,
                     "foodPartner.verified": 1
                 }
             }
         ]);
 
-        res.status(200).json({ 
+        res.status(200).json({
             message: "Trending posts retrieved successfully",
             count: foods.length,
             limit: validLimit,
             postType: postType || 'all',
-            foods 
+            foods
         });
     } catch (error) {
         console.error("Error getting trending foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
 const getAllFoods = async (req, res) => {
     try {
-        // Get query parameters for filtering
         const { postType, limit = 50, page = 1, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-        
-        // Build filter object
-        const filter = { isActive: true };
-        if (postType && ['food', 'advertisement'].includes(postType)) {
-            filter.postType = postType;
-        }
-        
-        // Calculate pagination
-        const validLimit = Math.min(parseInt(limit), 100); // Max 100 items per page
+
+        const filter = { isActive: true, isAvailable: { $ne: false } };
+        if (postType && ['food', 'advertisement'].includes(postType)) filter.postType = postType;
+
+        const validLimit = Math.min(parseInt(limit), 100);
         const skip = (parseInt(page) - 1) * validLimit;
-        
-        // Build sort object
-        const sortObj = {};
-        sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
-        
+        const { sort: sortObj } = resolveSort({ sortBy, sortOrder, allowed: FOOD_SORT_FIELDS });
+
         const foods = await foodModel
             .find(filter)
-            .populate('foodPartner', 'restaurantName email verified profileImage')
-            .populate('likes', '_id') // Populate likes to check if user liked
+            .populate('foodPartner', 'companyName email verified profileImage')
+            .populate('likes', '_id')
             .sort(sortObj)
             .skip(skip)
             .limit(validLimit)
-            .lean(); // Use lean for better performance
-        
-        // Get total count for pagination
+            .lean();
+
         const totalCount = await foodModel.countDocuments(filter);
         const totalPages = Math.ceil(totalCount / validLimit);
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             message: "Posts retrieved successfully",
             pagination: {
                 currentPage: parseInt(page),
@@ -480,133 +388,182 @@ const getAllFoods = async (req, res) => {
                 hasNextPage: parseInt(page) < totalPages,
                 hasPrevPage: parseInt(page) > 1
             },
-            data: foods 
+            data: foods
         });
     } catch (error) {
         console.error("Error getting all foods:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Toggle like on a post
+// GET /api/food/:id - single post detail. Public like the feed;
+const getFoodById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+
+        const food = await foodModel
+            .findOne({ _id: id, isActive: true, isAvailable: { $ne: false } })
+            .populate('foodPartner', 'companyName email verified profileImage')
+            .populate('likes', '_id')
+            .lean();
+
+        if (!food) {
+            return res.status(404).json({ error: "Post not found" });
+        }
+
+        res.status(200).json({
+            message: "Post retrieved successfully",
+            data: food
+        });
+    } catch (error) {
+        console.error("Error getting food by id:", error);
+        serverError(res, error);
+    }
+};
+
 const toggleLike = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        if (!req.user || !req.user._id) {
-            return res.status(401).json({ error: "User not authenticated" });
-        }
-        
+        if (!req.user?._id) return res.status(401).json({ error: "User not authenticated" });
         const userId = req.user._id;
-        
-        const food = await foodModel.findById(id);
-        if (!food) {
-            return res.status(404).json({ error: "Post not found" });
+
+        const unliked = await foodModel.findOneAndUpdate(
+            { _id: id, likes: userId },
+            { $pull: { likes: userId }, $inc: { likeCount: -1 } },
+            { new: true }
+        );
+
+        if (unliked) {
+            if (unliked.likeCount < 0) {
+                // Data was already drifted below zero; clamp once.
+                await foodModel.updateOne({ _id: id, likeCount: { $lt: 0 } }, { $set: { likeCount: 0 } });
+                unliked.likeCount = 0;
+            }
+            return res.status(200).json({
+                message: "Post unliked",
+                isLiked: false,
+                likeCount: unliked.likeCount
+            });
         }
-        
-        const likeIndex = food.likes.indexOf(userId);
-        
-        if (likeIndex > -1) {
-            // Unlike
-            food.likes.splice(likeIndex, 1);
-            food.likeCount = Math.max(0, food.likeCount - 1);
-        } else {
-            // Like
-            food.likes.push(userId);
-            food.likeCount += 1;
+
+        const liked = await foodModel.findOneAndUpdate(
+            { _id: id, likes: { $ne: userId } },
+            { $addToSet: { likes: userId }, $inc: { likeCount: 1 } },
+            { new: true }
+        );
+
+        if (liked) {
+            return res.status(200).json({
+                message: "Post liked",
+                isLiked: true,
+                likeCount: liked.likeCount
+            });
         }
-        
-        await food.save();
-        
+
+        // Either the post vanished or a concurrent request already toggled it;
+        // refetch so the response reflects the true current state.
+        const fresh = await foodModel.findById(id);
+        if (!fresh) return res.status(404).json({ error: "Post not found" });
+        const isLiked = fresh.likes.some((u) => u.toString() === userId.toString());
         res.status(200).json({
-            message: likeIndex > -1 ? "Post unliked" : "Post liked",
-            isLiked: likeIndex === -1,
-            likeCount: food.likeCount
+            message: isLiked ? "Post liked" : "Post unliked",
+            isLiked,
+            likeCount: fresh.likeCount
         });
     } catch (error) {
         console.error("Error toggling like:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Toggle save on a post
 const toggleSave = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        if (!req.user || !req.user._id) {
-            return res.status(401).json({ error: "User not authenticated" });
-        }
-        
+        if (!req.user?._id) return res.status(401).json({ error: "User not authenticated" });
         const userId = req.user._id;
-        
-        const food = await foodModel.findById(id);
-        if (!food) {
-            return res.status(404).json({ error: "Post not found" });
-        }
-        
-        // Import User model
+
+        const food = await foodModel.findById(id).select('savesCount');
+        if (!food) return res.status(404).json({ error: "Post not found" });
+
         const userModel = (await import('../models/user.Model.js')).default;
-        const user = await userModel.findById(userId);
-        
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
+
+
+        const unsaved = await userModel.findOneAndUpdate(
+            { _id: userId, savedFoods: id },
+            { $pull: { savedFoods: id } },
+            { new: true }
+        );
+
+        if (unsaved) {
+            await foodModel.updateOne(
+                { _id: id, savesCount: { $gt: 0 } },
+                { $inc: { savesCount: -1 } }
+            );
+            const fresh = await foodModel.findById(id).select('savesCount');
+            return res.status(200).json({
+                message: "Post unsaved",
+                isSaved: false,
+                savesCount: fresh?.savesCount ?? 0
+            });
         }
-        
-        // Check if food is already saved
-        const isSaved = user.savedFoods.includes(id);
-        
-        if (isSaved) {
-            // Unsave: Remove from user's savedFoods array
-            user.savedFoods = user.savedFoods.filter(foodId => foodId.toString() !== id);
-            food.savesCount = Math.max(0, food.savesCount - 1);
-        } else {
-            // Save: Add to user's savedFoods array
-            user.savedFoods.push(id);
-            food.savesCount += 1;
+
+        const saved = await userModel.findOneAndUpdate(
+            { _id: userId, savedFoods: { $ne: id } },
+            { $addToSet: { savedFoods: id } },
+            { new: true }
+        );
+
+        if (saved) {
+            await foodModel.updateOne({ _id: id }, { $inc: { savesCount: 1 } });
+            const fresh = await foodModel.findById(id).select('savesCount');
+            return res.status(200).json({
+                message: "Post saved",
+                isSaved: true,
+                savesCount: fresh?.savesCount ?? 0
+            });
         }
-        
-        await user.save();
-        await food.save();
-        
+
+        // savedFoods already contained the id (concurrent save won) - report
+        // the current state rather than toggling again.
+        const fresh = await foodModel.findById(id).select('savesCount');
         res.status(200).json({
-            message: isSaved ? "Post unsaved" : "Post saved",
-            isSaved: !isSaved,
-            savesCount: food.savesCount
+            message: "Post saved",
+            isSaved: true,
+            savesCount: fresh?.savesCount ?? 0
         });
     } catch (error) {
         console.error("Error toggling save:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Get reviews for a food item
 const getReviews = async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 20, page = 1 } = req.query;
-        
         const validLimit = Math.min(parseInt(limit), 50);
         const skip = (parseInt(page) - 1) * validLimit;
-        
+
         const reviewModel = (await import('../models/review.model.js')).default;
-        
+
         const reviews = await reviewModel
-            .find({ foodItem: id, isActive: true })
-            .populate('user', 'username name email')
+            .find({ foodItem: id, isActive: true, status: 'approved' })
+            .populate('user', 'firstName lastName profileImage')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(validLimit)
             .lean();
-        
-        const totalCount = await reviewModel.countDocuments({ foodItem: id, isActive: true });
-        
-        // Calculate average rating
+
+        const totalCount = await reviewModel.countDocuments({ foodItem: id, isActive: true, status: 'approved' });
         const avgRating = await reviewModel.aggregate([
-            { $match: { foodItem: mongoose.Types.ObjectId(id), isActive: true } },
+            { $match: { foodItem: new mongoose.Types.ObjectId(id), isActive: true, status: 'approved' } },
             { $group: { _id: null, avgRating: { $avg: "$rating" } } }
         ]);
-        
+
         res.status(200).json({
             message: "Reviews retrieved successfully",
             reviews,
@@ -617,142 +574,142 @@ const getReviews = async (req, res) => {
         });
     } catch (error) {
         console.error("Error getting reviews:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// Add a review to a food item
 const addReview = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        if (!req.user || !req.user._id) {
-            return res.status(401).json({ error: "User not authenticated" });
-        }
-        
-        const userId = req.user._id;
+        if (!req.user?._id) return res.status(401).json({ error: "User not authenticated" });
+
         const { rating, comment } = req.body;
-        
-        if (!rating || rating < 1 || rating > 5) {
-            return res.status(400).json({ error: "Rating must be between 1 and 5" });
-        }
-        
-        if (!comment || !comment.trim()) {
-            return res.status(400).json({ error: "Comment is required" });
-        }
-        
+        if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: "Rating must be between 1 and 5" });
+        if (!comment?.trim()) return res.status(400).json({ error: "Comment is required" });
+
         const food = await foodModel.findById(id);
-        if (!food) {
-            return res.status(404).json({ error: "Post not found" });
-        }
-        
+        if (!food) return res.status(404).json({ error: "Post not found" });
+
         const reviewModel = (await import('../models/review.model.js')).default;
-        
-        // Check if user already reviewed this item
-        const existingReview = await reviewModel.findOne({
-            user: userId,
-            foodItem: id
+        const existing = await reviewModel.findOne({
+            user: req.user._id,
+            foodItem: id,
+            isActive: true
         });
-        
-        if (existingReview) {
-            return res.status(400).json({ error: "You have already reviewed this item" });
+
+        // Already reviewed this item -> overwrite them
+        if (existing) {
+            existing.rating = rating;
+            existing.comment = comment.trim();
+            if (existing.status === 'rejected' || existing.status === 'flagged') {
+                existing.status = 'pending';
+            }
+            await existing.save();
+            await updateFoodPartnerRatings(existing.foodPartner);
+            await existing.populate('user', 'firstName lastName profileImage');
+            return res.status(200).json({
+                message: "Review updated successfully",
+                review: existing,
+                updated: true
+            });
         }
-        
+
         const newReview = await reviewModel.create({
-            user: userId,
+            user: req.user._id,
             foodPartner: food.foodPartner,
             foodItem: id,
             rating,
             comment: comment.trim()
         });
-        
-        await newReview.populate('user', 'username name email');
-        
-        res.status(201).json({
-            message: "Review added successfully",
-            review: newReview
-        });
+
+        await updateFoodPartnerRatings(newReview.foodPartner);
+        await newReview.populate('user', 'firstName lastName profileImage');
+        res.status(201).json({ message: "Review added successfully", review: newReview, updated: false });
     } catch (error) {
         console.error("Error adding review:", error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// DELETE /api/food/:id - Delete a food item (partner only)
 const deleteFood = async (req, res) => {
     try {
         const { id } = req.params;
-        const partnerId = req.foodPartner._id;
+        const food = await foodModel.findOne({ _id: id, foodPartner: req.foodPartner._id });
+        if (!food) return res.status(404).json({ error: 'Food item not found or permission denied' });
 
-        // Find food by ID and verify it belongs to this partner
-        const food = await foodModel.findOne({ _id: id, foodPartner: partnerId });
-        if (!food) {
-            return res.status(404).json({
-                error: 'Food item not found or you do not have permission to delete it'
-            });
-        }
-
-        // Delete the food item
         await foodModel.findByIdAndDelete(id);
-
-        res.status(200).json({
-            message: 'Food item deleted successfully',
-            deletedFoodId: id
-        });
+        res.status(200).json({ message: 'Food item deleted successfully', deletedFoodId: id });
     } catch (error) {
         console.error('Error deleting food:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-// PUT /api/food/:id - Update a food item (partner only)
 const updateFood = async (req, res) => {
     try {
         const { id } = req.params;
-        const partnerId = req.foodPartner._id;
-        const { name, description, price, cuisine, ingredients, preparationTime, isAvailable } = req.body;
+        const { name, description, price, cuisine, ingredients, preparationTime, isAvailable, tags } = req.body;
 
-        // Find food by ID and verify it belongs to this partner
-        const food = await foodModel.findOne({ _id: id, foodPartner: partnerId });
-        if (!food) {
-            return res.status(404).json({
-                error: 'Food item not found or you do not have permission to update it'
-            });
-        }
+        const food = await foodModel.findOne({ _id: id, foodPartner: req.foodPartner._id });
+        if (!food) return res.status(404).json({ error: 'Food item not found or permission denied' });
 
-        // Update allowed fields
         if (name) food.name = name;
         if (description) food.description = description;
         if (price) food.price = price;
         if (cuisine) food.cuisine = cuisine;
         if (ingredients) food.ingredients = ingredients;
         if (preparationTime) food.preparationTime = preparationTime;
-        if (typeof isAvailable === 'boolean') food.isAvailable = isAvailable;
+        if (isAvailable !== undefined) {
+            food.isAvailable = isAvailable === 'true' || isAvailable === true;
+        }
+
+        // Tags arrive as a JSON array in multipart form data. Without this the
+        // edit form would silently drop tag changes on food posts.
+        if (tags !== undefined) {
+            try {
+                food.tags = JSON.parse(tags);
+            } catch {
+                food.tags = Array.isArray(tags)
+                    ? tags
+                    : String(tags).split(',').map(tag => tag.trim()).filter(Boolean);
+            }
+        }
+
+        if (req.file) {
+            const mimeIsVideo = req.file.mimetype.startsWith('video/');
+            const mimeIsImage = req.file.mimetype.startsWith('image/');
+
+            if (!mimeIsVideo && !mimeIsImage) {
+                return res.status(400).json({ error: 'Please upload a valid image or video file' });
+            }
+
+            const { url: fileUrl, isVideo: uploadedAsVideo } = await storageService.uploadFile(
+                req.file.buffer,
+                req.file.originalname,
+                req.file.mimetype
+            );
+
+            if (uploadedAsVideo) {
+                food.video = fileUrl;
+                food.image = undefined;
+                food.type = 'video';
+            } else {
+                food.image = fileUrl;
+                food.video = undefined;
+                food.type = 'image';
+            }
+        }
 
         await food.save();
-
-        res.status(200).json({
-            message: 'Food item updated successfully',
-            food
-        });
+        res.status(200).json({ message: 'Food item updated successfully', food });
     } catch (error) {
         console.error('Error updating food:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 };
 
-export default { 
-    createFood, 
-    getFoodItems, 
-    getAllFoods, 
-    getTrendingFoods,
-    getActiveAdvertisements,
-    getFoodItemsWithPricing,
-    getPostStatistics,
-    toggleLike,
-    toggleSave,
-    getReviews,
-    addReview,
-    deleteFood,
-    updateFood
+export default {
+    createFood, getFoodItems, getAllFoods, getFoodById, getTrendingFoods,
+    getActiveAdvertisements, getFoodItemsWithPricing, getPostStatistics,
+    toggleLike, toggleSave, getReviews, addReview, deleteFood, updateFood
 };

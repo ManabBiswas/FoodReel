@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { memo, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -8,11 +8,13 @@ import {
 import { showError, showSuccess } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
+import CancelOrderDialog from '../../Components/CancelOrderDialog'
+import CancelRequestDialog from '../../Components/CancelRequestDialog'
 import { usePartnerData } from '../../hooks/usePartnerData'
 import {
   Plus, ShoppingBag, Megaphone, TrendingUp, TrendingDown,
   IndianRupee, AlertCircle, Package, Clock, ChefHat,
-  CheckCircle, XCircle, RefreshCw, Search,
+    CheckCircle, XCircle, RefreshCw, Search, AlertTriangle,
   List, Heart, MessageCircle, Activity, BarChart2,
   Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight
 } from 'lucide-react'
@@ -28,15 +30,16 @@ const STATUS_CFG = {
   ready:     { icon: CheckCircle, color: 'text-teal-600',   bg: 'bg-teal-50',    border: 'border-teal-200',   dot: 'bg-teal-500'    },
   delivered: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
   completed: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
-  cancelled: { icon: XCircle,     color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500'     },
-}
+      cancelled: { icon: XCircle,     color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500'     },
+      cancel_requested: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
+    }
 
 /* ─── KPI Card ───────────────────────────────────────────── */
-const KPICard = ({ title, value, subtitle, from, to, icon, trend }) => (
+const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
   <div className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${from} ${to} text-white shadow-md`}>
     <div className="flex items-start justify-between">
       <div className="bg-white/20 rounded-xl p-2.5">
-        {icon && <icon className="w-5 h-5 text-white" />}
+        {Icon && <Icon className="w-5 h-5 text-white" />}
       </div>
       {trend != null && (
         <div className="flex items-center gap-1 bg-white/20 rounded-full px-2.5 py-1 text-xs font-semibold">
@@ -54,10 +57,10 @@ const KPICard = ({ title, value, subtitle, from, to, icon, trend }) => (
 )
 
 /* ─── Mini stat ──────────────────────────────────────────── */
-const MiniStat = ({ icon, label, value, cls }) => (
+const MiniStat = ({ icon: Icon, label, value, cls }) => (
   <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${cls}`}>
-      {icon && <icon className="w-5 h-5" />}
+      {Icon && <Icon className="w-5 h-5" />}
     </div>
     <div className="min-w-0">
       <p className="text-xs text-gray-500 truncate">{label}</p>
@@ -103,7 +106,7 @@ const ChartTip = ({ active, payload, label }) => {
 }
 
 /* ─── Order row ──────────────────────────────────────────── */
-const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updating }) => {
+const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, onRequestCancel, updating }) => {
   const customerName = order.user
     ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim() || 'Customer'
     : order.deliveryAddress?.fullName || 'Customer'
@@ -138,6 +141,14 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
           ))}
           {(order.items?.length || 0) > 2 && (
             <p className="text-xs text-gray-400">+{order.items.length - 2} more</p>
+          )}
+          {order.cancellation?.isCancelled && order.cancellation.reason && (
+            <p className="mt-1 inline-flex max-w-full items-start gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
+              <span className="font-bold">
+                {order.cancellation.cancelledBy === 'partner' ? 'You: ' : 'Customer: '}
+              </span>
+              <span className="truncate">{order.cancellation.reason}</span>
+            </p>
           )}
         </div>
 
@@ -177,17 +188,37 @@ const OrderRow = ({ order, onViewDetails, onStatusUpdate, onCancelOrder, updatin
               {updating ? '…' : 'Ready'}
             </button>
           )}
-          {['pending', 'confirmed', 'preparing'].includes(order.status) && (
-            <button onClick={() => onCancelOrder(order._id)} disabled={updating}
-              className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors">
+          {order.status === 'ready' && (
+            <button onClick={() => onStatusUpdate(order._id, 'delivered')} disabled={updating}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
+              {updating ? '…' : 'Delivered'}
+            </button>
+          )}
+          {/* pending and confirmed orders can be cancelled by the partner */}
+         {['pending', 'confirmed'].includes(order.status) && (
+            <button onClick={() => onCancelOrder(order)} disabled={updating}
+              className="px-3 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
               Cancel
             </button>
+          )}
+          {/* Once the food is being made the partner cannot cancel outright —
+              they ask an admin, who approves or rejects the cancellation. */}
+          {['preparing', 'ready'].includes(order.status) && (
+            <button onClick={() => onRequestCancel(order)} disabled={updating}
+              className="px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg disabled:opacity-50 transition-colors cursor-pointer">
+              Can't serve
+            </button>
+          )}
+          {order.status === 'cancel_requested' && (
+            <span className="px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg">
+              Awaiting admin
+            </span>
           )}
         </div>
       </div>
     </div>
   )
-}
+})
 
 /* ─── Empty state ────────────────────────────────────────── */
 const EmptyState = ({ filtered }) => (
@@ -216,11 +247,39 @@ const Dashboard = () => {
   const [orders, setOrders] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [orderLoading, setOrderLoading] = useState(true)
+  const [ordersLoaded, setOrdersLoaded] = useState(false)
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [updatingOrder, setUpdatingOrder] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Content KPIs are derived from context posts, not from the orders endpoint.
+  // Keeping them out of fetchOrders stops a partner-data refresh from re-triggering the orders fetch through the effect below.
+  const contentStats = useMemo(() => {
+    const foodPosts = posts?.food || []
+    const adPosts = posts?.advertisement || []
+    return {
+      food: {
+        count: foodPosts.length,
+        totalLikes: foodPosts.reduce((s, p) => s + (p.likeCount || p.likes?.length || 0), 0),
+        totalReviews: foodPosts.reduce((s, p) => s + (p.commentCount || p.comments?.length || 0), 0),
+        totalSaves: foodPosts.reduce((s, p) => s + (p.savesCount || p.saves?.length || 0), 0)
+      },
+      advertisement: {
+        count: adPosts.length,
+        totalLikes: adPosts.reduce((s, a) => s + (a.likeCount || a.likes?.length || 0), 0),
+        totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
+      }
+    }
+  }, [posts])
+
+  const contentStatsRef = useRef(contentStats)
+  contentStatsRef.current = contentStats
+
+  useEffect(() => {
+    setStatistics(prev => (prev ? { ...prev, ...contentStats } : prev))
+  }, [contentStats])
 
   // Reviews state
   const [reviews, setReviews] = useState([])
@@ -231,46 +290,50 @@ const Dashboard = () => {
   // Content management state
   const [contentFilter, setContentFilter] = useState('all') // all, food, advertisement
   const [deletingId, setDeletingId] = useState(null)
+  const [orderPage, setOrderPage] = useState(1)
+  const [orderPagination, setOrderPagination] = useState({ currentPage: 1, totalPages: 1, totalCount: 0 })
+  const [revenueByDay, setRevenueByDay] = useState([])
 
   /**
    * Fetch only orders from backend
    * Partner profile and posts come from context
    */
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (page = 1) => {
     try {
       setOrderLoading(true)
       setError('')
 
-      const ordersRes = await axios.get(API_ENDPOINTS.order.partner, axiosConfig)
+      const [ordersRes, statsRes] = await Promise.all([
+        axios.get(`${API_ENDPOINTS.order.partner}?page=${page}&limit=20`, axiosConfig),
+        axios.get(API_ENDPOINTS.order.statistics, axiosConfig)
+      ])
       const ordersData = ordersRes.data?.orders || []
       setOrders(ordersData)
+      setOrderPagination(ordersRes.data?.pagination || { currentPage: page, totalPages: 1, totalCount: ordersData.length })
 
-      const completed = (o) => ['completed', 'delivered'].includes(o.status)
-      const foodPosts = posts?.food || []
-      const adPosts = posts?.advertisement || []
+      const byStatus = {}
+      let totalCountAll = 0
+      let totalRevenueAll = 0
+      for (const row of statsRes.data?.statistics?.byStatus || []) {
+        byStatus[row._id] = row.count
+        totalCountAll += row.count
+        totalRevenueAll += row.totalRevenue || 0
+      }
+      setRevenueByDay(statsRes.data?.statistics?.revenueByDay || [])
 
       setStatistics({
-        food: {
-          count: foodPosts.length,
-          totalLikes: foodPosts.reduce((s, p) => s + (p.likeCount || p.likes?.length || 0), 0),
-          totalReviews: foodPosts.reduce((s, p) => s + (p.commentCount || p.comments?.length || 0), 0),
-          totalSaves: foodPosts.reduce((s, p) => s + (p.savesCount || p.saves?.length || 0), 0)
-        },
-        advertisement: {
-          count: adPosts.length,
-          totalLikes: adPosts.reduce((s, a) => s + (a.likeCount || a.likes?.length || 0), 0),
-          totalComments: adPosts.reduce((s, a) => s + (a.commentCount || a.comments?.length || 0), 0)
-        },
+        ...contentStatsRef.current,
         orders: {
-          total: ordersData.length,
-          pending: ordersData.filter((o) => o.status === 'pending').length,
-          confirmed: ordersData.filter((o) => o.status === 'confirmed').length,
-          preparing: ordersData.filter((o) => o.status === 'preparing').length,
-          ready: ordersData.filter((o) => o.status === 'ready').length,
-          completed: ordersData.filter(completed).length,
-          cancelled: ordersData.filter((o) => o.status === 'cancelled').length,
-          revenue: ordersData.filter(completed).reduce((s, o) => s + (o.pricing?.totalAmount || o.totalAmount || 0), 0),
-          totalRevenue: ordersData.reduce((s, o) => s + (o.pricing?.totalAmount || o.totalAmount || 0), 0)
+          total: totalCountAll,
+          pending: byStatus.pending || 0,
+          confirmed: byStatus.confirmed || 0,
+          preparing: byStatus.preparing || 0,
+          ready: byStatus.ready || 0,
+          completed: byStatus.delivered || 0,
+          cancelled: byStatus.cancelled || 0,
+          cancel_requested: byStatus.cancel_requested || 0,
+          revenue: statsRes.data?.statistics?.delivered?.deliveredRevenue || 0,
+          totalRevenue: totalRevenueAll
         }
       })
     } catch (err) {
@@ -279,25 +342,26 @@ const Dashboard = () => {
         showError('Session expired. Please login again.')
         setTimeout(() => navigate('/partner-login'), 2000)
       } else {
-        const msg = err.response?.data?.message || 'Failed to load orders'
+        const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to load orders'
         setError(msg)
         showError(msg)
       }
     } finally {
       setOrderLoading(false)
+      setOrdersLoaded(true)
     }
-  }, [posts, navigate])
+  }, [navigate])
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchOrders(orderPage)
+  }, [fetchOrders, orderPage])
 
   /* ── order action handlers ──────────────────────────────── */
   const handleRefresh = useCallback(async () => {
     refresh()
-    await fetchOrders()
+    await fetchOrders(orderPage)
     showSuccess('Dashboard refreshed')
-  }, [refresh, fetchOrders])
+  }, [refresh, fetchOrders, orderPage])
 
   const handleStatusUpdate = useCallback(async (orderId, newStatus) => {
     try {
@@ -306,33 +370,80 @@ const Dashboard = () => {
       setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)))
       showSuccess(`Order marked as ${newStatus}`)
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to update order status')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to update order status')
     } finally { setUpdatingOrder(null) }
   }, [])
 
-  const handleCancelOrder = useCallback(async (orderId) => {
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancellingOrder, setCancellingOrder] = useState(false)
+//  callback to open cancel dialog
+  const openCancelDialog = useCallback((order) => setCancelTarget(order), [])
+
+  const handleCancelOrder = useCallback(async (reason) => {
+    if (!cancelTarget) return
     try {
-      setUpdatingOrder(orderId)
-      await axios.post(API_ENDPOINTS.order.partnerCancel(orderId), {}, axiosConfig)
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: 'cancelled' } : o)))
+      setCancellingOrder(true)
+      await axios.post(API_ENDPOINTS.order.partnerCancel(cancelTarget._id), { reason }, axiosConfig)
+      setOrders((prev) => prev.map((o) => (
+        o._id === cancelTarget._id
+          ? { ...o, status: 'cancelled', cancellation: { ...(o.cancellation || {}), isCancelled: true, cancelledBy: 'partner', reason } }
+          : o
+      )))
+      setCancelTarget(null)
       showSuccess('Order cancelled')
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to cancel order')
-    } finally { setUpdatingOrder(null) }
-  }, [])
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to cancel order')
+    } finally { setCancellingOrder(false) }
+  }, [cancelTarget])
 
   const handleViewDetails = useCallback(
-    (orderId) => navigate(`/order/confirmation/${orderId}`),
+    (orderId) => navigate(`/order/${orderId}`),
     [navigate]
   )
 
+  /* ── Cancellation request (food already being prepared) ── */
+  const [requestTarget, setRequestTarget] = useState(null)
+  const [requestingCancel, setRequestingCancel] = useState(false)
+  const openRequestDialog = useCallback((order) => setRequestTarget(order), [])
+
+  const handleRequestCancel = useCallback(async (reason, details) => {
+    if (!requestTarget) return
+    try {
+      setRequestingCancel(true)
+      await axios.post(
+        API_ENDPOINTS.order.partnerCancelRequest(requestTarget._id),
+        { reason, details },
+        axiosConfig
+      )
+      setOrders((prev) => prev.map((o) => (
+        o._id === requestTarget._id
+          ? {
+              ...o,
+              status: 'cancel_requested',
+              cancelRequest: {
+                requestedBy: 'partner',
+                reason,
+                details,
+                status: 'pending',
+                requestedAt: new Date().toISOString(),
+              },
+            }
+          : o
+      )))
+      setRequestTarget(null)
+      showSuccess('Request sent. An admin will review it shortly.')
+    } catch (err) {
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to send cancellation request')
+    } finally { setRequestingCancel(false) }
+  }, [requestTarget])
   /* ── Reviews handlers ───────────────────────────────────── */
   const fetchReviews = useCallback(async () => {
     if (!partnerProfile?._id) return
     try {
       setReviewsLoading(true)
       const res = await axios.get(API_ENDPOINTS.reviews.byPartner(partnerProfile._id), axiosConfig)
-      setReviews(res.data?.reviews || res.data?.data || [])
+      const list = res.data?.reviews || res.data?.data || []
+      setReviews(list.map((r) => ({ ...r, partnerResponse: r.partnerResponse || r.response?.text || '' })))
     } catch (err) {
       console.error('Reviews fetch error:', err)
     } finally { setReviewsLoading(false) }
@@ -343,13 +454,13 @@ const Dashboard = () => {
   const handleRespondToReview = useCallback(async (reviewId) => {
     if (!responseText.trim()) return
     try {
-      await axios.post(API_ENDPOINTS.reviews.respond(reviewId), { response: responseText.trim() }, axiosConfig)
-      setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, partnerResponse: responseText.trim() } : r))
+      await axios.post(API_ENDPOINTS.reviews.respond(reviewId), { text: responseText.trim() }, axiosConfig)
+      setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, partnerResponse: responseText.trim(), response: { text: responseText.trim() } } : r))
       setRespondingTo(null)
       setResponseText('')
       showSuccess('Response posted')
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to respond')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to respond')
     }
   }, [responseText])
 
@@ -373,7 +484,7 @@ const Dashboard = () => {
       showSuccess('Post deleted')
       refresh() // refresh context data
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to delete')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete')
     } finally { setDeletingId(null) }
   }, [refresh])
 
@@ -393,25 +504,23 @@ const Dashboard = () => {
   }, [orders, statusFilter, searchTerm])
 
   const revenueChartData = useMemo(() => {
+    const byDate = new Map((revenueByDay || []).map(row => [row._id, row]))
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - (6 - i))
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const key = `${yyyy}-${mm}-${dd}`
+      const row = byDate.get(key)
       return {
         day: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' }),
-        dateStr: d.toLocaleDateString('en-IN'),
-        'Revenue (₹)': 0,
-        Orders: 0
-      }
-    })
-    orders.forEach((o) => {
-      const slot = days.find((d) => d.dateStr === new Date(o.createdAt).toLocaleDateString('en-IN'))
-      if (slot) {
-        slot['Revenue (₹)'] += o.pricing?.totalAmount || o.totalAmount || 0
-        slot.Orders += 1
+        'Revenue (₹)': row?.revenue || 0,
+        Orders: row?.orders || 0
       }
     })
     return days
-  }, [orders])
+  }, [revenueByDay])
 
   const ordersBarData = useMemo(() => {
     if (!statistics) return []
@@ -428,7 +537,7 @@ const Dashboard = () => {
   const statusPieData = useMemo(() => ordersBarData, [ordersBarData])
 
   /* ── loading skeleton ───────────────────────────────────── */
-  if (loading || orderLoading) {
+  if (loading || (orderLoading && !ordersLoaded)) {
     return (
       <div className="min-h-screen bg-[#F8F9FB]">
         <Navbar />
@@ -694,7 +803,8 @@ const Dashboard = () => {
                         order={order}
                         onViewDetails={handleViewDetails}
                         onStatusUpdate={handleStatusUpdate}
-                        onCancelOrder={handleCancelOrder}
+                        onCancelOrder={openCancelDialog}
+            onRequestCancel={openRequestDialog}
                         updating={updatingOrder === order._id}
                       />
                     ))}
@@ -711,20 +821,21 @@ const Dashboard = () => {
           <div>
             {/* Status summary pills (clickable filter) */}
             {statistics && (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
+              <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 mb-6">
                 {[
-                  { label: 'Total',     val: statistics.orders.total,     borderActive: 'border-gray-400'   },
-                  { label: 'Pending',   val: statistics.orders.pending,   borderActive: 'border-amber-400'  },
-                  { label: 'Confirmed', val: statistics.orders.confirmed, borderActive: 'border-blue-400'   },
-                  { label: 'Preparing', val: statistics.orders.preparing, borderActive: 'border-violet-400' },
-                  { label: 'Completed', val: statistics.orders.completed, borderActive: 'border-green-400'  },
-                  { label: 'Cancelled', val: statistics.orders.cancelled, borderActive: 'border-red-400'    },
+                  { label: 'Total',     key: 'all',              val: statistics.orders.total,     borderActive: 'border-gray-400'   },
+                  { label: 'Pending',   key: 'pending',          val: statistics.orders.pending,   borderActive: 'border-amber-400'  },
+                  { label: 'Confirmed', key: 'confirmed',        val: statistics.orders.confirmed, borderActive: 'border-blue-400'   },
+                  { label: 'Preparing', key: 'preparing',        val: statistics.orders.preparing, borderActive: 'border-violet-400' },
+                  { label: 'Completed', key: 'delivered',        val: statistics.orders.completed, borderActive: 'border-green-400'  },
+                  { label: 'Cancelled', key: 'cancelled',        val: statistics.orders.cancelled, borderActive: 'border-red-400'    },
+                  { label: 'Requested', key: 'cancel_requested', val: statistics.orders.cancel_requested, borderActive: 'border-amber-500' },
                 ].map((s) => {
-                  const isActive = s.label === 'Total' ? statusFilter === 'all' : statusFilter === s.label.toLowerCase()
+                  const isActive = statusFilter === s.key
                   return (
                     <button
                       key={s.label}
-                      onClick={() => setStatusFilter(s.label === 'Total' ? 'all' : s.label.toLowerCase())}
+                      onClick={() => setStatusFilter(s.key)}
                       className={`bg-white rounded-xl p-3 border-2 text-center transition-all hover:shadow-sm ${
                         isActive ? `${s.borderActive} shadow-sm` : 'border-transparent'
                       }`}
@@ -765,10 +876,32 @@ const Dashboard = () => {
                     order={order}
                     onViewDetails={handleViewDetails}
                     onStatusUpdate={handleStatusUpdate}
-                    onCancelOrder={handleCancelOrder}
+                    onCancelOrder={openCancelDialog}
+            onRequestCancel={openRequestDialog}
                     updating={updatingOrder === order._id}
                   />
                 ))}
+                {orderPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 pt-3">
+                    <button
+                      onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                      disabled={orderPage <= 1}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 disabled:opacity-40 hover:bg-gray-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      Page {orderPagination.currentPage} of {orderPagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => setOrderPage(p => Math.min(orderPagination.totalPages, p + 1))}
+                      disabled={orderPage >= orderPagination.totalPages}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -970,6 +1103,21 @@ const Dashboard = () => {
         )}
 
       </div>
+
+      <CancelOrderDialog
+        open={!!cancelTarget}
+        mode="partner"
+        cancelling={cancellingOrder}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancelOrder}
+      />
+
+      <CancelRequestDialog
+        open={!!requestTarget}
+        submitting={requestingCancel}
+        onClose={() => setRequestTarget(null)}
+        onSubmit={handleRequestCancel}
+      />
     </div>
   )
 }

@@ -2,20 +2,30 @@ import followModel from "../models/follow.model.js";
 import userModel from "../models/user.Model.js";
 import foodPartnerModel from "../models/foodPartner.Model.js";
 
+const TARGET_TYPES = ['User', 'FoodPartner'];
+
 // Follow a user or food partner
 export const followUser = async (req, res) => {
     try {
         const { targetId, targetType } = req.body; // targetType: 'User' or 'FoodPartner'
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        // User model has 'firstName', FoodPartner has 'companyName'
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware;
+        // fall back to a field check for older callers.
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Target ID and type are required" 
+            });
+        }
+        // follow.followingModel enum is ['User','FoodPartner'] — validate before
+        // hitting the DB so a bad value is a 400, not a ValidationError → 500.
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
             });
         }
 
@@ -103,7 +113,7 @@ export const followUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to follow user",
-            error: error.message
+
         });
     }
 };
@@ -114,13 +124,19 @@ export const unfollowUser = async (req, res) => {
         const { targetId, targetType } = req.body;
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware;
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
 
         if (!targetId || !targetType) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Target ID and type are required" 
+            });
+        }
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
             });
         }
 
@@ -168,7 +184,7 @@ export const unfollowUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to unfollow user",
-            error: error.message
+
         });
     }
 };
@@ -187,7 +203,7 @@ export const getFollowers = async (req, res) => {
                 followingModel: userType,
                 isActive: true
             })
-            .populate('follower', 'firstName lastName username email profileImage')
+            .populate('follower', 'firstName lastName username profileImage')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
@@ -214,7 +230,7 @@ export const getFollowers = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get followers",
-            error: error.message
+
         });
     }
 };
@@ -233,7 +249,7 @@ export const getFollowing = async (req, res) => {
                 followerModel: userType,
                 isActive: true
             })
-            .populate('following', 'firstName lastName username email profileImage companyName')
+            .populate('following', 'firstName lastName username profileImage companyName')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
@@ -260,7 +276,7 @@ export const getFollowing = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get following list",
-            error: error.message
+
         });
     }
 };
@@ -271,8 +287,15 @@ export const checkFollowing = async (req, res) => {
         const { targetId, targetType } = req.params;
         const followerId = req.user._id;
         
-        // Determine follower type by checking which model the user belongs to
-        const followerType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine follower type — set by isUserOrPartner middleware
+        const followerType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
+
+        if (!TARGET_TYPES.includes(targetType)) {
+            return res.status(400).json({
+                success: false,
+                message: "targetType must be 'User' or 'FoodPartner'"
+            });
+        }
 
         const isFollowing = await followModel.exists({
             follower: followerId,
@@ -292,7 +315,7 @@ export const checkFollowing = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to check following status",
-            error: error.message
+
         });
     }
 };
@@ -302,8 +325,8 @@ export const getSuggestedFollows = async (req, res) => {
     try {
         const userId = req.user._id;
         
-        // Determine user type by checking which model the user belongs to
-        const userType = req.user.companyName ? 'FoodPartner' : 'User';
+        // Determine user type — set by isUserOrPartner middleware
+        const userType = req.userType || (req.user.companyName ? 'FoodPartner' : 'User');
         const limit = parseInt(req.query.limit) || 10;
 
         // Get users the current user is already following
@@ -338,7 +361,7 @@ export const getSuggestedFollows = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get suggested follows",
-            error: error.message
+
         });
     }
 };

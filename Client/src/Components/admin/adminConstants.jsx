@@ -1,7 +1,4 @@
-import {
-  LayoutDashboard, Users, Store, FileText,
-  ShoppingBag, Star, BarChart3
-} from 'lucide-react'
+import { LayoutDashboard, Users, Store, FileText, ShoppingBag, Star, BarChart3, ChefHat, Zap, CalendarDays } from 'lucide-react'
 
 export const fmtCur = n =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n ?? 0)}`
@@ -14,6 +11,7 @@ export const STATUS_COLORS = {
   delivered: { bg: 'rgba(34,197,94,0.15)',   text: '#22C55E', dot: '#22C55E' },
   completed: { bg: 'rgba(34,197,94,0.15)',   text: '#22C55E', dot: '#22C55E' },
   cancelled: { bg: 'rgba(239,68,68,0.15)',   text: '#EF4444', dot: '#EF4444' },
+  cancel_requested: { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B', dot: '#F59E0B' },
 }
 
 export const PALETTE = [
@@ -29,6 +27,9 @@ export const TABS = [
   { id: 'partners',  label: 'Partners',  icon: Store },
   { id: 'content',   label: 'Content',   icon: FileText },
   { id: 'orders',    label: 'Orders',    icon: ShoppingBag },
+  { id: 'cancels',   label: 'Cancel Requests', icon: ChefHat },
   { id: 'reviews',   label: 'Reviews',   icon: Star },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'events',    label: 'Events',    icon: CalendarDays },
+  { id: 'event-proposals', label: 'Event Proposals', icon: Zap },
 ]

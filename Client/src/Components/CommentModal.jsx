@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Send, Heart, Reply, MessageCircle, User } from 'lucide-react'
-import { toast } from 'react-toastify'
+import { showSuccess, showError, showWarning } from '../utils/toast'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useAuth } from '../hooks/useAuth'
+import getProfileImageUrl from '../utils/profileImage'
 
 const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
   const { user, isAuthenticated } = useAuth()
@@ -16,19 +17,10 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
   const [replyingTo, setReplyingTo] = useState(null)
   const modalRef = useRef(null)
 
-  useEffect(() => {
-    if (isOpen && post?._id) {
-      fetchComments()
-      fetchCommentLikes()
-    }
-  }, [isOpen, post?._id])
-
   // ── Fetch comments ──────────────────────────────────────────────────────────
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       setLoading(true)
-      // FIX: use API_ENDPOINTS.comments.byPost — was `${API_ENDPOINTS}/api/comments/post/...`
-      // FIX: merge axiosConfig properly — was axios.get(url, axiosConfig, {...}) (3-arg, 3rd ignored)
       const response = await axios.get(
         API_ENDPOINTS.comments.byPost(post._id),
         axiosConfig
@@ -39,13 +31,12 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [post?._id])
 
   // ── Fetch which comments the current user has liked ─────────────────────────
-  const fetchCommentLikes = async () => {
+  const fetchCommentLikes = useCallback(async () => {
     if (!isAuthenticated) return
     try {
-      // FIX: was /api/comment-likes/my-likes/:id — route lives at /api/comments/my-likes/:id
       const response = await axios.get(
         API_ENDPOINTS.comments.myLikes(post._id),
         axiosConfig
@@ -58,17 +49,24 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
     } catch (error) {
       console.error('Failed to fetch comment likes:', error)
     }
-  }
+  }, [isAuthenticated, post?._id])
+
+  useEffect(() => {
+    if (isOpen && post?._id) {
+      fetchComments()
+      fetchCommentLikes()
+    }
+  }, [isOpen, post?._id, fetchComments, fetchCommentLikes])
 
   // ── Submit new comment / reply ───────────────────────────────────────────────
   const handleSubmitComment = async (e) => {
     e.preventDefault()
     if (!newComment.trim()) {
-      toast.warning('Comment cannot be empty')
+      showWarning('Comment cannot be empty')
       return
     }
     if (!isAuthenticated) {
-      toast.warning('Please login to comment')
+      showWarning('Please login to comment')
       return
     }
 
@@ -80,7 +78,6 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
         parentCommentId: replyingTo?.id || null
       }
 
-      // FIX: was `${API_ENDPOINTS}/api/comments/create`
       const response = await axios.post(
         API_ENDPOINTS.comments.create,
         payload,
@@ -91,11 +88,11 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
       setComments(prev => [createdComment, ...prev])
       setNewComment('')
       setReplyingTo(null)
-      toast.success('Comment posted!')
+      showSuccess('Comment posted!')
       onCommentAdded?.(post._id)
     } catch (error) {
       console.error('Failed to submit comment:', error)
-      toast.error(error.response?.data?.message || 'Failed to post comment')
+      showError(error.response?.data?.error || error.response?.data?.message || 'Failed to post comment')
     } finally {
       setSubmitting(false)
     }
@@ -104,37 +101,54 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
   // ── Like / Unlike a comment ──────────────────────────────────────────────────
   const handleLikeComment = async (commentId) => {
     if (!isAuthenticated) {
-      toast.warning('Please login to like comments')
+      showWarning('Please login to like comments')
       return
     }
 
-    try {
-      const isLiked = likedComments[commentId]
+    const wasLiked = !!likedComments[commentId]
+    const delta = wasLiked ? -1 : 1
 
-      if (isLiked) {
+    // Optimistic: flip the heart and bump the count immediately, no refetch
+    setLikedComments(prev => {
+      const updated = { ...prev }
+      if (wasLiked) delete updated[commentId]
+      else updated[commentId] = true
+      return updated
+    })
+    setComments(prev => prev.map(c => (
+      c._id === commentId
+        ? { ...c, likeCount: Math.max(0, (c.likeCount || 0) + delta) }
+        : c
+    )))
+
+    try {
+      if (wasLiked) {
         await axios.delete(
           API_ENDPOINTS.comments.unlike(commentId),
           axiosConfig
         )
-        setLikedComments(prev => {
-          const updated = { ...prev }
-          delete updated[commentId]
-          return updated
-        })
       } else {
         await axios.post(
           API_ENDPOINTS.comments.like,
           { commentId },
           axiosConfig
         )
-        setLikedComments(prev => ({ ...prev, [commentId]: true }))
       }
-
-      // Refresh to get accurate like counts
-      fetchComments()
     } catch (error) {
       console.error('Failed to like comment:', error)
-      toast.error('Failed to process like')
+      // Roll back the optimistic update
+      setLikedComments(prev => {
+        const updated = { ...prev }
+        if (wasLiked) updated[commentId] = true
+        else delete updated[commentId]
+        return updated
+      })
+      setComments(prev => prev.map(c => (
+        c._id === commentId
+          ? { ...c, likeCount: Math.max(0, (c.likeCount || 0) - delta) }
+          : c
+      )))
+      showError(error.response?.data?.message || 'Failed to process like')
     }
   }
 
@@ -148,46 +162,14 @@ const CommentModal = ({ isOpen, post, onClose, onCommentAdded }) => {
         axiosConfig
       )
       setComments(prev => prev.filter(c => c._id !== commentId))
-      toast.success('Comment deleted')
+      showSuccess('Comment deleted')
     } catch (error) {
       console.error('Failed to delete comment:', error)
-      toast.error('Failed to delete comment')
+      showError('Failed to delete comment')
     }
   }
 
-const getProfileImageUrl = (user) => {
-    if (!user || !user.profileImage) return null
-    
-    const profileImage = user.profileImage
-    
-    // If it's already a string URL, return it
-    if (typeof profileImage === 'string') {
-      return profileImage.startsWith('data:') ? profileImage : profileImage
-    }
-    
-    // Handle Buffer/Uint8Array converted to JSON format
-    if (profileImage.data && Array.isArray(profileImage.data)) {
-      const binaryString = String.fromCharCode.apply(null, profileImage.data)
-      const base64 = btoa(binaryString)
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    // Handle Uint8Array
-    if (profileImage instanceof Uint8Array) {
-      const base64 = btoa(String.fromCharCode.apply(null, profileImage))
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    // Handle ArrayBuffer
-    if (profileImage instanceof ArrayBuffer) {
-      const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(profileImage)))
-      return `data:image/jpeg;base64,${base64}`
-    }
-    
-    return null
-  }
-
-  if (!isOpen || !post) return null
+if (!isOpen || !post) return null
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -334,7 +316,6 @@ const getProfileImageUrl = (user) => {
 
         {/* Comment Form */}
         <div className="border-t border-gray-200 p-4 sm:p-6 space-y-2">
-          {/* FIX: show who you're replying to, not just "Replying to comment" */}
           {replyingTo && (
             <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
               <Reply className="w-3 h-3" />

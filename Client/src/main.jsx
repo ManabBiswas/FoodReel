@@ -3,21 +3,27 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// FORCE LIGHT THEME - Remove any dark mode classes
+// The app ships light-only. Keep the preference under a versioned key so a
+// future theme can migrate without guessing what an old key meant.
+const THEME_KEY = 'foodreel:theme:v1'
+const LEGACY_THEME_KEY = 'theme'
+
 document.documentElement.classList.remove('dark')
 document.body.classList.remove('dark')
 
-// Clear localStorage and force light theme
 try {
-  localStorage.removeItem('theme') // Remove any existing theme
-  localStorage.setItem('theme', 'light')
+  const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY)
+  if (legacyTheme !== null) localStorage.removeItem(LEGACY_THEME_KEY)
+
+  if (!localStorage.getItem(THEME_KEY)) {
+    localStorage.setItem(THEME_KEY, 'light')
+  } else if (localStorage.getItem(THEME_KEY) !== 'light') {
+    // Light is the only supported theme for now, including migrated values.
+    localStorage.setItem(THEME_KEY, 'light')
+  }
 } catch {
   console.debug('localStorage not available')
 }
-
-// // Set light theme colors on body
-// document.body.style.backgroundColor = '#ffffff'
-// document.body.style.color = '#374151'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

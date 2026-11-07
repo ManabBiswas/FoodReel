@@ -3,7 +3,12 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { showSuccess, showError, showWarning } from '../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
+import { useCart } from '../hooks/useCart'
 import { X, Heart, ShoppingCart, Star, User, Clock, DollarSign, MessageCircle, Send, Loader2, Play, VolumeX, Volume2, CheckCircle, MoreHorizontal, Bookmark } from 'lucide-react'
+
+// Reviewer display name. If no name, use 'User'    
+const reviewerName = (user) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'User'
 
 const FoodDetailModal = ({ food, onClose }) => {
   const [reviews, setReviews] = useState([])
@@ -15,7 +20,10 @@ const FoodDetailModal = ({ food, onClose }) => {
   const [isMuted, setIsMuted] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
   const [comment, setComment] = useState('')
+  // Real star input. This used to post a hardcoded `rating: 5`,
+  const [rating, setRating] = useState(0)
   const navigate = useNavigate()
+  const { addToCart } = useCart()
   const videoRef = React.useRef(null)
 
   const getFoodId = React.useCallback(() => food?.id || food?._id || null, [food])
@@ -29,9 +37,14 @@ const FoodDetailModal = ({ food, onClose }) => {
         axiosConfig
       )
       
-      if (response.data && Array.isArray(response.data.data)) {
-        setReviews(response.data.data)
-      }
+      // Backend returns { reviews, totalCount, averageRating } — older shape was { data: [...] }
+      const payload = response.data
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.reviews)
+          ? payload.reviews
+          : []
+      setReviews(list)
     } catch (err) {
       console.error('Error fetching reviews:', err)
       // Optional: toast.error('Failed to load reviews')
@@ -59,29 +72,36 @@ const FoodDetailModal = ({ food, onClose }) => {
 
   const handleLike = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
 
+    const id = getFoodId()
+    if (!id) return
+
+    const wasLiked = isLiked
+    const label = wasLiked ? 'Removed from favorites' : 'Added to favorites'
+
+    // Optimistic: flip immediately, roll back on failure
+    setIsLiked(!wasLiked)
+    showSuccess(label)
+
     try {
-      const id = getFoodId()
-      if (!id) return
       await axios.post(
         API_ENDPOINTS.food.like(id),
         {},
         axiosConfig
       )
-      setIsLiked(!isLiked)
-      showSuccess(isLiked ? 'Removed from favorites' : 'Added to favorites')
     } catch (error) {
       console.error('Error liking food:', error)
+      setIsLiked(wasLiked)
       showError('Failed to update favorites')
     }
   }
 
   const handleSubmitReview = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
 
@@ -90,34 +110,59 @@ const FoodDetailModal = ({ food, onClose }) => {
       return
     }
 
+    if (rating < 1 || rating > 5) {
+      showWarning('Please select a star rating')
+      return
+    }
+
+    const id = getFoodId()
+    if (!id) {
+      showError('Could not resolve food item')
+      return
+    }
+
     try {
       setLoading(true)
-      const id = getFoodId()
-      if (!id) return
-      await axios.post(
+      const { data } = await axios.post(
         API_ENDPOINTS.food.review(id),
-        { rating: 5, comment },
+        { rating, comment },
         axiosConfig
       )
       setComment('')
-      showSuccess('Review submitted successfully!')
-      await fetchReviews(id)
+      setRating(0)
+      // The endpoint upserts, so this may be an update. Reconcile by _id —
+      // prepending blindly would show the same review twice.
+      if (data?.review) {
+        setReviews(prev => [
+          data.review,
+          ...prev.filter(r => String(r._id) !== String(data.review._id))
+        ])
+      }
+      showSuccess(data?.updated ? 'Review updated successfully!' : 'Review submitted successfully!')
     } catch (err) {
       console.error('Error submitting review:', err)
-      showError(err.response?.data?.message || 'Failed to submit review')
+      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to submit review')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleOrder = () => {
+  const handleOrder = async () => {
     if (!user) {
-      navigate('/user-login')
+      navigate('/login')
       return
     }
-    onClose()
     const id = getFoodId()
-    navigate(`/order/${id}`)
+    if (!id) return
+    // Add to cart and take the user to the cart/checkout flow — the old
+    // destination (/order/:id) is a partner-only route.
+    const result = await addToCart(id, 1)
+    if (result?.success) {
+      onClose()
+      navigate('/cart')
+    } else {
+      showError(result?.error || 'Failed to add item to cart')
+    }
   }
 
   // Don't render if modal is closed
@@ -146,15 +191,29 @@ const FoodDetailModal = ({ food, onClose }) => {
   }
 
   const handleSave = async () => {
-    if (!user) return navigate('/user-login')
+    if (!user) return navigate('/login')
+
+    const id = getFoodId()
+    if (!id) return
+
+    // Declared before the try so the catch can roll back to the real previous
+    // value (a catch block cannot see anything declared inside try).
+    const wasSaved = isSaved
+
     try {
-      const id = getFoodId()
-      if (!id) return
-      await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
-      setIsSaved(true)
-      showSuccess('Food saved to your collection')
+      setIsSaved(!wasSaved)
+      const { data } = await axios.post(API_ENDPOINTS.food.save(id), {}, axiosConfig)
+      // POST /food/:id/save is a TOGGLE and returns the authoritative isSaved.
+      if (typeof data?.isSaved === 'boolean') {
+        setIsSaved(data.isSaved)
+        showSuccess(data.isSaved ? 'Food saved to your collection' : 'Food removed from your collection')
+      } else {
+        // No authoritative answer came back — describe the state we actually set.
+        showSuccess(!wasSaved ? 'Food saved to your collection' : 'Food removed from your collection')
+      }
     } catch (err) {
       console.error('Error saving food:', err)
+      setIsSaved(wasSaved)
       showError('Failed to save food')
     }
   }
@@ -282,10 +341,10 @@ const FoodDetailModal = ({ food, onClose }) => {
                 reviews.map((r) => (
                   <div key={r._id || r.id || `${r.user?.id || ''}-${r.createdAt}`} className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
-                      {r.user?.name?.charAt(0) || (r.user?.email?.charAt(0)) || 'U'}
+                      {reviewerName(r.user).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{r.user?.name || r.user?.email || 'User'}</div>
+                      <div className="text-sm font-semibold text-gray-900">{reviewerName(r.user)}</div>
                       <div className="text-sm text-gray-700">{r.comment || r.text || ''}</div>
                       <div className="text-xs text-gray-400 mt-1">{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</div>
                     </div>
@@ -342,23 +401,44 @@ const FoodDetailModal = ({ food, onClose }) => {
             </div>
 
             {/* Comment Input */}
-            <div className="flex items-center gap-2 pt-2 border-t">
-              <input
-                type="text"
-                placeholder="Add a comment..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="flex-1 text-sm outline-none"
-              />
-              {comment && (
-                <button 
-                  onClick={handleSubmitReview}
-                  disabled={loading}
-                  className="text-blue-500 text-sm font-semibold hover:text-blue-700 disabled:opacity-60"
-                >
-                  {loading ? 'Posting...' : 'Post'}
-                </button>
-              )}
+            <div className="pt-2 border-t space-y-2">
+              <div className="flex items-center gap-1" role="radiogroup" aria-label="Your rating">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    role="radio"
+                    aria-checked={rating === star}
+                    onClick={() => setRating(rating === star ? 0 : star)}
+                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    className="p-0.5 cursor-pointer"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${star <= rating ? 'text-amber-400 fill-current' : 'text-gray-300'}`}
+                    />
+                  </button>
+                ))}
+                {rating > 0 && <span className="text-xs text-gray-500 ml-1">{rating}/5</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Add a comment..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="flex-1 text-sm outline-none"
+                />
+                {comment && (
+                  <button
+                    onClick={handleSubmitReview}
+                    // Rating is required, so keep Post disabled until one is chosen
+                    disabled={loading || rating < 1}
+                    className="text-blue-500 text-sm font-semibold hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Posting...' : 'Post'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

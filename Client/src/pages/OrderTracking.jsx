@@ -2,541 +2,450 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
-  Package,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Truck,
-  ChefHat,
-  MapPin,
-  Phone,
-  Mail,
-  Home,
-  AlertCircle,
-  ArrowLeft,
-  MessageCircle,
-  IndianRupee,
-  Calendar,
-  User,
-  CreditCard,
-  Download
+  Package, Clock, CheckCircle, XCircle,
+  ChefHat, MapPin, Phone, Home, AlertCircle,
+  ArrowLeft, MessageCircle, Download, Calendar,
+  User, CreditCard
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import Footer from '../Components/Footer'
+import FoodMedia from '../Components/FoodMedia'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showInfo } from '../utils/toast'
 import { generateReceipt } from '../utils/receiptGenerator'
+import CancelOrderDialog from '../Components/CancelOrderDialog'
 
+/* ─── Helpers ───────────────────────────────────────────────────── */
+const fmt = (n) => Number(n ?? 0).toFixed(2)
+const fmtDate = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+const STATUS_FLOW = [
+  { key: 'pending', label: 'Order Placed', Icon: Package },
+  { key: 'confirmed', label: 'Confirmed', Icon: CheckCircle },
+  { key: 'preparing', label: 'Preparing', Icon: ChefHat },
+  { key: 'ready', label: 'Ready', Icon: Clock },
+  { key: 'delivered', label: 'Delivered', Icon: CheckCircle },
+]
+
+/* ─── Timeline step ─────────────────────────────────────────────── */
+const Step = ({ step, isComplete, isCurrent, isLast }) => {
+  const { Icon, label } = step
+  return (
+    <div className="flex gap-5 pb-8 relative">
+      {!isLast && (
+        <div
+          className="absolute left-[11px] top-6 bottom-0 w-px"
+          style={{ background: isComplete ? 'var(--color-primary)' : 'var(--color-border-medium)' }}
+        />
+      )}
+      {/* Circle */}
+      <div
+        className="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
+        style={
+          isComplete
+            ? { background: 'var(--color-primary)', boxShadow: '0 0 0 4px rgba(255,106,0,0.15)' }
+            : isCurrent
+              ? { background: 'var(--color-background-white)', border: '1.5px solid var(--color-primary)' }
+              : { background: 'var(--color-surface-muted)', border: '1.5px solid var(--color-border-medium)' }
+        }
+      >
+        {isComplete
+          ? <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          : isCurrent
+            ? <Icon className="h-3 w-3" style={{ color: 'var(--color-primary)' }} />
+            : <Icon className="h-3 w-3" style={{ color: 'var(--color-text-faint)' }} />
+        }
+      </div>
+      {/* Label */}
+      <div className="pt-0.5">
+        <p
+          className="text-sm font-bold font-sans"
+          style={{ color: isComplete || isCurrent ? 'var(--color-text-base)' : 'var(--color-text-faint)' }}
+        >
+          {label}
+        </p>
+        {isCurrent && <p className="mt-0.5 text-xs font-medium font-sans" style={{ color: 'var(--color-primary)' }}>In progress</p>}
+        {isComplete && !isCurrent && <p className="mt-0.5 text-xs font-sans" style={{ color: '#16a34a' }}>Completed</p>}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Page ──────────────────────────────────────────────────────── */
 const OrderTracking = () => {
   const { orderId } = useParams()
   const navigate = useNavigate()
-
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [orderLoaded, setOrderLoaded] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [error, setError] = useState('')
 
-  const statusFlow = [
-    { key: 'pending', label: 'Order Placed', icon: Package, color: 'blue' },
-    { key: 'confirmed', label: 'Confirmed', icon: CheckCircle, color: 'green' },
-    { key: 'preparing', label: 'Preparing', icon: ChefHat, color: 'yellow' },
-    { key: 'ready', label: 'Ready for Pickup', icon: Clock, color: 'purple' },
-    { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, color: 'indigo' },
-    { key: 'delivered', label: 'Delivered', icon: CheckCircle, color: 'green' }
-  ]
-
-  const fetchOrderDetails = useCallback(async () => {
-    if (!orderId || orderId === 'undefined') {
-      setError('Order ID not found')
-      setLoading(false)
-      return
-    }
-
+  const fetchOrder = useCallback(async () => {
+    if (!orderId || orderId === 'undefined') { setError('Order ID not found'); setLoading(false); return }
     try {
       setLoading(true)
-      const response = await axios.get(
-        API_ENDPOINTS.order.getById(orderId),
-        axiosConfig
-      )
-      setOrder(response.data.order)
-      setError('')
+      const res = await axios.get(API_ENDPOINTS.order.getById(orderId), axiosConfig)
+      setOrder(res.data.order); setError('')
     } catch (err) {
-      console.error('Error fetching order:', err)
-      setError(err.response?.data?.message || 'Failed to load order details')
-      showError('Failed to load order')
-    } finally {
-      setLoading(false)
-    }
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load order'); showError('Failed to load order')
+    } finally { setLoading(false); setOrderLoaded(true) }
   }, [orderId])
 
-  // Effect to fetch order details and set up polling
   useEffect(() => {
-    fetchOrderDetails()
+    fetchOrder()
+    const id = setInterval(fetchOrder, 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [orderId, fetchOrder])
 
-    // Set up polling interval to refresh order status every 3 minutes
-    // But only if order is not already cancelled or delivered
-    const intervalId = setInterval(() => {
-      fetchOrderDetails()
-    }, 5*60*1000)
-
-    return () => clearInterval(intervalId)
-  }, [orderId, fetchOrderDetails])
-
-  // Calculate estimated delivery time based on food preparation time
-  const getEstimatedDeliveryTime = () => {
-    if (!order || !order.createdAt) return 'Calculating...'
-    
-    // Get MAX preparation time from all food items (not sum)
-    let maxPrepTime = 20 // default
-    if (order.items && order.items.length > 0) {
-      const prepTimes = order.items.map(item => item.foodItem?.preparationTime || 20)
-      maxPrepTime = Math.max(...prepTimes)
+  const getEstDelivery = () => {
+    if (!order) return 'Calculating…'
+    if (order.status === 'delivered') return 'Delivered'
+    let eta
+    if (order.estimatedDeliveryTime) {
+      eta = new Date(order.estimatedDeliveryTime).getTime()
+    } else {
+      const prepTimes = order.items?.map(i => i.foodItem?.preparationTime || 20) ?? [20]
+      eta = new Date(order.createdAt).getTime() + (Math.max(...prepTimes) + 50) * 60000
     }
-    
-    const deliveryBuffer = 50 // 30 minutes delivery time
-    
-    const orderTime = new Date(order.createdAt)
-    const estimatedTime = new Date(orderTime.getTime() + (maxPrepTime + deliveryBuffer) * 60000)
-    
-    if (order.status === 'delivered') {
-      return 'Delivered'
-    }
-    
-    const now = new Date()
-    const timeLeft = estimatedTime - now
-    
-    if (timeLeft <= 0) {
-      return 'Any moment now'
-    }
-    
-    const minutesLeft = Math.floor(timeLeft / 60000)
-    return `${minutesLeft} mins`
+    const left = eta - Date.now()
+    if (left <= 0) return 'Any moment now'
+    return `${Math.floor(left / 60000)} mins`
   }
 
-  // Format date
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  // While a cancellation request is pending the order status is
+  // 'cancel_requested', so we need to look at the previous status.             
+  const timelineStatus = order?.status === 'cancel_requested'
+    ? (order.cancelRequest?.previousStatus || 'preparing')
+    : order?.status
+  const currentIdx = STATUS_FLOW.findIndex(s => s.key === timelineStatus)
+  const isCancelled = order?.cancellation?.isCancelled || order?.status === 'cancelled'
+  const isDelivered = order?.status === 'delivered'
+  // The restaurant asked to cancel but an admin has not decided yet, so the
+  // order is still live and the customer is still owed their food.
+  const isCancelRequested = order?.status === 'cancel_requested'
+  const canCancel = order && !isCancelled && !isCancelRequested && ['pending', 'confirmed', 'preparing'].includes(order.status)
 
-  // Get current status index in the flow
-  const getCurrentStatusIndex = () => {
-    if (!order || !order.status) return 0
-    const index = statusFlow.findIndex(s => s.key === order.status)
-    return index >= 0 ? index : 0
-  }
-
-  // Check if order can be cancelled
-  const canCancelOrder = () => {
-    if (!order) return false
-    // Can cancel only if order status is 'pending', 'confirmed', or 'preparing'
-    // Cannot cancel if it's ready, out_for_delivery, or delivered
-    const isCancelled = order.cancellation?.isCancelled || order.status === 'cancelled'
-    const cancellableStatuses = ['pending', 'confirmed', 'preparing']
-    return !isCancelled && cancellableStatuses.includes(order.status)
-  }
-
-  // Handle order cancellation
-  const handleCancelOrder = async () => {
-    if (!orderId) return
-    
+  const handleCancel = async (reason) => {
     try {
       setCancelLoading(true)
-      const response = await axios.post(
-        API_ENDPOINTS.order.cancel(orderId),
-        { reason: 'Customer requested cancellation' },
-        axiosConfig
-      )
-      
-      if (response.data.success) {
-        showSuccess('Order cancelled successfully')
-        // Refresh order details to get updated data
-        await fetchOrderDetails()
+      const response = await axios.post(API_ENDPOINTS.order.cancel(orderId), { reason }, axiosConfig)
+      setShowCancelDialog(false)
+      showSuccess('Order cancelled')
+      // The cancel response carries the updated order — no refetch needed
+      if (response.data?.order) {
+        setOrder(response.data.order)
       }
     } catch (err) {
-      console.error('Error cancelling order:', err)
-      showError(err.response?.data?.error || err.response?.data?.message || 'Failed to cancel order')
-    } finally {
-      setCancelLoading(false)
-    }
+      showError(err.response?.data?.error || 'Failed to cancel order')
+    } finally { setCancelLoading(false) }
   }
 
-  // Handle download receipt
-  const handleDownloadReceipt = () => {
-    if (!order) {
-      showError('Order details not available')
-      return
-    }
-    
-    try {
-      showInfo('Generating receipt...')
-      generateReceipt(order)
-      showSuccess('Receipt downloaded successfully!')
-    } catch (error) {
-      console.error('Receipt generation error:', error)
-      showError('Failed to generate receipt. Please try again.')
-    }
+  const handleReceipt = () => {
+    if (!order) { showError('Order details not available'); return }
+    try { showInfo('Generating receipt…'); generateReceipt(order); showSuccess('Receipt downloaded!') }
+    catch { showError('Failed to generate receipt') }
   }
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading order details...</p>
-          </div>
+  /* Loading */
+  if (loading && !orderLoaded) return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full" style={{ border: '3px solid var(--color-border-light)', borderTopColor: 'var(--color-primary)' }} />
+          <p className="font-sans" style={{ color: 'var(--color-text-muted)' }}>Loading order details…</p>
         </div>
-        <Footer />
-      </>
-    )
-  }
+      </div>
+      <Footer />
+    </div>
+  )
 
-  if (error || !order) {
-    return (
-      <>
-        <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
-          <div className="text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Not Found</h2>
-            <p className="text-gray-600 mb-6">{error || 'Unable to load order details'}</p>
-            <button
-              onClick={() => navigate('/order/history')}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              View Order History
-            </button>
-          </div>
+  /* Error */
+  if (error || !order) return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <AlertCircle className="mx-auto h-14 w-14" style={{ color: 'var(--color-primary)' }} />
+          <h2 className="font-serif text-2xl font-bold" style={{ color: 'var(--color-text-base)' }}>Order Not Found</h2>
+          <p className="font-sans" style={{ color: 'var(--color-text-muted)' }}>{error}</p>
+          <button onClick={() => navigate('/order/history')} className="rounded-xl px-8 py-3 font-bold font-sans cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
+            View Orders
+          </button>
         </div>
-        <Footer />
-      </>
-    )
-  }
-
-  const currentStatusIndex = getCurrentStatusIndex()
-  const isCancelled = order.cancellation?.isCancelled || false
-  const isDelivered = order.status === 'delivered'
+      </div>
+      <Footer />
+    </div>
+  )
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background-light)' }}>
       <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
+
+      <main className="flex-1">
+        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+
+          {/* Page header */}
           <div className="mb-8">
-            <button
-              onClick={() => navigate('/order/history')}
-              className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors mb-4 cursor-pointer"
+            <button onClick={() => navigate('/order/history')} className="mb-4 flex items-center gap-2 text-sm font-medium font-sans transition-colors py-2 px-4 border-2 rounded-full cursor-pointer" style={{ color: 'var(--color-text-muted)'}}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back to Orders</span>
+              <ArrowLeft className="h-4 w-4" /> Back to Orders
             </button>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                  <Package className="w-8 h-8 text-orange-600" />
-                  Track Order
-                </h1>
-                <p className="text-gray-600 mt-1">Order ID: #{orderId}</p>
+                <h1 className="font-serif text-5xl font-bold" style={{ color: 'var(--color-text-base)' }}>Track Order</h1>
+                <p className="mt-1 font-sans font-medium" style={{ color: 'var(--color-primary)' }}>Order ID: #{orderId?.slice(-6).toUpperCase()}</p>
               </div>
-              
-              {/* Status Badge */}
-              <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-                isCancelled ? 'bg-red-100 text-red-800' :
-                isDelivered ? 'bg-green-100 text-green-800' :
-                'bg-blue-100 text-blue-800'
-              }`}>
-                {order.status.toUpperCase().replace('_', ' ')}
-              </div>
+              <span
+                className="rounded-full px-4 py-1.5 text-sm font-bold uppercase tracking-wider font-sans"
+                style={isCancelled ? { background: '#FEE2E2', color: '#991B1B' } : isCancelRequested ? { background: '#FEF3C7', color: '#92400E' } : isDelivered ? { background: '#DCFCE7', color: '#15803D' } : { background: '#DBEAFE', color: '#1E40AF' }}
+              >
+                {order.status?.replace('_', ' ')}
+              </span>
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Section - Status Timeline */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Order Status Timeline */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                  <Clock className="w-6 h-6 text-orange-600" />
-                  Order Status
-                </h2>
+          <div className="grid gap-8 lg:grid-cols-12">
 
-                {isCancelled ? (
-                  <div className="text-center py-8">
-                    <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Order Cancelled</h3>
-                    <p className="text-gray-600">This order has been cancelled</p>
-                    {order.cancellation?.reason && (
-                      <p className="text-sm text-gray-500 mt-2">Reason: {order.cancellation.reason}</p>
+            {/* ── Left ─────────────────────────────────────────── */}
+            <div className="space-y-6 lg:col-span-7">
+
+              {/* ETA / delivered banner */}
+              {!isCancelled && !isDelivered && !isCancelRequested && (
+                <div className="relative overflow-hidden rounded-2xl p-8 text-white" style={{ background: 'var(--color-primary)', boxShadow: 'var(--shadow-glow)' }}>
+                  <div className="pointer-events-none absolute -right-12 -bottom-12 h-48 w-48 rounded-full opacity-20" style={{ background: '#fff' }} />
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-75 font-sans">Estimated Arrival</p>
+                  <h3 className="font-serif text-4xl font-bold mt-1 mb-3">{getEstDelivery()}</h3>
+                  <p className="text-sm opacity-80 font-sans">Your food is being prepared with love.</p>
+                </div>
+              )}
+              {isDelivered && (
+                <div className="flex items-center gap-4 rounded-2xl p-6 text-white" style={{ background: '#16a34a' }}>
+                  <CheckCircle className="h-8 w-8 flex-shrink-0" />
+                  <div>
+                    <p className="font-bold text-lg font-sans">Order Delivered!</p>
+                    <p className="text-sm opacity-80 font-sans">Thank you for ordering with FoodReel.</p>
+                  </div>
+                </div>
+              )}
+              {isCancelRequested && (
+                <div className="flex items-start gap-4 rounded-2xl p-6" style={{ background: '#FEF3C7', border: '1px solid #FCD34D' }}>
+                  <AlertCircle className="h-7 w-7 flex-shrink-0" style={{ color: '#d97706' }} />
+                  <div>
+                    <p className="font-bold text-lg font-sans" style={{ color: '#92400E' }}>
+                      Cancellation requested
+                    </p>
+                    <p className="text-sm font-sans mt-1" style={{ color: '#92400E' }}>
+                      The restaurant is unable to serve this order and has asked us to cancel it.
+                      Our team is reviewing the request — if it is approved your refund is issued
+                      automatically. Your order is still live until then.
+                    </p>
+                    {order.cancelRequest?.reason && (
+                      <p className="text-xs font-sans mt-2 italic" style={{ color: '#b45309' }}>
+                        Reason: {order.cancelRequest.reason}
+                      </p>
                     )}
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {statusFlow.map((status, index) => {
-                      const isComplete = index <= currentStatusIndex
-                      const isCurrent = index === currentStatusIndex
-                      const StatusIcon = status.icon
+                </div>
+              )}
 
-                      return (
-                        <div key={status.key} className="flex gap-4">
-                          {/* Icon */}
-                          <div className="flex flex-col items-center">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                              isComplete
-                                ? 'bg-orange-600 text-white'
-                                : 'bg-gray-200 text-gray-400'
-                            } ${isCurrent ? 'ring-4 ring-orange-200' : ''}`}>
-                              <StatusIcon className="w-6 h-6" />
-                            </div>
-                            {index < statusFlow.length - 1 && (
-                              <div className={`w-1 h-16 transition-all ${
-                                isComplete ? 'bg-orange-600' : 'bg-gray-200'
-                              }`} />
-                            )}
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 pb-8">
-                            <h3 className={`font-semibold mb-1 ${
-                              isComplete ? 'text-gray-800' : 'text-gray-400'
-                            }`}>
-                              {status.label}
-                            </h3>
-                            {isCurrent && (
-                              <p className="text-sm text-orange-600 font-medium">
-                                In Progress
-                              </p>
-                            )}
-                            {isComplete && !isCurrent && (
-                              <p className="text-sm text-green-600">
-                                ✓ Completed
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+              {/* Timeline */}
+              <div className="rounded-2xl p-8" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                <h4 className="font-serif text-xl font-bold mb-8" style={{ color: 'var(--color-text-base)' }}>Order Status</h4>
+                {isCancelled ? (
+                  <div className="flex flex-col items-center py-8 text-center gap-3">
+                    <XCircle className="h-14 w-14" style={{ color: '#dc2626' }} />
+                    <h3 className="font-serif text-xl font-bold" style={{ color: 'var(--color-text-base)' }}>Order Cancelled</h3>
+                    {order.cancellation?.reason && <p className="text-sm font-sans" style={{ color: 'var(--color-text-muted)' }}>Reason: {order.cancellation.reason}</p>}
                   </div>
+                ) : isCancelRequested ? (
+                  // The order is not cancelled, so the timeline still shows how
+                  // far it got — it just stops at the step it reached.
+                  STATUS_FLOW.map((step, i) => (
+                    <Step
+                      key={step.key}
+                      step={step}
+                      isComplete={i < currentIdx}
+                      isCurrent={i === currentIdx}
+                      isLast={i === STATUS_FLOW.length - 1}
+                    />
+                  ))
+                ) : (
+                  STATUS_FLOW.map((step, i) => (
+                    <Step
+                      key={step.key}
+                      step={step}
+                      isComplete={i <= currentIdx}
+                      isCurrent={i === currentIdx}
+                      isLast={i === STATUS_FLOW.length - 1}
+                    />
+                  ))
                 )}
               </div>
 
-              {/* Order Items */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">
-                  Order Items ({order.items?.length || 0})
-                </h2>
+              {/* Items */}
+              <div className="rounded-2xl p-8" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                <h4 className="font-serif text-xl font-bold mb-6" style={{ color: 'var(--color-text-base)' }}>
+                  Items ({order.items?.length || 0})
+                </h4>
                 <div className="space-y-4">
-                  {order.items?.map((item, index) => {
-                    const foodItem = item.foodItem
-                    const isVideo = foodItem?.type === 'video'
-                    const mediaUrl = isVideo ? foodItem?.video : foodItem?.image
-                    const itemTotal = (item.priceAtOrder * item.quantity).toFixed(2)
-                    const prepTime = foodItem?.preparationTime || 20
-                    
+                  {order.items?.map((item, i) => {
+                    const food = item.foodItem
                     return (
-                      <div key={index} className="flex gap-4 p-4 bg-gradient-to-r from-gray-50 to-orange-50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                        <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0 relative">
-                          <img
-                            src={mediaUrl || '/placeholder-food.png'}
-                            alt={foodItem?.name || 'Food item'}
-                            className="w-full h-full object-cover"
-                          />
-                          {isVideo && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-all cursor-pointer">
-                              <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-lg">
-                                <svg className="w-6 h-6 text-orange-600 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                                  <polygon points="5 3 19 12 5 21 5 3" />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      <div key={i} className="flex gap-4 rounded-xl p-4" style={{ background: 'var(--color-surface-muted)' }}>
+                        <FoodMedia
+                          foodItem={food}
+                          className="h-20 w-20 flex-shrink-0 rounded-xl"
+                          imgClass="h-full w-full object-cover"
+                          thumbSecond={1}
+                          showPlay={true}
+                        />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-800 text-lg">
-                            {foodItem?.name || foodItem?.title || 'Food Item'}
-                          </h3>
-                          {foodItem?.description && (
-                            <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                              {foodItem.description}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-3 mt-2">
-                            <div className="flex items-center gap-1 text-sm">
-                              <span className="text-gray-600">Quantity:</span>
-                              <span className="font-semibold text-gray-800">{item.quantity}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-sm">
-                              <Clock className="w-4 h-4 text-orange-600" />
-                              <span className="text-gray-600">{prepTime} mins prep</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-sm">
-                              <span className="text-gray-600">Price:</span>
-                              <span className="font-semibold text-gray-800">₹{item.priceAtOrder}</span>
-                            </div>
-                          </div>
-                          {item.foodPartner && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              Partner: {item.foodPartner.companyName || 'N/A'}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end justify-between">
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-orange-600">₹{itemTotal}</p>
-                            <p className="text-xs text-gray-500">Total</p>
+                          <h5 className="font-bold font-sans" style={{ color: 'var(--color-text-base)' }}>{food?.name || 'Food Item'}</h5>
+                          {food?.description && <p className="mt-0.5 text-xs font-sans line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>{food.description}</p>}
+                          <div className="mt-2 flex flex-wrap gap-3 text-xs font-sans" style={{ color: 'var(--color-text-faint)' }}>
+                            <span>Qty: <strong style={{ color: 'var(--color-text-base)' }}>{item.quantity}</strong></span>
+                            <span>₹{item.priceAtOrder} each</span>
+                            {food?.preparationTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{food.preparationTime} min prep</span>}
                           </div>
                         </div>
+                        <p className="font-bold font-sans flex-shrink-0" style={{ color: 'var(--color-primary)' }}>
+                          ₹{fmt(item.priceAtOrder * item.quantity)}
+                        </p>
                       </div>
                     )
                   })}
                 </div>
               </div>
 
-              {/* Delivery Address */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <MapPin className="w-6 h-6 text-orange-600" />
-                  Delivery Address
-                </h2>
-                <div className="space-y-2 text-gray-600">
-                  <p className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    {order.deliveryAddress?.fullName}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    {order.deliveryAddress?.phone}
-                  </p>
-                  <p className="flex items-start gap-2">
-                    <Home className="w-4 h-4 mt-1" />
-                    <span>
-                      {order.deliveryAddress?.addressLine1}<br />
-                      {order.deliveryAddress?.landmark && `${order.deliveryAddress.landmark}, `}
-                      {order.deliveryAddress?.city}, {order.deliveryAddress?.state}<br />
-                      {order.deliveryAddress?.pincode}
-                    </span>
-                  </p>
+              {/* Delivery address */}
+              <div className="rounded-2xl p-8" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                <h4 className="font-serif text-xl font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-base)' }}>
+                  <MapPin className="h-5 w-5" style={{ color: 'var(--color-primary)' }} /> Delivery Address
+                </h4>
+                <div className="rounded-xl p-4 space-y-2 font-sans text-sm" style={{ background: 'var(--color-surface-muted)' }}>
+                  <p className="font-bold" style={{ color: 'var(--color-text-base)' }}>{order.deliveryAddress?.fullName}</p>
+                  <p style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress?.addressLine1}</p>
+                  {(order.deliveryAddress?.landmark || order.deliveryAddress?.addressLine2) && (
+                <p style={{ color: 'var(--color-text-muted)' }}>
+                  {order.deliveryAddress.landmark || order.deliveryAddress.addressLine2}
+                </p>
+              )}
+                  <p style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress?.city}, {order.deliveryAddress?.state} — {order.deliveryAddress?.pincode}</p>
+                  <div className="flex items-center gap-2 pt-2 mt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
+                    <Phone className="h-4 w-4" style={{ color: 'var(--color-text-faint)' }} />
+                    <span style={{ color: 'var(--color-text-muted)' }}>{order.deliveryAddress?.phone}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Section - Order Summary & Actions */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Estimated Delivery Time */}
-              {!isCancelled && !isDelivered && (
-                <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl shadow-lg p-6 text-white">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Clock className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Estimated Delivery</h3>
-                  </div>
-                  <p className="text-3xl font-bold">{getEstimatedDeliveryTime()}</p>
-                  <p className="text-sm opacity-90 mt-1">Your order will arrive soon!</p>
-                </div>
-              )}
+            {/* ── Right ────────────────────────────────────────── */}
+            <div className="space-y-6 lg:col-span-5">
 
-              {isDelivered && (
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-lg p-6 text-white">
-                  <div className="flex items-center gap-3 mb-2">
-                    <CheckCircle className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Order Delivered</h3>
-                  </div>
-                  <p className="text-sm opacity-90">Thank you for your order!</p>
-                </div>
-              )}
+              {/* Summary */}
+              <div className="sticky top-24 rounded-2xl p-6" style={{ background: 'var(--color-background-white)', border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-md)' }}>
+                <h4 className="font-serif text-xl font-bold mb-5" style={{ color: 'var(--color-text-base)' }}>Items Summary</h4>
 
-              {/* Order Summary */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Order Summary</h2>
-                
-                <div className="space-y-2 mb-4 pb-4 border-b">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Item Total</span>
-                    <span>₹{order.pricing?.itemPrice?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Delivery Fee</span>
-                    <span>{order.pricing?.deliveryFee === 0 ? 'FREE' : `₹${order.pricing?.deliveryFee?.toFixed(2) || '0.00'}`}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Platform Fee</span>
-                    <span>₹{order.pricing?.platformFee?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>GST (5%)</span>
-                    <span>₹{order.pricing?.taxes?.gst?.toFixed(2) || '0.00'}</span>
-                  </div>
+                {/* Item list */}
+                <div className="mb-4 space-y-3 pb-4" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                  {order.items?.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-xs font-bold font-sans" style={{ background: 'rgba(255,106,0,0.1)', color: 'var(--color-primary)' }}>
+                          {item.quantity}
+                        </span>
+                        <span className="text-sm font-medium font-sans" style={{ color: 'var(--color-text-base)' }}>
+                          {item.foodItem?.name || 'Item'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold font-sans" style={{ color: 'var(--color-text-base)' }}>₹{fmt(item.priceAtOrder * item.quantity)}</span>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="flex justify-between items-center text-lg font-bold text-gray-800 mb-4">
-                  <span>Total Amount</span>
-                  <span className="text-orange-600 flex items-center">
-                    <IndianRupee className="w-5 h-5" />
-                    {order.pricing?.totalAmount?.toFixed(2) || '0.00'}
-                  </span>
+                {/* Pricing */}
+                <div className="space-y-2 pb-4 font-sans text-sm" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                  {[
+                    { l: 'Items total', v: fmt(order.pricing?.itemPrice) },
+                    { l: 'Delivery fee', v: order.pricing?.deliveryFee === 0 ? 'FREE' : `₹${fmt(order.pricing?.deliveryFee)}`, g: order.pricing?.deliveryFee === 0 },
+                    { l: 'Platform fee', v: `₹${fmt(order.pricing?.platformFee)}` },
+                    { l: 'GST (5%)', v: `₹${fmt(order.pricing?.taxes?.gst)}` },
+                  ].map(({ l, v, g }) => (
+                    <div key={l} className="flex justify-between">
+                      <span style={{ color: 'var(--color-text-muted)' }}>{l}</span>
+                      <span style={{ color: g ? '#16a34a' : 'var(--color-text-base)' }} className={g ? 'font-bold' : ''}>{v}</span>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                  <p className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Ordered: {formatDate(order.createdAt)}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    Payment: {order.paymentDetails?.method === 'cod' ? 'Cash on Delivery' : 'Online Payment '}
+                <div className="flex items-end justify-between pt-4 mb-5">
+                  <p className="font-bold font-sans text-lg" style={{ color: 'var(--color-text-base)' }}>Total Amount</p>
+                  <p className="font-serif text-3xl font-bold" style={{ color: 'var(--color-text-base)' }}>
+                    ₹{fmt(order.pricing?.totalAmount)}
                   </p>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  {canCancelOrder() && (
-                    <button
-                      onClick={handleCancelOrder}
-                      disabled={cancelLoading}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {cancelLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Cancelling...
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-5 h-5" />
-                          Cancel Order
-                        </>
-                      )}
-                    </button>
-                  )}
+                {/* Meta */}
+                <div className="mb-5 space-y-2 text-xs font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                  <p className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> {fmtDate(order.createdAt)}</p>
+                  <p className="flex items-center gap-2"><CreditCard className="h-3.5 w-3.5" />
+                    {order.paymentDetails?.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                  </p>
+                </div>
 
-                  <button onClick={handleDownloadReceipt}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <button
+                    onClick={handleReceipt}
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl p-4 text-xs font-bold font-sans transition-colors cursor-pointer"
+                    style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border-light)', color: 'var(--color-text-muted)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-border-light)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--color-surface-muted)'}
                   >
-                    <Download className="w-5 h-5" />
-                    Download Receipt
+                    <Download className="h-5 w-5" /> Receipt
                   </button>
-
-                  <button onClick={() => navigate('/contact-us')}
-                    className="w-full border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  <button
+                    onClick={() => navigate('/contact-us')}
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl p-4 text-xs font-bold font-sans transition-colors cursor-pointer"
+                    style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border-light)', color: 'var(--color-text-muted)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-border-light)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--color-surface-muted)'}
                   >
-                    <MessageCircle className="w-5 h-5" />
-                    Contact Support
+                    <MessageCircle className="h-5 w-5" /> Support
                   </button>
                 </div>
+
+                {canCancel && (
+                  <button
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={cancelLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold font-sans text-sm transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                    style={{ background: '#dc2626', color: '#fff' }}
+                  >
+                    <XCircle className="h-4 w-4" /> Cancel Order
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
       <Footer />
-    </>
+
+      <CancelOrderDialog
+        open={showCancelDialog}
+        mode="user"
+        cancelling={cancelLoading}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancel}
+      />
+    </div>
   )
 }
 

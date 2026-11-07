@@ -1,5 +1,6 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import { timingSafeStringEqual } from '../utils/secureCompare.js';
 
 class PaymentService {
     constructor() {
@@ -63,7 +64,8 @@ class PaymentService {
                 .update(text)
                 .digest('hex');
 
-            const isValid = generatedSignature === signature;
+            // Constant-time compare: a plain === leaks HMAC-comparison timing
+            const isValid = timingSafeStringEqual(generatedSignature, signature);
 
             if (!isValid) {
                 console.error('Payment signature verification failed');
@@ -108,14 +110,44 @@ class PaymentService {
         }
     }
 
+    /** List every refund already issued against a payment. */
+    async listRefunds(paymentId) {
+        try {
+            if (!paymentId) throw new Error('payment id is required');
+            const razorpay = this._ensureClient();
+            const result = await razorpay.payments.fetchMultipleRefund(paymentId, { count: 100 });
+            return {
+                success: true,
+                items: Array.isArray(result?.items) ? result.items : []
+            };
+        } catch (error) {
+            console.error('Error listing refunds:', error);
+            throw new Error('Failed to list payment refunds');
+        }
+    }
+
     verifyWebhookSignature(webhookBody, webhookSignature) {
         try {
+            if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
+                console.error('RAZORPAY_WEBHOOK_SECRET is not set — webhook verification impossible');
+                return false;
+            }
+
+            // Razorpay signs the raw request bytes. The route delivers the body as a Buffer (express.raw) — use it directly. JSON.stringify is only a fallback for object bodies (local testing without raw parsing).
+            
+            const payload = Buffer.isBuffer(webhookBody)
+                ? webhookBody
+                : Buffer.from(typeof webhookBody === 'string' ? webhookBody : JSON.stringify(webhookBody), 'utf8');
+
             const expectedSignature = crypto
                 .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-                .update(JSON.stringify(webhookBody))
+                .update(payload)
                 .digest('hex');
 
-            return expectedSignature === webhookSignature;
+            const a = Buffer.from(expectedSignature, 'utf8');
+            const b = Buffer.from(String(webhookSignature), 'utf8');
+            if (a.length !== b.length) return false;
+            return crypto.timingSafeEqual(a, b);    // constant-time comparison         
         } catch (error) {
             console.error('Webhook verification error:', error);
             return false;

@@ -4,19 +4,16 @@ import { Sparkles, Zap, ChevronRight, Store, TrendingUp, Megaphone } from 'lucid
 
 const userBenefits = [
   {
-    // num: 1,
     Icon: Sparkles,
     title: 'Browse the Feed',
     description: 'Discover trending food reels personalised for your location and taste.',
   },
   {
-    // num: 2,
     Icon: Zap,
     title: 'Crave & Order',
     description: "Tap 'Order Now' on any reel to get the exact meal delivered to your doorstep.",
   },
   {
-    // num: 3,
     Icon: Megaphone,
     title: 'Join the Party',
     description: 'Attend FoodFests, earn badges, and post your own reviews to the feed.',
@@ -25,34 +22,29 @@ const userBenefits = [
 
 const partnerBenefits = [
   {
-    // num: 1,
     Icon: Store,
     title: 'Showcase Your Kitchen',
     description: 'Upload short, high-quality videos of your signature dishes and daily specials.',
   },
   {
-    // num: 2,
     Icon: Zap,
     title: 'Drive Direct Sales',
     description: 'Convert inspiration into orders with our integrated checkout system.',
   },
   {
-    // num: 3,
     Icon: TrendingUp,
     title: 'Grow with FoodFest',
     description: 'Participate in community events to gain massive exposure and loyal customers.',
   },
 ]
 
-const BenefitItem = ({
-    //  num,
-     Icon, title, description }) => (
+const BenefitItem = ({ Icon, title, description }) => (
   <li className="flex items-start gap-4">
     <div
       className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold font-sans"
       style={{ background: 'var(--color-primary)', color: '#fff' }}
     >
-      {Icon && <Icon />}
+      {Icon && <Icon aria-hidden="true" />}
     </div>
     <div className="space-y-1">
       <p className="font-bold font-sans" style={{ color: 'var(--color-text-base)' }}>{title}</p>
@@ -72,7 +64,7 @@ const ValuePropositionsSection = () => {
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-16 md:grid-cols-2">
           {/* ── For Food Lovers ──────────────────────────────── */}
-          <div className="space-y-8 mt-10 py-4">
+          <div className="space-y-8">
             <div className="space-y-2">
               <span
                 className="inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest font-sans"
@@ -89,17 +81,25 @@ const ValuePropositionsSection = () => {
             </div>
 
             <ul className="space-y-6">
-              {userBenefits.map((b) => <BenefitItem key={b.num} {...b} />)}
+              {userBenefits.map((benefit) => (
+                <BenefitItem key={benefit.title} {...benefit} />
+              ))}
             </ul>
 
-            <Link to="/register">
-              <button
-                className="flex items-center gap-3 rounded-xl px-6 py-3 text-sm font-bold font-sans transition-opacity hover:opacity-90 cursor-pointer"
-                style={{ background: 'var(--color-primary)', color: '#fff' }}
+            <div className="space-y-3">
+              <Link
+                to="/register"
+                className="pressable inline-flex items-center gap-3 rounded-xl bg-[var(--color-primary)] px-6 py-3 font-sans text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
               >
-                Join as Foodie <ChevronRight className="w-4 h-4" />
-              </button>
-            </Link>
+                Join as Foodie <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <p
+                className="font-sans text-xs"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                Free to join · Save reels · Track every order
+              </p>
+            </div>
           </div>
 
           {/* ── For Restaurant Partners ────────────────────── */}
@@ -123,13 +123,13 @@ const ValuePropositionsSection = () => {
             </div>
 
             <ul className="space-y-6">
-              {partnerBenefits.map(({ num, Icon, title, description }) => (
-                <li key={num} className="flex items-start gap-4">
+              {partnerBenefits.map(({ Icon, title, description }) => (
+                <li key={title} className="flex items-start gap-4">
                   <div
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold font-sans"
                     style={{ background: 'rgba(255,184,0,0.25)', color: 'var(--color-accent)' }}
                   >
-                    {Icon && <Icon />}
+                    {Icon && <Icon aria-hidden="true" />}
                   </div>
                   <div className="space-y-1">
                     <p className="font-bold font-sans text-white">{title}</p>
@@ -141,14 +141,17 @@ const ValuePropositionsSection = () => {
               ))}
             </ul>
 
-            <Link to="/partner-register">
-              <button
-                className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold font-sans transition-opacity hover:opacity-90 cursor-pointer"
-                style={{ background: 'var(--color-accent)', color: 'var(--color-background-dark)' }}
+            <div className="space-y-3">
+              <Link
+                to="/partner-register"
+                className="pressable inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-3 font-sans text-sm font-bold text-[var(--color-background-dark)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background-dark)]"
               >
-                Become a Partner <ChevronRight className="w-4 h-4" />
-              </button>
-            </Link>
+                Become a Partner <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <p className="font-sans text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                Free to join · No setup fees · Keep your own menu
+              </p>
+            </div>
           </div>
         </div>
       </div>

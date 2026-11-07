@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { memo, useCallback, useState, useEffect } from 'react'
 import { Play, Pause } from 'lucide-react'
 
-const ReelMediaPlayer = ({ item, index, currentIndex, muted, videoRefs, onTogglePlayPause }) => {
-  const isCurrentReel = index === currentIndex
+const ReelMediaPlayer = ({ item, index, isActive, muted, videoRefs, onTogglePlayPause }) => {
+  const isCurrentReel = isActive
   const isVideo = item.mediaType === 'video'
   const [showOverlay, setShowOverlay] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+
+
+  const setVideoRef = useCallback(
+    (el) => { videoRefs.current[index] = el },
+    [index, videoRefs]
+  )
 
   // Track video playing state
   useEffect(() => {
@@ -37,7 +43,7 @@ const ReelMediaPlayer = ({ item, index, currentIndex, muted, videoRefs, onToggle
       {isVideo ? (
         <>
           <video
-            ref={el => videoRefs.current[index] = el}
+            ref={setVideoRef}
             src={item.mediaUrl}
             className=""
             loop
@@ -80,4 +86,4 @@ const ReelMediaPlayer = ({ item, index, currentIndex, muted, videoRefs, onToggle
   )
 }
 
-export default ReelMediaPlayer
+export default memo(ReelMediaPlayer)

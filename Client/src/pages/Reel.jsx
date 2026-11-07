@@ -29,7 +29,7 @@ const Reel = () => {
   const [currentReviewItem, setCurrentReviewItem] = useState(null)
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [currentCommentItem, setCurrentCommentItem] = useState(null)
-  const [userHasReviewed, setUserHasReviewed] = useState(false)
+  const [myReview, setMyReview] = useState(null)
   const [reviewData, setReviewData] = useState({
     rating: 0,
     comment: '',
@@ -40,12 +40,23 @@ const Reel = () => {
   const [loadingReviews, setLoadingReviews] = useState(false)
   const [showReviewsList, setShowReviewsList] = useState(true)
   
-  // Store current user ID
-  const [currentUserId, setCurrentUserId] = useState(null)
-  
+  // Store current user ID as a ref
   const containerRef = useRef(null)
   const videoRefs = useRef([])
   const hasInitializedInteractions = useRef(false)
+  const currentUserIdRef = useRef(null)
+
+  // Latest-value mirrors so mutation handlers can stay referentially stable
+  const combinedContentRef = useRef(combinedContent)
+  combinedContentRef.current = combinedContent
+  const followingStatusRef = useRef(followingStatus)
+  followingStatusRef.current = followingStatus
+  const savedPostsRef = useRef(savedPosts)
+  savedPostsRef.current = savedPosts
+  const currentIndexRef = useRef(currentIndex)
+  currentIndexRef.current = currentIndex
+  const playingRef = useRef(playing)
+  playingRef.current = playing
 
   const handleShopToggle = useCallback((postId) => {
     setOpenShopFor(prev => (prev === postId ? null : postId))
@@ -133,9 +144,11 @@ const Reel = () => {
             description: ad.description || '',
             mediaUrl: ad.file || ad.image || '',
             mediaType: ad.type || 'image',
-            ctaText: ad.promoCode ? `Use Code: ${ad.promoCode}` : 'Learn More',
-            ctaLink: ad.link || '#',
-            businessName: ad.partnerId?.email || ad.businessName || 'Sponsored',
+            ctaText: 'View offer',
+            ctaLink: ad.link || '',
+            brandName: ad.partnerId?.companyName || ad.partnerId?.email || ad.businessName || 'Sponsored',
+            brandLogo: ad.partnerId?.profileImage || ad.brandLogo || null,
+            businessName: ad.partnerId?.companyName || ad.partnerId?.email || ad.businessName || 'Sponsored',
             partnerId: ad.partnerId || null,
             prices: ad.prices || null,
             promotionType: ad.promotionType || null,
@@ -169,24 +182,27 @@ const Reel = () => {
     if (ads.length === 0) return posts
     
     const combined = []
-    const adFrequency = 2
-    let adIndex = 0
+    const adFrequency = 2   // frequency of ads: after every 2 posts    
+    let adIndex = 0   // Index to track which ad to insert        
+    let adSeq = 0 // Unique instance ID for ads to avoid key collisions           
     
     posts.forEach((post, index) => {
       combined.push(post)
       
       if ((index + 1) % adFrequency === 0 && adIndex < ads.length) {
-        combined.push(ads[adIndex])
+        combined.push({ ...ads[adIndex], _instanceId: `ad${adSeq++}` })
         adIndex = (adIndex + 1) % ads.length
       }
     })
     
     if (combined.length === posts.length && ads.length > 0) {
-      combined.push(ads[0])
+      combined.push({ ...ads[0], _instanceId: `ad${adSeq++}` })
     }
     
     return combined
   }
+
+  const slideCount = combinedContent.length
 
   useEffect(() => {
     const container = containerRef.current
@@ -207,7 +223,7 @@ const Reel = () => {
     slides.forEach(s => observer.observe(s))
 
     return () => observer.disconnect()
-  }, [combinedContent])
+  }, [slideCount])
 
   // Autoplay/pause videos
   useEffect(() => {
@@ -226,7 +242,7 @@ const Reel = () => {
         }
       }
     })
-  }, [currentIndex, combinedContent, muted])
+  }, [currentIndex, muted])
 
   const handleLike = useCallback(async (postId, postSource) => {
     try {
@@ -234,33 +250,34 @@ const Reel = () => {
         ? API_ENDPOINTS.userPost.like(postId)
         : API_ENDPOINTS.food.like(postId)
       
-      // Store previous state for rollback
-      const wasLiked = likedPosts[postId] || false
-      
-      // Optimistically update UI immediately
-      setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }))
+// Optimistically update UI immediately
+        setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
       
       const response = await axios.post(endpoint, {}, axiosConfig)
       
       // Update combinedContent with new likeCount AND likes array
       setCombinedContent(prev => prev.map(item => {
         if (item._id === postId && item.type === 'post') {
-          const newLikeCount = response.data.likeCount || response.data.likes || item.likeCount
+// response.data.likeCount ??  response.data.likes ?? item.likeCount ||  0 is falsy — so `||` fell through to the previous
+          // count and unliking a 1-like post left the number stuck at 1.
+          const newLikeCount = response.data.likeCount ?? response.data.likes ?? item.likeCount
           
           // Update the likes array to reflect current state
           let updatedLikes = [...(item.likes || [])]
           
           if (response.data.isLiked) {
             // Add current user to likes array if not already present
-            if (currentUserId && !updatedLikes.includes(currentUserId)) {
-              updatedLikes.push(currentUserId)
+            const viewerId = currentUserIdRef.current
+            if (viewerId && !updatedLikes.includes(viewerId)) {
+              updatedLikes.push(viewerId)
             }
           } else {
             // Remove current user from likes array
-            if (currentUserId) {
+            const viewerId = currentUserIdRef.current
+            if (viewerId) {
               updatedLikes = updatedLikes.filter(id => {
                 const idStr = typeof id === 'string' ? id : id._id?.toString() || id.toString()
-                return idStr !== currentUserId
+                return idStr !== viewerId
               })
             }
           }
@@ -286,17 +303,17 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to like posts')
       } else {
-        showError(error.response?.data?.message || 'Failed to like post')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to like post')
       }
     }
-  }, [likedPosts, currentUserId])
+  }, [])
 
   const handleSave = useCallback(async (postId) => {
     try {
-      const currentItem = combinedContent.find(item => item._id === postId);
-      if (!currentItem) return;
-      
-      const wasSaved = savedPosts[postId];
+const currentItem = combinedContentRef.current.find(item => item._id === postId);
+        if (!currentItem) return;
+  
+        const wasSaved = savedPostsRef.current[postId];
       
       // Optimistically update UI
       setSavedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
@@ -321,16 +338,16 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to save posts');
       } else {
-        showError(error.response?.data?.message || 'Failed to save post');
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to save post');
       }
     }
-  }, [savedPosts, combinedContent])
+  }, [])
 
   const handleFollow = useCallback(async (targetId, targetType) => {
     try {
       const targetIdStr = typeof targetId === 'object' ? targetId._id || targetId.toString() : targetId.toString()
       
-      const isFollowing = followingStatus[targetIdStr]
+      const isFollowing = followingStatusRef.current[targetIdStr]
       
       setFollowingStatus(prev => ({ ...prev, [targetIdStr]: !prev[targetIdStr] }))
       
@@ -358,22 +375,22 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to follow')
       } else {
-        showError(error.response?.data?.message || 'Failed to update follow status')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to update follow status')
       }
     }
-  }, [followingStatus])
+  }, [])
 
   const openReviewModal = useCallback(async (item) => {
     setCurrentReviewItem(item)
     setShowReviewModal(true)
     setShowReviewsList(true)
-    setUserHasReviewed(false)
+    setMyReview(null)
     setReviewData({
       rating: 0,
       comment: '',
       ratings: { food: 0, service: 0, ambiance: 0, value: 0 }
     })
-    
+
     await fetchReviews(item)
   }, [])
   
@@ -381,43 +398,41 @@ const Reel = () => {
     setLoadingReviews(true)
     try {
       let endpoint = null
-      
-      if (item.postSource === 'partner' && item.partnerId?._id) {
-        endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
-      } else if (item.foodId) {
+
+      if (item.foodId) {
         endpoint = API_ENDPOINTS.reviews.byFood(item.foodId)
+      } else if (item.postSource === 'partner' && item.partnerId?._id) {
+        endpoint = API_ENDPOINTS.reviews.byPartner(item.partnerId._id)
       }
-      
+
       if (endpoint) {
         const response = await axios.get(endpoint, axiosConfig)
         const reviews = response.data.data || response.data.reviews || []
         setExistingReviews(reviews)
-        
-        // try {
-        //   const userProfileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
-        //   const userId = (userProfileResponse.data.user || userProfileResponse.data)?._id
-          
-        //   // if (userId) {
-        //   //   const hasReviewed = reviews.some(review => 
-        //   //     review.user?._id?.toString() === userId.toString() ||
-        //   //     review.userId?.toString() === userId.toString()
-        //   //   )
-            
-        //   //   setUserHasReviewed(hasReviewed)
-            
-        //   //   if (hasReviewed) {
-        //   //     showInfo('You have already reviewed this item')
-        //   //   }
-        //   }
-        // } catch {
-        //   setUserHasReviewed(false)
-        // }
-      } else {
+
+const viewerId = currentUserIdRef.current
+          const own = viewerId
+            ? reviews.find(review => review.user?._id?.toString() === viewerId.toString())
+            : null
+          setMyReview(own || null)
+          // Show the list of reviews if the viewer has not reviewed yet, or show the form to edit their own review  
+          setShowReviewsList(!own)
+          // Prefill with the viewer's own review so it can be edited instead of dead-ending on "you have already reviewed this item".
+          setReviewData(own
+            ? {
+                rating: own.rating || 0,
+                comment: own.comment || '',
+                ratings: { food: 0, service: 0, ambiance: 0, value: 0, ...(own.ratings || {}) }
+              }
+            : { rating: 0, comment: '', ratings: { food: 0, service: 0, ambiance: 0, value: 0 } })
+        } else {
+          setExistingReviews([])
+          setMyReview(null)
+        }
+} catch (error) {
+        console.error('Error fetching reviews:', error)
         setExistingReviews([])
-      }
-    } catch (error) {
-      console.error('Error fetching reviews:', error)
-      setExistingReviews([])
+        setMyReview(null)
       if (error.response?.status !== 404) {
         showError('Failed to load reviews')
       }
@@ -431,7 +446,7 @@ const Reel = () => {
     setCurrentReviewItem(null)
     setExistingReviews([])
     setShowReviewsList(true)
-    setUserHasReviewed(false)
+    setMyReview(null)
     setReviewData({
       rating: 0,
       comment: '',
@@ -449,24 +464,25 @@ const Reel = () => {
     setCurrentCommentItem(null)
   }, [])
 
+  const handleCommentAdded = useCallback((postId) => {
+    setCombinedContent(prev => prev.map(item => (
+      item._id === postId ? { ...item, comments: (item.comments || 0) + 1 } : item
+    )))
+  }, [])
+
   const handleSubmitReview = async () => {
-    if (userHasReviewed) {
-      showWarning('You have already reviewed this item')
-      return
-    }
-    
     if (reviewData.rating === 0) {
       showWarning('Please select a rating')
       return
     }
-    
+
     if (!reviewData.comment.trim()) {
       showWarning('Please write a comment')
       return
     }
 
     setSubmittingReview(true)
-    
+
     try {
       // Build review payload - include foodPartnerId only if available
       const reviewPayload = {
@@ -476,8 +492,8 @@ const Reel = () => {
       }
 
       // Add foodPartnerId if available (partner posts typically have this)
-      const foodPartnerId = currentReviewItem.postSource === 'partner' 
-        ? currentReviewItem.partnerId?._id 
+      const foodPartnerId = currentReviewItem.postSource === 'partner'
+        ? currentReviewItem.partnerId?._id
         : currentReviewItem.taggedPartner?._id
 
       if (foodPartnerId) {
@@ -489,17 +505,27 @@ const Reel = () => {
         reviewPayload.foodItemId = currentReviewItem.foodId
       }
 
-      await axios.post(
+      // submit works even if we failed to detect their existing review.
+      const { data } = await axios.post(
         API_ENDPOINTS.reviews.create,
         reviewPayload,
         axiosConfig
       )
 
-      showSuccess('Review submitted successfully!')
-      setUserHasReviewed(true)
-      await fetchReviews(currentReviewItem)
+      const saved = data?.data
+      showSuccess(data?.updated ? 'Review updated successfully!' : 'Review submitted successfully!')
+
+      // Reconcile by _id — if the server updated an existing review, that row is
+      // already in the list, so replace it rather than prepending a duplicate.
+      if (saved) {
+        setExistingReviews(prev => [
+          saved,
+          ...prev.filter(r => String(r._id) !== String(saved._id))
+        ])
+        setMyReview(saved)
+      }
       setShowReviewsList(true)
-      
+
       setReviewData({
         rating: 0,
         comment: '',
@@ -510,9 +536,9 @@ const Reel = () => {
       if (error.response?.status === 401) {
         showError('Please login to submit a review')
       } else if (error.response?.status === 400) {
-        showError(error.response?.data?.message || 'Invalid review data')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Invalid review data')
       } else {
-        showError(error.response?.data?.message || 'Failed to submit review')
+        showError(error.response?.data?.error || error.response?.data?.message || 'Failed to submit review')
       }
     } finally {
       setSubmittingReview(false)
@@ -524,25 +550,42 @@ const Reel = () => {
     if (hasInitializedInteractions.current || combinedContent.length === 0) return
     
     const checkUserInteractions = async () => {
+      // Mark as attempted up-front: early returns below (401, missing id) used
+      // to leave the flag false, so every combinedContent change re-ran this
+      // effect (M19).
+      hasInitializedInteractions.current = true
       try {
-        // Fetch user profile
+        // Fetch identity: user profile first, then partner check (M20 —
+        // partners/admins get 401 on /auth/user/profile and used to bail,
+        // never initializing their interactions).
         let userProfile = null
         try {
           const profileResponse = await axios.get(API_ENDPOINTS.auth.userProfile, axiosConfig)
           userProfile = profileResponse.data.user || profileResponse.data
-        } catch {
-          return
+        } catch (userErr) {
+          if (userErr.response?.status === 401) {
+            try {
+              const partnerResponse = await axios.get(API_ENDPOINTS.auth.partnerCheck, axiosConfig)
+              userProfile = partnerResponse.data.foodPartner || null
+            } catch {
+              return // anonymous (or admin) — no personal interactions to load
+            }
+          } else {
+            return // transient failure; interactions stay default
+          }
         }
 
-        const userId = userProfile._id?.toString()
+        const userId = userProfile?._id?.toString()
         if (!userId) return
         
         // Store user ID for later use
-        setCurrentUserId(userId)
+        currentUserIdRef.current = userId
 
         const followingChecks = {}
         const likedChecks = {}
         const savedChecks = {}
+        // targetId -> targetType, deduped; checked in one parallel batch below
+        const followTargets = {}
         
         const savedFoodIds = new Set(
           (userProfile.savedFoods || []).map(item => 
@@ -576,7 +619,7 @@ const Reel = () => {
               savedChecks[postId] = savedFoodIds.has(postId)
             }
             
-            // Check following status
+            // Collect following-status targets
             let targetId = null
             let targetType = null
             
@@ -588,37 +631,29 @@ const Reel = () => {
               targetType = 'User'
             }
             
-            if (targetId && targetType && targetId !== userId) {
-              if (!(targetId in followingChecks)) {
-                try {
-                  const response = await axios.get(
-                    API_ENDPOINTS.follow.check(targetId, targetType),
-                    axiosConfig
-                  )
-                  followingChecks[targetId] = response.data.isFollowing
-                } catch {
-                  followingChecks[targetId] = false
-                }
-              }
+            if (targetId && targetType && targetId !== userId && !(targetId in followTargets)) {
+              followTargets[targetId] = targetType
+              followingChecks[targetId] = false
             }
           }
         }
-        
-        // console.log('Initialized states:', {
-        //   totalPostsChecked: Object.keys(likedChecks).length,
-        //   actuallyLiked: Object.entries(likedChecks).filter(([, isLiked]) => isLiked).length,
-        //   totalSavedChecked: Object.keys(savedChecks).length,
-        //   actuallySaved: Object.entries(savedChecks).filter(([, isSaved]) => isSaved).length,
-        //   totalUsersChecked: Object.keys(followingChecks).length,
-        //   actuallyFollowing: Object.entries(followingChecks).filter(([, isFollowing]) => isFollowing).length
-        // })
+
+        // Batch the follow checks (previously serial N+1 awaits)
+        await Promise.all(Object.entries(followTargets).map(async ([targetId, targetType]) => {
+          try {
+            const response = await axios.get(
+              API_ENDPOINTS.follow.check(targetId, targetType),
+              axiosConfig
+            )
+            followingChecks[targetId] = response.data.isFollowing
+          } catch {
+            followingChecks[targetId] = false
+          }
+        }))
         
         setFollowingStatus(followingChecks)
         setLikedPosts(likedChecks)
         setSavedPosts(savedChecks)
-        
-        // Mark as initialized
-        hasInitializedInteractions.current = true
         
       } catch (error) {
         console.error('Error checking user interactions:', error)
@@ -684,17 +719,17 @@ const Reel = () => {
     })
   }, [])
 
-  const togglePlayPause = useCallback(() => {
-    const video = videoRefs.current[currentIndex]
-    if (video) {
-      if (playing) {
-        video.pause()
-      } else {
-        video.play()
+const togglePlayPause = useCallback(() => {
+      const video = videoRefs.current[currentIndexRef.current]
+      if (video) {
+        if (playingRef.current) {
+          video.pause()
+        } else {
+          video.play()
+        }
+        setPlaying(!playingRef.current)
       }
-      setPlaying(!playing)
-    }
-  }, [currentIndex, playing])
+    }, [])
 
   const formatCount = useCallback((count) => {
     if (!count) return '0'
@@ -752,17 +787,19 @@ const Reel = () => {
         }}
       >
         {combinedContent.map((item, index) => (
+// Without !!, the value could be true, false, undefined, or something else.
+// With !!, you guarantee the prop isFollowing is always exactly true or false.
           <ReelArea
-            key={`${item.type}-${item.postSource || 'ad'}-${item._id}-${index}`}
+            key={`${item.type}-${item.postSource || 'ad'}-${item._instanceId || item._id}`}
             item={item}
             index={index}
-            currentIndex={currentIndex}
+            isActive={index === currentIndex}
             muted={muted}
             videoRefs={videoRefs}
-            likedPosts={likedPosts}
-            savedPosts={savedPosts}
-            followingStatus={followingStatus}
-            openShopFor={openShopFor}
+            isLiked={!!likedPosts[item._id]}
+            isSaved={!!savedPosts[item._id]}
+            isFollowing={!!(followingStatus[item.partnerId?._id] || followingStatus[item.postedBy?._id])}
+            isShopOpen={openShopFor === item._id}
             onLike={handleLike}
             onSave={handleSave}
             onShare={handleShare}
@@ -793,6 +830,7 @@ const Reel = () => {
         submittingReview={submittingReview}
         showReviewsList={showReviewsList}
         existingReviews={existingReviews}
+            myReview={myReview}
         loadingReviews={loadingReviews}
         onClose={closeReviewModal}
         onSubmit={handleSubmitReview}
@@ -823,10 +861,7 @@ const Reel = () => {
         isOpen={showCommentModal}
         post={currentCommentItem}
         onClose={closeCommentModal}
-        onCommentAdded={() => {
-          // Refresh the post view if needed
-          // Could refetch the post to update comment count
-        }}
+        onCommentAdded={handleCommentAdded}
       />
 
       {/* Bottom Menu Bar */}

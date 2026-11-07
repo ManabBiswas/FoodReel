@@ -1,26 +1,13 @@
 import express from 'express';
+import multer from 'multer';
 import foodController from '../controllers/food.controller.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
+import { sanitizeMultipart } from '../middlewares/sanitization.js';
+import { uploadMedia, enforceMediaSize, verifyFileSignature } from '../middlewares/fileUpload.js';
+import { validateParams, isObjectId } from '../utils/validate.js';
 
-import multer from 'multer';
-
-
-const upload = multer({
-    storage: multer.memoryStorage(),
-    fileFilter: (req, file, cb) => {
-        // Accept both image and video files
-        const allowedTypes = /^(image\/|video\/)/;
-        if (allowedTypes.test(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image and video files are allowed'), false);
-        }
-    },
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit to match frontend
-    }
-});
+const upload = uploadMedia;
 
 const router = express.Router();
 
@@ -49,7 +36,9 @@ const handleMulterError = (error, req, res, next) => {
 // POST /api/food - Create food or advertisement post
 router.post('/',
     isFoodPartnerLoggedin,
-    upload.single('file'), // Changed from 'video' to 'file' to match frontend
+    upload.single('file'), enforceMediaSize, // Changed from 'video' to 'file' to match frontend
+    sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     foodController.createFood
 );
@@ -86,39 +75,57 @@ router.get('/statistics',
     foodController.getPostStatistics
 );
 
+// GET /api/food/:id - Single post detail (public, like the feed).
+router.get('/:id',
+    foodController.getFoodById
+);
+
+// Malformed :id segments used to reach Mongoose as CastError -> 500.
+const foodIdParams = validateParams({
+    id: { check: isObjectId, message: 'id must be a valid id' }
+});
+
 // POST /api/food/:id/like - Toggle like on a post
 router.post('/:id/like',
     isLoggedin,
+    foodIdParams,
     foodController.toggleLike
 );
 
 // POST /api/food/:id/save - Toggle bookmark on a post
 router.post('/:id/save',
     isLoggedin,
+    foodIdParams,
     foodController.toggleSave
 );
 
 // GET /api/food/:id/reviews - Get reviews for a food item
 router.get('/:id/reviews',
+    foodIdParams,
     foodController.getReviews
 );
 
 // POST /api/food/:id/review - Add a review to a food item
 router.post('/:id/review',
     isLoggedin,
+    foodIdParams,
     foodController.addReview
 );
 
 // DELETE /api/food/:id - Delete a food item (partner only)
 router.delete('/:id',
     isFoodPartnerLoggedin,
+    foodIdParams,
     foodController.deleteFood
 );
 
 // PUT /api/food/:id - Update a food item (partner only)
 router.put('/:id',
     isFoodPartnerLoggedin,
-    upload.single('file'),
+    foodIdParams,
+    upload.single('file'), enforceMediaSize,
+    sanitizeMultipart,
+    verifyFileSignature(),
     handleMulterError,
     foodController.updateFood
 );

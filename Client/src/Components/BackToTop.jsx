@@ -12,7 +12,8 @@ const BackToTop = () => {
       const scrollPct    = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0
 
       setVisible(scrollTop > 300)
-      setProgress(Math.min(scrollPct, 100))
+      const next = Math.round(Math.min(scrollPct, 100))
+      setProgress(prev => (prev === next ? prev : next))
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })

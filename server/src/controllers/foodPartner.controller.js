@@ -1,9 +1,16 @@
 import foodPartnerModel from "../models/foodPartner.Model.js";
+import { serverError, serverFail } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import reviewModel from "../models/review.model.js";
 import bcrypt from 'bcrypt'
+import { hashPassword as hashNewPassword, verifyPassword } from '../utils/password.js'
 import jwt from 'jsonwebtoken'
 import emailService from '../services/email.service.js';
+import { authCookieOptions } from '../utils/cookies.js';
+
+// Account-enumeration guard - see register() below.
+const PARTNER_REGISTER_TAKEN_MESSAGE =
+    "Registration could not be completed with these details. If you already have an account, please log in instead."; 
 
 async function register(req,res) {
     try{
@@ -21,9 +28,9 @@ async function register(req,res) {
         
         const isPartnerExist = await foodPartnerModel.findOne({email})
         if(isPartnerExist){
-            res.status(400).json({error: "FoodPartner already exist"})
+            return res.status(409).json({error: PARTNER_REGISTER_TAKEN_MESSAGE});
         }else{
-            const hashPassword = await bcrypt.hash(password,10);
+            const hashPassword = await hashNewPassword(password);
             const foodPartner = await foodPartnerModel.create({
                 companyName,
                 email,
@@ -34,14 +41,8 @@ async function register(req,res) {
                 longitude: lng
                 // profileImage will be added later via profile update
             })
-            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email},process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            })
+            const token = jwt.sign({id: foodPartner._id,email: foodPartner.email,tv: foodPartner.tokenVersion ?? 0},process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
             res.status(201).json({
                 message: "FoodPartner created successfully",
                 _id: foodPartner._id,
@@ -52,7 +53,10 @@ async function register(req,res) {
         }
     }catch(error){
         console.error('Registration error:', error);
-        res.status(400).json({error: error.message});
+        if (error?.code === 11000) {
+            return res.status(409).json({error: PARTNER_REGISTER_TAKEN_MESSAGE});
+        }
+        serverFail(res, error);
     }
 }
 
@@ -73,19 +77,23 @@ async function login(req,res){
                 error: "Invalid email or password"
             });
         }
+
+        if (foodPartner.isBlocked) {
+            return res.status(403).json({
+                error: "Your account has been blocked. Please contact support."
+            });
+        }
         
-        // Correct bcrypt.compare usage (returns Promise, no callback needed)
-        const isPasswordMatched = await bcrypt.compare(password, foodPartner.password);
+        // Correct bcrypt.compare usage (returns Promise, no callback needed);
+        // upgrades a legacy cost-10 hash on a successful match
+        const isPasswordMatched = await verifyPassword(password, foodPartner.password, async (newHash) => {
+            foodPartner.password = newHash;
+            await foodPartner.save();
+        });
         
         if(isPasswordMatched){
-            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email }, process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            })
+            const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email, tv: foodPartner.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
             res.status(200).json({
                 message: "FoodPartner logged in successfully",
                 foodPartner: {
@@ -107,7 +115,7 @@ async function login(req,res){
 }
 
 async function logout(req, res) {
-    res.clearCookie('token', { path: '/' });
+    res.clearCookie('token', authCookieOptions(0));
     res.status(200).json({message: "food partner logout successfully"})
 }
 
@@ -141,8 +149,7 @@ async function check(req, res) {
     } catch (error) {
         res.status(401).json({
             isAuthenticated: false,
-            message: "Not authenticated",
-            error: error.message
+            message: "Not authenticated"
         });
     }
 }
@@ -197,13 +204,13 @@ async function getProfile(req, res) {
                 foodItems: partner.foodItemsCount,
                 following: partner.followingCount,
                 verified: partner.verified,
-                profileImage: partner.profileImage ? "/api/partner/profile-image/" + partner._id : "/api/placeholder/150/150"
+                profileImage: partner.profileImage || null
             },
             foodItems: formattedFoodItems
         });
     } catch (error) {
         console.error('Get profile error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -229,7 +236,7 @@ async function updateBio(req, res) {
         });
     } catch (error) {
         console.error('Update bio error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -240,16 +247,17 @@ async function getReviews(req, res) {
         
         const reviews = await reviewModel.find({ 
             foodPartner: partnerId, 
-            isActive: true 
+            isActive: true,
+            status: 'approved'
         })
-        .populate('user', 'name email profileImage')
+        .populate('user', 'firstName lastName username profileImage')
         .populate('foodItem', 'name')
         .sort({ createdAt: -1 });
 
         const formattedReviews = reviews.map(review => ({
             id: review._id,
             user: {
-                name: review.user?.name || "Anonymous User",
+                name: [review.user?.firstName, review.user?.lastName].filter(Boolean).join(' ') || review.user?.username || "Anonymous User",
                 profileImage: review.user?.profileImage || "/api/placeholder/40/40"
             },
             rating: review.rating,
@@ -257,7 +265,8 @@ async function getReviews(req, res) {
             foodItem: review.foodItem?.name || "General Review",
             createdAt: review.createdAt,
             helpful: review.helpfulCount,
-            verified: review.isVerified,
+            verified: review.isVerifiedPurchase,
+            response: review.response?.text || null,
             images: review.images || []
         }));
 
@@ -270,7 +279,7 @@ async function getReviews(req, res) {
         });
     } catch (error) {
         console.error('Get reviews error:', error);
-        res.status(500).json({ error: error.message });
+        serverError(res, error);
     }
 }
 

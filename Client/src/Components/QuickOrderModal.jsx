@@ -5,6 +5,7 @@ import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
+import { newIdempotencyKey } from '../utils/idempotencyKey'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
@@ -119,8 +120,19 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   }
 
   const isAddressValid = () => {
-    return address.fullName && address.phone && address.addressLine1 &&
+    return Boolean(
+      address.fullName && address.phone && address.addressLine1 &&
       address.city && address.state && address.pincode
+    )
+  }
+
+  const addressErrors = {
+    phone: /^0?[6-9]\d{9}$/.test(String(address.phone || '').replace(/\D/g, ''))
+      ? ''
+      : 'Enter a valid 10-digit mobile number',
+    pincode: /^\d{6}$/.test(String(address.pincode || '').trim())
+      ? ''
+      : 'Enter a valid 6-digit pincode'
   }
 
   const handleContinueToPayment = () => {
@@ -129,15 +141,41 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     }
   }
 
-  const handleAddToCart = () => {
-    addToCart(food, quant);
-    showSuccess('Order added to cart!')
-    onClose()
+  const handleAddToCart = async () => {
+    const foodItemId = food?._id || food?.id
+    if (!foodItemId) {
+      showError('Invalid item')
+      return
+    }
+    // addToCart(foodItemId, quantity) — the old call passed the whole food
+    // object as the id (CastError/500) and toasted success unconditionally.
+    const result = await addToCart(foodItemId, quant)
+    if (result?.success) {
+      showSuccess('Order added to cart!')
+      onClose()
+    } else {
+      showError(result?.error || 'Failed to add item to cart')
+    }
   }
 
-  const handlePlaceOrder = async () => {
+  // One key per LOGICAL submit attempt, held in a ref.
+const idempotencyKeyRef = React.useRef(null)
+const getIdempotencyKey = () => {
+  if (!idempotencyKeyRef.current) idempotencyKeyRef.current = newIdempotencyKey()
+  return idempotencyKeyRef.current
+}
+
+const handlePlaceOrder = async () => {
     try {
       setLoading(true)
+
+      // Check the gateway before creating any records: an ad-blocked script
+      // would otherwise leave an orphan order plus a Razorpay order behind.
+      if (paymentMethod !== 'cod' && typeof window.Razorpay !== 'function') {
+        showError('Payment gateway could not load. Please try COD or disable your ad blocker.')
+        setLoading(false)
+        return
+      }
 
       const orderResponse = await axios.post(
         API_ENDPOINTS.order.create,
@@ -153,7 +191,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           orderSource: 'reel',
           paymentMethod: paymentMethod
         },
-        axiosConfig
+        // One key for this submit attempt
+        { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': getIdempotencyKey() } }
       )
 
       if (!orderResponse.data.order || !orderResponse.data.order._id) {
@@ -164,11 +203,15 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       const orderId = orderResponse.data.order._id
 
       if (paymentMethod === 'cod') {
+        // Flow is finished for COD — retire the key so ordering again is allowed.
+        idempotencyKeyRef.current = null
         showSuccess('Order placed successfully!')
         onClose()
         navigate(`/order/confirmation/${orderId}`, { state: { orderId } })
         return
       }
+
+      // The rest of the flow is for online payment. The key is deliberately NOT retired here.
 
       const paymentResponse = await axios.post(
         API_ENDPOINTS.payment.createOrder,
@@ -201,6 +244,14 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
           }
         }
 
+        // Ad-blockers (or a failed script load) leave window.Razorpay undefined —
+        // re-checked here in case the script was removed after the first check.
+        if (typeof window.Razorpay !== 'function') {
+          showError('Payment gateway could not load. Please try COD or disable your ad blocker.')
+          setLoading(false)
+          return
+        }
+
         const razorpay = new window.Razorpay(options)
         razorpay.open()
       }
@@ -225,6 +276,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       )
 
       if (response.data.success) {
+// Payment settled — the attempt is genuinely over, so the key can be retired. Every earlier failure kept it so a retry reused this order.
+        idempotencyKeyRef.current = null
         showSuccess('Order placed successfully!')
         onClose()
         navigate(`/order/confirmation/${orderId}`, { state: { orderId } })
@@ -246,6 +299,8 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       setSelectedAddressId(null)
       setShowNewAddressForm(false)
       setSavedAddresses([])
+// Reopening the modal is a new attempt, so drop any key left over from apayment step that never completed.
+      idempotencyKeyRef.current = null
       setAddress({
         fullName: '',
         phone: '',
@@ -395,9 +450,13 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                         value={address.phone}
                         onChange={handleAddressChange}
                         maxLength={11}
-                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                        pattern="[0-9]{10,11}"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base ${address.phone && addressErrors.phone ? 'border-red-400' : ''}`}
                         required
                       />
+                      {address.phone && addressErrors.phone && (
+                        <p className="text-xs text-red-500 mt-1">{addressErrors.phone}</p>
+                      )}
 
                       <textarea
                         name="addressLine1"
@@ -456,9 +515,12 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
                         onChange={handleAddressChange}
                         maxLength={6}
                         pattern="[0-9]{6}"
-                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base ${address.pincode && addressErrors.pincode ? 'border-red-400' : ''}`}
                         required
                       />
+                      {address.pincode && addressErrors.pincode && (
+                        <p className="text-xs text-red-500 mt-1">{addressErrors.pincode}</p>
+                      )}
                     </div>
                   )}
                 </>

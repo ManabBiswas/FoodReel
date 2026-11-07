@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { showSuccess, showError } from '../../utils/toast'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { usePartnerData } from '../../hooks/usePartnerData'
+import { useAuth } from '../../hooks/useAuth'
 import Navbar from '../../Components/Navbar'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
@@ -11,35 +12,48 @@ import { Building2, MapPin, Phone, Mail, Loader2, LogOut, Settings, Plus, Grid3X
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
-  const { partnerProfile, posts, loading, error, refresh } = usePartnerData()
-  
+  const location = useLocation()
+  const { logout } = useAuth()
+  const { partnerProfile, posts, loading, error, refresh, patchPartnerProfile } = usePartnerData()
+
+  const isSettingsRoute = location.pathname.replace(/\/+$/, '') === '/partner-profile/settings'
+
   const [activeTab, setActiveTab] = useState('posts')
   const [postFilter, setPostFilter] = useState('all')
-  const [isEditingBio, setIsEditingBio] = useState(false)
+  const [isEditingBio, setIsEditingBio] = useState(isSettingsRoute)
   const [bioText, setBioText] = useState('')
   const [bioLoading, setBioLoading] = useState(false)
   const [selectedFood, setSelectedFood] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Initialize bio text when profile loads
   React.useEffect(() => {
-    if (partnerProfile?.bio) {
-      setBioText(partnerProfile.bio)
-    }
-  }, [partnerProfile])
+    setIsEditingBio(isSettingsRoute)
+  }, [isSettingsRoute])
+
+  // Sync the bio from context.
+  //
+  // handleSaveBio does NOT call refresh() — that re-downloaded every post and ad
+  // to update one text field. Instead it patches the cached profile directly, so
+  // context stays the single source of truth.
+  React.useEffect(() => {
+    if (isEditingBio) return
+    setBioText(partnerProfile?.bio || '')
+  }, [partnerProfile, isEditingBio])
 
   // Handle bio editing
   const handleSaveBio = async () => {
     try {
       setBioLoading(true)
-      await axios.put(
+      const { data } = await axios.put(
         API_ENDPOINTS.auth.partnerBio,
         { bio: bioText },
         axiosConfig
       )
+      const savedBio = data?.foodPartner?.bio ?? data?.bio ?? bioText
+      setBioText(savedBio)
+      patchPartnerProfile({ bio: savedBio })
       setIsEditingBio(false)
       showSuccess('Bio updated successfully!')
-      refresh() // Refresh partner data context
     } catch (error) {
       console.error('Error updating bio:', error)
       showError('Error updating bio')
@@ -50,7 +64,9 @@ const PartnerProfile = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.get(API_ENDPOINTS.auth.partnerLogout, axiosConfig)
+      // Context logout: POSTs the partner logout endpoint (GET was wrong —
+      // it 404'd, so the cookie was never cleared) and clears auth state.
+      await logout()
     } catch (err) {
       console.warn('Logout request failed:', err)
     } finally {
@@ -59,6 +75,8 @@ const PartnerProfile = () => {
   }
 
   const handleCancelBio = () => {
+    // Context is authoritative again (handleSaveBio patches it), so reverting to
+    // partnerProfile.bio is now correct.
     setBioText(partnerProfile?.bio || '')
     setIsEditingBio(false)
   }
@@ -169,7 +187,11 @@ const PartnerProfile = () => {
                     <Settings className="w-4 h-4" />
                     {isEditingBio ? 'Cancel' : 'Edit Profile'}
                   </button>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                  <button
+                    onClick={() => navigate('/CreateFood')}
+                    title="Create a new post"
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  >
                     <Plus className="w-4 h-4" />
                   </button>
                   <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
@@ -232,7 +254,7 @@ const PartnerProfile = () => {
             </div>
             <div className="flex gap-2">
               <Phone className="w-3 h-3 flex-shrink-0" />
-              <span>{partnerProfile.phone}</span>
+              <span>{partnerProfile.phone || partnerProfile.mobile}</span>
             </div>
             <div className="flex gap-2">
               <MapPin className="w-3 h-3 flex-shrink-0" />
@@ -338,7 +360,7 @@ const PartnerProfile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 px-4 sm:px-6 lg:px-8">
                   {filteredPosts.map((item) => (
                     <div
-                      key={item.id}
+                      key={item._id}
                       onClick={() => handleFoodClick(item)}
                       className="relative group cursor-pointer overflow-hidden rounded-lg bg-gray-100 hover:scale-105 transition-transform duration-200"
                     >
@@ -525,7 +547,10 @@ const PartnerProfile = () => {
                   </div>
                   <h3 className="text-xl font-light text-gray-900 mb-2">No Posts Yet</h3>
                   <p className="text-gray-500 mb-4">Start sharing your delicious food creations</p>
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-medium transition-colors">
+                  <button
+                    onClick={() => navigate('/CreateFood')}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-medium transition-colors"
+                  >
                     Create Your First Post
                   </button>
                 </div>

@@ -1,0 +1,305 @@
+import FoodFestEvent from "../../models/FoodFestEvent.model.js";
+import FoodFestTier from "../../models/FoodFestTier.model.js";
+import FoodFestTicket from "../../models/FoodFestTicket.model.js";
+import paymentService from "../../services/payment.service.js";
+import { verifyTicketPaymentBinding } from "../../services/payment.verification.js";
+import { finalizeTicketPayment } from "../../services/foodfest.ticket.service.js";
+import { supportsTransactions } from "../../services/transactionSupport.js";
+import { serverFail } from "../../utils/apiError.js";
+import mongoose from "mongoose";
+
+export const browseEvents = async (req, res) => {
+    try {
+        const events = await FoodFestEvent.find({ status: 'published' })
+            .select('name description venue startTime endTime bannerImage')
+            .sort({ startTime: 1 });
+        
+        res.status(200).json({ success: true, events });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+export const getEventDetails = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.isValidObjectId(eventId)) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        const event = await FoodFestEvent.findOne({
+            _id: eventId,
+            // A live event must stay reachable so ticket holders can open it.
+            status: { $in: ['published', 'live'] } // $in is a shortcut for { $or: [ { status: 'published' }, { status: 'live' } ] }            
+        });
+        if (!event) return res.status(404).json({ success: false, message: "Event not found" });
+
+        const tiers = await FoodFestTier.find({ eventId, active: true });
+        
+        res.status(200).json({ 
+            success: true, 
+            event, 
+            tiers 
+        });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+export const purchaseTicket = async (req, res) => {
+    let session = null;
+    try {
+        const { eventId, tierId } = req.body;
+        const userId = req.user._id;
+
+        if (!eventId || !tierId) {
+            return res.status(400).json({ success: false, message: "eventId and tierId are required" });
+        }
+
+        // Phase 1: reserve inventory + create the pending ticket. Runs as one
+        // transaction on a replica set or single node.
+        if (await supportsTransactions()) {
+            session = await mongoose.startSession();
+            session.startTransaction();
+        }
+
+        // Validate the event first: a draft or cancelled event must never sell,
+        // and the event-level sales window gates every tier.
+        const now = new Date();
+        const eventQuery = FoodFestEvent.findOne({
+            _id: eventId,
+            status: { $in: ['published', 'live'] }
+        });
+        if (session) eventQuery.session(session);
+        const event = await eventQuery;
+        if (!event) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({
+                success: false,
+                message: "Event not found or not open for ticket sales"
+            });
+        }
+
+        if (now < event.salesStart || now > event.salesEnd) {
+            if (session) await session.abortTransaction();
+            return res.status(400).json({ success: false, message: "Tickets are not currently on sale" });
+        }
+
+        // Atomic reserve: the tier must be active, inside its own window, and
+        // have capacity. The $expr guard is what prevents overselling the last seat.
+        const tier = await FoodFestTier.findOneAndUpdate(
+            {
+                _id: tierId,
+                eventId,
+                active: true,
+                $expr: { $lt: [{ $add: ['$sold', '$reserved'] }, '$quantity'] },
+                $and: [
+                    { $or: [{ salesStart: null }, { salesStart: { $lte: now } }] },
+                    { $or: [{ salesEnd: null }, { salesEnd: { $gte: now } }] }
+                ]
+            },
+            { $inc: { reserved: 1 } },
+            { session, new: true }
+        );
+
+        if (!tier) {
+            if (session) await session.abortTransaction();
+            return res.status(409).json({ success: false, message: "Ticket tier is sold out or unavailable" });
+        }
+
+        // Create ticket in pending_payment status. Array input resolves to an
+        // array of docs — `await Model.create([...])[0]` indexes the *promise*
+        // (member access binds tighter than await) and silently yields
+        // undefined, which then crashed the handler below.
+        const [ticket] = await FoodFestTicket.create([
+            {
+                eventId,
+                tierId,
+                user: userId,
+                status: 'pending_payment',
+                priceAtPurchase: tier.price,
+                currency: tier.currency
+            }
+        ], { session });
+
+        if (session) {
+            await session.commitTransaction();
+            session.endSession();
+            session = null;
+        }
+
+        let razorpayOrder;
+        try {
+            razorpayOrder = await paymentService.createOrder(
+                tier.price,
+                tier.currency,
+                `ticket_${ticket._id}`,
+                {
+                    ticketId: ticket._id.toString(),
+                    userId: userId.toString(),
+                    kind: 'foodfest_ticket'
+                }
+            );
+
+            if (!razorpayOrder.success) {
+                throw new Error("Failed to create payment order");
+            }
+
+            ticket.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
+            ticket.paymentDetails.razorpayAmount = razorpayOrder.amount;
+            await ticket.save();
+        } catch (gatewayErr) {
+            // Release the reserved ticket
+            try {
+                const claimed = await FoodFestTicket.findOneAndUpdate(
+                    { _id: ticket._id, status: 'pending_payment' },
+                    { $set: { status: 'expired' } }
+                );
+                if (claimed) {
+                    await FoodFestTier.updateOne(
+                        { _id: tierId, reserved: { $gte: 1 } },
+                        { $inc: { reserved: -1 } }
+                    );
+                }
+            } catch (releaseErr) {
+                console.error(`Failed to release reservation for ticket ${ticket._id}:`, releaseErr);
+            }
+            throw gatewayErr;
+        }
+
+        res.status(201).json({
+            success: true,
+            razorpayOrderId: razorpayOrder.order_id,
+            amount: razorpayOrder.amount / 100,
+            currency: razorpayOrder.currency,
+            ticketId: ticket._id,
+            keyId: paymentService.getKeyId()
+        });
+    } catch (error) {
+        if (session) await session.abortTransaction().catch(() => {});
+        serverFail(res, error, "Could not start the ticket purchase");
+    } finally {
+        if (session) session.endSession();
+    }
+};
+
+/**
+ * Verify a FoodFest ticket payment.
+ */
+export const verifyTicketPayment = async (req, res) => {
+    try {
+        const {
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            ticketId
+        } = req.body;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !ticketId) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required payment parameters"
+            });
+        }
+
+        const signatureValid = paymentService.verifyPaymentSignature(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        );
+
+        if (!signatureValid) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid payment signature"
+            });
+        }
+
+        const ticket = await FoodFestTicket.findById(ticketId);
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: "Ticket not found" });
+        }
+
+        if (ticket.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "This ticket belongs to another user" });
+        }
+
+        // Ask the gateway what was actually paid; never trust client values.
+        let gatewayPayment = null;
+        try {
+            const fetched = await paymentService.getPaymentDetails(razorpay_payment_id);
+            gatewayPayment = fetched?.payment ?? null;
+        } catch (err) {
+            console.error(`Razorpay ticket payment fetch failed for ${razorpay_payment_id}:`, err.message);
+            return res.status(502).json({
+                success: false,
+                message: "Could not confirm the payment with the payment gateway. Please retry."
+            });
+        }
+
+        const binding = verifyTicketPaymentBinding({
+            ticket,
+            razorpayOrderId: razorpay_order_id,
+            gatewayPayment
+        });
+
+        if (!binding.ok) {
+            console.error(
+                `Ticket payment binding rejected for ticket ${ticket._id}: ${binding.code}`
+            );
+            return res.status(binding.status).json({
+                success: false,
+                message: binding.message,
+                code: binding.code
+            });
+        }
+
+        const result = await finalizeTicketPayment(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        );
+
+        if (!result.success) {
+            // State conflicts (expired/cancelled ticket, concurrent settlement) are not malformed requests: 409 tells the client not to retry as-is.
+            const conflictCodes = new Set(["TICKET_EXPIRED", "TICKET_REFUNDED", "TICKET_NOT_FINALISED"]);
+            return res.status(conflictCodes.has(result.code) ? 409 : 400).json({
+                success: false,
+                message: result.message || "Could not finalise this ticket",
+                code: result.code,
+                refunded: !!result.refunded,
+                refundId: result.refundId
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: result.alreadyFinalised
+                ? "Ticket was already verified"
+                : "Ticket payment verified successfully",
+            alreadyFinalised: !!result.alreadyFinalised,
+            ticket: {
+                id: result.ticket._id,
+                status: result.ticket.status,
+                qrToken: result.ticket.qrToken,
+                qrImageUrl: result.ticket.qrImageUrl
+            }
+        });
+    } catch (error) {
+        console.error("Ticket payment verification error:", error);
+        serverFail(res, error, "Ticket payment verification failed");
+    }
+};
+
+export const getMyTickets = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const tickets = await FoodFestTicket.find({ user: userId })
+            .populate('eventId', 'name startTime endTime')
+            .populate('tierId', 'name price');
+        
+        res.status(200).json({ success: true, tickets });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};

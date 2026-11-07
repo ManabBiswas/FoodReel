@@ -1,6 +1,13 @@
 import paymentService from '../services/payment.service.js';
+import { serverFail } from '../utils/apiError.js';
 import orderModel from '../models/order.model.js';
+import mongoose from 'mongoose';
 import emailService from '../services/email.service.js';
+import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
+import { verifyOrderBinding, verifyPaymentBinding, toPaise } from '../services/payment.verification.js';
+import { decideWebhookAction, resolveOrderKey, ACTION } from '../services/webhook.handler.js';
+import { isGatewayOrderReusable } from '../services/gatewayOrderReuse.js';
+import paymentWebhookEventModel from '../models/paymentWebhookEvent.model.js';
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -43,6 +50,22 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
+    if (isGatewayOrderReusable(order)) {
+      console.log(`[req:${req.id}] Reusing existing gateway order for order ${order._id}`);
+      return res.status(200).json({
+        success: true,
+        reused: true,
+        razorpayOrderId: order.paymentDetails.razorpayOrderId,
+        amount: (order.paymentDetails.razorpayAmount ?? toPaise(order.pricing.totalAmount)) / 100,
+        currency: order.currency,
+        keyId: paymentService.getKeyId(),
+        order: {
+          id: order._id,
+          totalAmount: order.pricing.totalAmount
+        }
+      });
+    }
+
     // Create Razorpay order
     const razorpayOrder = await paymentService.createOrder(
       order.pricing.totalAmount,
@@ -62,8 +85,13 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // Update order with Razorpay order ID (note: service returns order_id in snake_case)
+    // Update order with Razorpay order ID (note: service returns order_id in snake_case).
+   
     order.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
+    order.paymentDetails.razorpayAmount = Number.isInteger(razorpayOrder.amount)
+      ? razorpayOrder.amount
+      : toPaise(order.pricing.totalAmount);
+    order.paymentDetails.razorpayOrderCreatedAt = new Date();
     order.paymentDetails.status = 'processing';
     await order.save();
 
@@ -81,10 +109,7 @@ export const createPaymentOrder = async (req, res) => {
 
   } catch (error) {
     console.error('Create payment order error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to create payment order'
-    });
+    serverFail(res, error, 'Failed to create payment order');
   }
 };
 
@@ -128,9 +153,9 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    const order = await orderModel.findOne({ 
-      _id: orderId, 
-      user: userId 
+    const order = await orderModel.findOne({
+      _id: orderId,
+      user: userId
     });
 
     if (!order) {
@@ -140,8 +165,61 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Fetch payment details
-    const paymentDetails = await paymentService.getPaymentDetails(razorpay_payment_id);
+    // Bind the gateway order to THIS order before spending a gateway call.
+    // A valid signature is not enough: without this, a cheap payment would
+    // settle an expensive order.
+    const local = verifyOrderBinding({ order, razorpayOrderId: razorpay_order_id });
+
+    if (!local.ok) {
+      console.error(
+        `[req:${req.id}] Payment binding rejected for order ${order._id}: ${local.code}`
+      );
+      return res.status(local.status).json({
+        success: false,
+        message: local.message,
+        code: local.code
+      });
+    }
+
+    // Ask the gateway what was actually paid. This is the authoritative source:
+    // the client-supplied amount cannot be trusted and is not used anywhere.
+    let gatewayPayment = null;
+    try {
+      const fetched = await paymentService.getPaymentDetails(razorpay_payment_id);
+      gatewayPayment = fetched?.payment ?? null;
+    } catch (fetchErr) {
+      console.error(`[req:${req.id}] Razorpay payment fetch failed for ${razorpay_payment_id}:`, fetchErr.message);
+      return res.status(502).json({
+        success: false,
+        message: 'Could not confirm the payment with the payment gateway. Please retry.'
+      });
+    }
+
+    // Full check now that the gateway payment is in hand: exact amount,
+    // matching currency, and actually captured.
+    const binding = verifyPaymentBinding({
+      order,
+      razorpayOrderId: razorpay_order_id,
+      gatewayPayment
+    });
+
+    if (!binding.ok) {
+      console.error(
+        `[req:${req.id}] Payment binding rejected for order ${order._id}:`,
+        JSON.stringify({
+          code: binding.code,
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          expectedAmount: binding.expectedAmount,
+          receivedAmount: binding.receivedAmount
+        })
+      );
+      return res.status(binding.status).json({
+        success: false,
+        message: binding.message,
+        code: binding.code
+      });
+    }
 
     // Update order
     order.paymentDetails.razorpayPaymentId = razorpay_payment_id;
@@ -150,15 +228,17 @@ export const verifyPayment = async (req, res) => {
     order.paymentDetails.paidAt = new Date();
     order.paymentDetails.transactionId = razorpay_payment_id;
     order.status = 'confirmed';
-    
+    order.statusTimestamps.confirmedAt = new Date();
+
     order.orderNotes.push({
-      note: `Payment successful via ${paymentDetails.payment.method}`,
+      note: `Payment successful via ${gatewayPayment.method}`,
       addedBy: 'system'
     });
 
     await order.save();
 
     res.status(200).json({
+
       success: true,
       message: 'Payment verified successfully',
       order: {
@@ -170,17 +250,14 @@ export const verifyPayment = async (req, res) => {
 
   } catch (error) {
     console.error('Payment verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Payment verification failed'
-    });
+    serverFail(res, error, 'Payment verification failed');
   }
 };
 
 export const handlePaymentFailure = async (req, res) => {
   try {
     const { orderId, error } = req.body;
-    
+
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -188,25 +265,65 @@ export const handlePaymentFailure = async (req, res) => {
       });
     }
 
-    const userId = req.user._id;
-
-    const order = await orderModel.findOne({ 
-      _id: orderId, 
-      user: userId 
-    });
-
-    if (order) {
-      order.paymentDetails.status = 'failed';
-      order.orderNotes.push({
-        note: `Payment failed: ${error?.description || 'Unknown error'}`,
-        addedBy: 'system'
+    if (!orderId || !mongoose.isValidObjectId(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderId must be a valid id'
       });
-      await order.save();
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Payment failure recorded'
+    const description = typeof error?.description === 'string'
+      ? error.description.slice(0, 500)
+      : 'Unknown error';
+
+    // Update order
+    const order = await orderModel.findOneAndUpdate(
+      {
+        _id: orderId,
+        user: req.user._id,
+        'paymentDetails.method': 'razorpay',
+        'paymentDetails.status': { $in: ['pending', 'processing'] }
+      },
+      {
+        $set: { 'paymentDetails.status': 'failed' },
+        $push: {
+          orderNotes: {
+            note: `Payment failed: ${description}`,
+            addedBy: 'system'
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (order) {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment failure recorded'
+      });
+    }
+
+    const existing = await orderModel
+      .findOne({ _id: orderId, user: req.user._id })
+      .select('paymentDetails.status')
+      .lean();
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Retrying the same failure notification is harmless.
+    if (existing.paymentDetails?.status === 'failed') {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment failure already recorded'
+      });
+    }
+
+    return res.status(409).json({
+      success: false,
+      code: 'PAYMENT_NOT_FAILABLE',
+      message: 'This payment can no longer be marked as failed'
     });
 
   } catch (error) {
@@ -218,125 +335,18 @@ export const handlePaymentFailure = async (req, res) => {
   }
 };
 
-// Initiate refund for an order
-export const initiateRefund = async (req, res) => {
-  try {
-    const { orderId, reason, amount } = req.body;
-    
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Unauthorized'
-      });
-    }
-
-    const userId = req.user._id;
-
-    // Find the order
-    const order = await orderModel.findOne({ 
-      _id: orderId, 
-      user: userId 
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    // Check if order is eligible for refund
-    if (order.paymentDetails.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Order payment not completed. Cannot process refund.'
-      });
-    }
-
-    if (order.cancellation.refundStatus === 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Refund already processed for this order'
-      });
-    }
-
-    if (!order.paymentDetails.razorpayPaymentId) {
-      return res.status(400).json({
-        success: false,
-        message: 'No payment ID found for refund'
-      });
-    }
-
-    // Calculate refund amount (default to full order amount)
-    const refundAmount = amount || order.pricing.totalAmount;
-
-    if (refundAmount > order.pricing.totalAmount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Refund amount cannot exceed order total'
-      });
-    }
-
-    // Initiate refund with Razorpay
-    const refundResult = await paymentService.refundPayment(
-      order.paymentDetails.razorpayPaymentId,
-      refundAmount,
-      {
-        orderId: orderId.toString(),
-        reason: reason || 'Order cancelled by user'
-      }
-    );
-
-    if (!refundResult.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to initiate refund with payment gateway',
-        error: refundResult.error
-      });
-    }
-
-    // Update order with refund details
-    order.cancellation.isCancelled = true;
-    order.cancellation.cancelledBy = 'user';
-    order.cancellation.cancelledAt = new Date();
-    order.cancellation.reason = reason || 'Order cancelled by user';
-    order.cancellation.refundStatus = 'processing';
-    order.cancellation.refundAmount = refundAmount;
-    order.status = 'cancelled';
-
-    order.orderNotes.push({
-      note: `Refund initiated: ₹${refundAmount}. Reason: ${reason || 'User cancellation'}`,
-      addedBy: 'system'
-    });
-
-    await order.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Refund initiated successfully',
-      refund: {
-        orderId: order._id,
-        refundAmount,
-        refundId: refundResult.refund.id,
-        status: refundResult.refund.status,
-        expectedProcessingTime: '5-7 business days'
-      }
-    });
-
-  } catch (error) {
-    console.error('Refund initiation error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to process refund request'
-    });
-  }
-};
-
 // Handle Razorpay webhooks
 export const razorpayWebhook = async (req, res) => {
+  // Declared OUTSIDE the try: the catch block reads it to record the failure,
+  // and a `const` inside the try would be in the temporal dead zone if an
+  // error fired before its declaration (e.g. JSON.parse).
+  let eventId = null;
   try {
     const webhookSignature = req.headers['x-razorpay-signature'];
-    const webhookBody = req.body;
+    // express.raw delivers the exact bytes Razorpay signed (Buffer).
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}), 'utf8');
 
     if (!webhookSignature) {
       return res.status(400).json({
@@ -345,8 +355,8 @@ export const razorpayWebhook = async (req, res) => {
       });
     }
 
-    // Verify webhook signature
-    const isValid = paymentService.verifyWebhookSignature(webhookBody, webhookSignature);
+    // Verify webhook signature against the RAW body
+    const isValid = paymentService.verifyWebhookSignature(rawBody, webhookSignature);
 
     if (!isValid) {
       console.error('Invalid webhook signature received');
@@ -356,212 +366,224 @@ export const razorpayWebhook = async (req, res) => {
       });
     }
 
+    // Signature is valid — safe to parse the payload now
+    const webhookBody = JSON.parse(rawBody.toString('utf8'));
     const event = webhookBody.event;
     const payload = webhookBody.payload;
+    // Razorpay sends a stable id per event; it is what makes retries idempotent.
+    eventId = req.get('x-razorpay-event-id') || null;
 
-    console.log(`Razorpay webhook received: ${event}`);
+    console.log(`Razorpay webhook received: ${event} (${eventId ?? 'no event id'})`);
 
-    // Handle different webhook events
-    switch (event) {
-      case 'payment.captured':
-        await handlePaymentCaptured(payload);
-        break;
+    // Claim the event before doing any work. The unique index on eventId makes
+    // this atomic: if two deliveries race, exactly one insert wins.
+    if (eventId) {
+        try {
+            // Provisional "error": recordWebhookOutcome() replaces it with the
+            // real outcome. If the process dies mid-delivery the row stays
+            // retryable instead of being acked as a duplicate.
+            await paymentWebhookEventModel.create({ eventId, event, outcome: 'error' });
+        } catch (claimErr) {
+            if (claimErr?.code === 11000) {
+                // A previous delivery created this row. If that attempt failed
+                // (outcome "error"), Razorpay is retrying us: remove the failed
+                // ledger row and process the event again.
+                const removed = await paymentWebhookEventModel
+                    .deleteOne({ eventId, outcome: 'error' })
+                    .catch((deleteErr) => {
+                        console.error(`[req:${req.id}] Webhook retry claim failed for ${eventId}:`, deleteErr.message);
+                        return { deletedCount: 0 };
+                    });
 
-      case 'payment.failed':
-        await handlePaymentFailedWebhook(payload);
-        break;
-
-      case 'refund.processed':
-        await handleRefundProcessed(payload);
-        break;
-
-      case 'refund.failed':
-        await handleRefundFailed(payload);
-        break;
-
-      case 'order.paid':
-        await handleOrderPaid(payload);
-        break;
-
-      default:
-        console.log(`Unhandled webhook event: ${event}`);
+                if (removed.deletedCount === 1) {
+                    console.log(`Webhook ${eventId} retrying after a failed attempt`);
+                } else {
+                    console.log(`Webhook ${eventId} already processed — acknowledging duplicate`);
+                    return res.status(200).json({ success: true, message: 'Duplicate event ignored' });
+                }
+            } else {
+                // A ledger write failure is transient (e.g. DB down). Let Razorpay retry.
+                console.error(`[req:${req.id}] Webhook ledger claim failed for ${eventId}:`, claimErr.message);
+                return res.status(500).json({ success: false, message: 'Webhook could not be recorded' });
+            }
+        }
     }
 
-    // Always respond with 200 to acknowledge webhook receipt
-    res.status(200).json({ 
-      success: true,
-      message: 'Webhook processed'
-    });
+    // Pull the entity out of the event-specific payload shape
+    const entity =
+        payload?.payment?.entity ??
+        payload?.refund?.entity ??
+        payload?.order?.entity ??
+        null;
 
+    // FoodFest tickets are not Orders - they live in their own collection, so
+    // the order lookup below would never find them. Without this branch a ticket
+    // paid over Razorpay stayed pending_payment and the sweeper later expired a
+    // ticket the customer had actually paid for. The marker is written by
+    // purchaseTicket as notes.kind.
+
+    const entityForTickets = payload?.payment?.entity ?? null;
+    if (
+        event === 'payment.captured' &&
+        entityForTickets?.notes?.kind === 'foodfest_ticket'
+    ) {
+        const result = await finalizeTicketPayment(
+            entityForTickets.order_id,
+            entityForTickets.id,
+            null // webhook already authenticated the event; no signature to re-check
+        );
+
+        const settled = Boolean(result?.success || result?.alreadyFinalised);
+        const retryable = Boolean(result?.retryable);
+
+        // Record the real outcome.
+        await recordWebhookOutcome(
+            eventId,
+            {
+                action: settled ? ACTION.APPLY : ACTION.REJECT,
+                reason: result?.code || (result?.alreadyFinalised ? 'already_finalised' : 'foodfest_ticket')
+            },
+            retryable
+        );
+
+        if (retryable) {
+            // The money was captured but the refund is not done yet 
+            // A 200 would make Razorpay drop the event, so fail the delivery to trigger a retry.
+            console.error(
+                `[req:${req.id}] FoodFest ticket refund pending:`,
+                result?.code || 'unknown'
+            );
+            return res.status(503).json({
+                success: false,
+                handled: 'foodfest_ticket',
+                finalized: false,
+                refunded: false,
+                retryable: true
+            });
+        }
+
+        if (!settled) {
+            console.error(
+                `[req:${req.id}] FoodFest ticket not finalized:`,
+                result?.code || 'unknown',
+                result?.refunded ? `(auto-refund ${result.refundId})` : '(no refund recorded)'
+            );
+        }
+
+        return res.status(200).json({
+            success: true,
+            handled: 'foodfest_ticket',
+            finalized: Boolean(result?.success),
+            refunded: Boolean(result?.refunded)
+        });
+    }
+
+    // Locate the order this event refers to
+    const lookup = resolveOrderKey(event, entity);
+    let order = null;
+    if (lookup.byId) {
+        order = await orderModel.findById(lookup.byId).catch(() => null);
+    } else if (lookup.byPaymentId) {
+        order = await orderModel
+            .findOne({ 'paymentDetails.razorpayPaymentId': lookup.byPaymentId })
+            .catch(() => null);
+    } else if (lookup.byRazorpayOrderId) {
+        order = await orderModel
+            .findOne({ 'paymentDetails.razorpayOrderId': lookup.byRazorpayOrderId })
+            .catch(() => null);
+    }
+
+    const decision = decideWebhookAction({ event, entity, order });
+    await recordWebhookOutcome(eventId, decision);
+
+    switch (decision.action) {
+        case ACTION.APPLY:
+            await applyWebhookChanges(order, decision);
+            break;
+
+        case ACTION.REJECT:
+            // The event is authentic but contradicts our records. Acknowledge it —
+            console.error(
+                `[req:${req.id}] Webhook REJECTED ${event}:`,
+                JSON.stringify({
+                    code: decision.code,
+                    message: decision.message,
+                    order: order?._id,
+                    lookup,
+                    expectedAmount: decision.expectedAmount,
+                    receivedAmount: decision.receivedAmount,
+                })
+            );
+            break;
+
+        default:
+            console.log(`Webhook ${event} ignored: ${decision.reason}`);
+    }
+
+    return res.status(200).json({ success: true, message: 'Webhook processed' });
   } catch (error) {
     console.error('Webhook processing error:', error);
-    // Still return 200 to prevent Razorpay retries for processing errors
-    res.status(200).json({ 
+    // Return 5xx so Razorpay retries. The previous behaviour acknowledged every
+    // failure with 200, which silently discarded any event we failed to handle.
+    if (eventId) await recordWebhookOutcome(eventId, { action: 'reject', code: 'PROCESSING_ERROR' }, true);
+    res.status(500).json({
       success: false,
-      message: 'Webhook received but processing failed'
+      message: 'Webhook processing failed'
     });
   }
 };
 
-// Helper: Handle payment captured event
-const handlePaymentCaptured = async (payload) => {
+// Record why an event was handled the way it was, for later auditing.
+const recordWebhookOutcome = async (eventId, decision, isError = false) => {
+  if (!eventId) return;
+  const outcome = isError
+    ? 'error'
+    : decision.action === ACTION.APPLY
+      ? 'applied'
+      : decision.action === ACTION.REJECT
+        ? 'rejected'
+        : 'ignored';
   try {
-    const payment = payload.payment.entity;
-    const orderId = payment.notes?.orderId;
-
-    if (!orderId) {
-      console.error('Order ID not found in payment notes');
-      return;
-    }
-
-    const order = await orderModel.findById(orderId);
-    if (!order) {
-      console.error(`Order not found: ${orderId}`);
-      return;
-    }
-
-    // Update order if payment not already marked as completed
-    if (order.paymentDetails.status !== 'completed') {
-      order.paymentDetails.razorpayPaymentId = payment.id;
-      order.paymentDetails.status = 'completed';
-      order.paymentDetails.paidAt = new Date(payment.created_at * 1000);
-      order.status = 'confirmed';
-      
-      order.orderNotes.push({
-        note: 'Payment captured via webhook',
-        addedBy: 'system'
-      });
-
-      await order.save();
-      console.log(`Order ${orderId} updated via payment.captured webhook`);
-    }
-  } catch (error) {
-    console.error('Error handling payment.captured:', error);
+    await paymentWebhookEventModel.updateOne(
+      { eventId },
+      { $set: { outcome, detail: decision.reason || decision.code || decision.message } }
+    );
+  } catch (e) {
+    console.error('Failed to record webhook outcome:', e.message);
   }
 };
 
-// Helper: Handle payment failed event from webhook
-const handlePaymentFailedWebhook = async (payload) => {
-  try {
-    const payment = payload.payment.entity;
-    const orderId = payment.notes?.orderId;
+// Apply a decision. Each field is written only when the decision allows it.
+const applyWebhookChanges = async (order, decision) => {
+  if (!order) return;
+  const { changes, note, paidAt } = decision;
 
-    if (!orderId) {
-      console.error('Order ID not found in payment notes');
-      return;
+  if (changes.paymentStatus) {
+    order.paymentDetails.status = changes.paymentStatus;
+    if (changes.paymentStatus === 'completed') {
+      if (changes.razorpayPaymentId) order.paymentDetails.razorpayPaymentId = changes.razorpayPaymentId;
+      order.paymentDetails.paidAt = paidAt || new Date();
+      order.paymentDetails.transactionId = changes.razorpayPaymentId;
     }
-
-    const order = await orderModel.findById(orderId);
-    if (!order) {
-      console.error(`Order not found: ${orderId}`);
-      return;
-    }
-
-    order.paymentDetails.status = 'failed';
-    order.status = 'cancelled';
-    
-    order.orderNotes.push({
-      note: `Payment failed via webhook: ${payment.error_description || 'Unknown error'}`,
-      addedBy: 'system'
-    });
-
-    await order.save();
-    console.log(`Order ${orderId} marked as failed via webhook`);
-  } catch (error) {
-    console.error('Error handling payment.failed webhook:', error);
   }
-};
 
-// Helper: Handle refund processed event
-const handleRefundProcessed = async (payload) => {
-  try {
-    const refund = payload.refund.entity;
-    const paymentId = refund.payment_id;
-
-    // Find order by payment ID
-    const order = await orderModel.findOne({
-      'paymentDetails.razorpayPaymentId': paymentId
-    });
-
-    if (!order) {
-      console.error(`Order not found for payment ID: ${paymentId}`);
-      return;
+  if (changes.orderStatus) {
+    order.status = changes.orderStatus;
+    if (changes.orderStatus === 'confirmed') order.statusTimestamps.confirmedAt = new Date();
+    if (changes.orderStatus === 'cancelled') {
+      order.cancellation.isCancelled = true;
+      order.cancellation.cancelledBy = order.cancellation.cancelledBy || 'system';
+      order.cancellation.cancelledAt = order.cancellation.cancelledAt || new Date();
     }
-
-    order.cancellation.refundStatus = 'completed';
-    order.cancellation.refundAmount = refund.amount / 100; // Convert paise to rupees
-    
-    order.orderNotes.push({
-      note: `Refund completed: ₹${refund.amount / 100}. Refund ID: ${refund.id}`,
-      addedBy: 'system'
-    });
-
-    await order.save();
-    console.log(`Refund processed for order ${order._id}`);
-  } catch (error) {
-    console.error('Error handling refund.processed webhook:', error);
   }
-};
 
-// Helper: Handle refund failed event
-const handleRefundFailed = async (payload) => {
-  try {
-    const refund = payload.refund.entity;
-    const paymentId = refund.payment_id;
-
-    const order = await orderModel.findOne({
-      'paymentDetails.razorpayPaymentId': paymentId
-    });
-
-    if (!order) {
-      console.error(`Order not found for payment ID: ${paymentId}`);
-      return;
-    }
-
-    order.cancellation.refundStatus = 'failed';
-    
-    order.orderNotes.push({
-      note: `Refund failed: ${refund.error_description || 'Unknown error'}`,
-      addedBy: 'system'
-    });
-
-    await order.save();
-    console.log(`Refund failed for order ${order._id}`);
-  } catch (error) {
-    console.error('Error handling refund.failed webhook:', error);
+  if (changes.refundStatus) {
+    order.cancellation.refundStatus = changes.refundStatus;
+    if (changes.refundAmount !== undefined) order.cancellation.refundAmount = changes.refundAmount;
   }
-};
 
-// Helper: Handle order paid event
-const handleOrderPaid = async (payload) => {
-  try {
-    const order = payload.order.entity;
-    const orderId = order.notes?.orderId;
+  if (note) order.orderNotes.push({ note, addedBy: 'system' });
 
-    if (!orderId) {
-      console.error('Order ID not found in order notes');
-      return;
-    }
-
-    const dbOrder = await orderModel.findById(orderId);
-    if (!dbOrder) {
-      console.error(`Order not found: ${orderId}`);
-      return;
-    }
-
-    if (dbOrder.paymentDetails.status !== 'completed') {
-      dbOrder.paymentDetails.status = 'completed';
-      dbOrder.status = 'confirmed';
-      
-      dbOrder.orderNotes.push({
-        note: 'Order marked as paid via webhook',
-        addedBy: 'system'
-      });
-
-      await dbOrder.save();
-      console.log(`Order ${orderId} marked as paid via webhook`);
-    }
-  } catch (error) {
-    console.error('Error handling order.paid webhook:', error);
-  }
+  await order.save();
+  console.log(`Webhook applied to order ${order._id}: ${JSON.stringify(changes)}`);
 };

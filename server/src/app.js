@@ -11,47 +11,109 @@ import followRoutes from './routes/follow.route.js';
 import reviewRoutes from './routes/review.route.js';
 import commentRoutes from './routes/comment.route.js';
 import adminRoutes from './routes/admin.route.js';
+import foodfestAdminRoutes from './routes/foodfest/admin.routes.js';
+import foodfestPartnerRoutes from './routes/foodfest/partner.routes.js';
+import foodfestUserRoutes from './routes/foodfest/user.routes.js';
+import foodfestOrganizerRoutes from './routes/foodfest/organizer.routes.js';
+import foodfestGateRoutes from './routes/foodfest/gate.routes.js';
 import cartRoutes from './routes/cart.route.js';
 import emailRoutes from './routes/email.route.js';
+import contactRoutes from './routes/contact.route.js';
 import cors from 'cors';
 import helmet from "helmet";
+import mongoose from 'mongoose';
 import { globalRateLimiter } from './middlewares/rateLimiter.js';
 import { sanitizeInput } from './middlewares/sanitization.js';
+import { requestId, accessLog } from './middlewares/requestId.js';
 
 const app = express() 
 
-// CORS configuration for production and development
+// Behind Render's reverse proxy — without this, req.ip resolves to the proxy
+// IP for every client and the rate limiter shares ONE bucket for the whole site.
+app.set('trust proxy', 1);
+
+// CORS configuration for production and development.
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  (process.env.FRONTEND_URL || '').replace(/\/$/, ''),
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    if (allowedOrigins.indexOf(origin.replace(/\/$/, '')) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Do not throw: a thrown error surfaces as a 500 from the error
+      // handler instead of a clean CORS rejection.
+      callback(null, false);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie'],
+  // Idempotency-Key is sent by Checkout.jsx on POST /api/orders - without it in the preflight allowlist the browser blocks every production checkout.
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key'],
   maxAge: 86400 // 24 hours
 }))
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (req.path.startsWith('/api/payment/webhook')) return next();
+
+  const origin = req.get('Origin');
+  if (origin) {
+    if (allowedOrigins.includes(origin.replace(/\/$/, ''))) return next();
+    return res.status(403).json({ error: 'Cross-site request blocked' });
+  }
+
+  if (req.get('Cookie') && process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Cross-site request blocked' });
+  }
+  next();
+});
  
+// Correlation id + one structured access-log line per request. Mounted first so
+// every later middleware and controller can reference req.id.
+app.use(requestId);
+app.use(accessLog);
+
 app.use(globalRateLimiter);  // Global rate limiter
 
-app.use(express.json({ limit: '1mb' }));
-app.use(helmet());
+// Razorpay signs the RAW request bytes — capture the body as a Buffer for the
+// webhook route BEFORE express.json() consumes the stream. body-parser sets
+// req._body after parsing, so express.json() below skips this route.
+app.use('/api/payment/webhook', express.raw({ type: '*/*' }));
+app.use(express.json({ limit: '64kb' }));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(sanitizeInput);
+
+// Clamp pagination query params (M12): controllers pass req.query.limit/skip
+// straight into .limit()/.skip() — a huge limit from the client becomes an
+// unbounded DB query. Express 5's req.query is a getter, but sanitizeInput
+// replaced it with a plain object we can safely mutate.
+app.use((req, res, next) => {
+  if (req.query && typeof req.query === 'object') {
+    if (req.query.limit !== undefined) {
+      const n = parseInt(req.query.limit, 10);
+      req.query.limit = (Number.isFinite(n) && n > 0) ? Math.min(n, 100) : 10;
+    }
+    if (req.query.skip !== undefined) {
+      const n = parseInt(req.query.skip, 10);
+      req.query.skip = (Number.isFinite(n) && n > 0) ? n : 0;
+    }
+    if (req.query.page !== undefined) {
+      const n = parseInt(req.query.page, 10);
+      req.query.page = (Number.isFinite(n) && n > 0) ? n : 1;
+    }
+  }
+  next();
+});
 app.use(cookieParser());
 app.use('/api/auth',authRoutes);
-app.use('/api/food',foodRoutes);
+// userPostRoutes is mounted BEFORE foodRoutes on purpose: both live under
+// /api/food, and foodRoutes declares a catch-all `GET /:id`
 app.use('/api/food', userPostRoutes);
+app.use('/api/food',foodRoutes);
 app.use('/api/posts', userPostRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reviews', reviewRoutes);
@@ -63,11 +125,37 @@ app.use('/api/advertisement',advertisementRoutes);
 app.use('/api/user',userRoutes);
 app.use('/api/payment',paymentRoutes);
 app.use('/api/admin',adminRoutes);
+app.use('/api/foodfest/admin', foodfestAdminRoutes);
+app.use('/api/foodfest/partner', foodfestPartnerRoutes);
+app.use('/api/foodfest/user', foodfestUserRoutes);
+app.use('/api/foodfest/organizer', foodfestOrganizerRoutes);
+app.use('/api/foodfest/gate', foodfestGateRoutes);
 app.use('/api/emails',emailRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+let healthCache = { at: 0, mongo: false };
+const HEALTH_CACHE_MS = 5000;
+
+app.get('/health', async (req, res) => {
+  const now = Date.now();
+  if (now - healthCache.at > HEALTH_CACHE_MS) {
+    let mongoUp = false;
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.db.admin().ping();
+        mongoUp = true;
+      }
+    } catch {
+      mongoUp = false;
+    }
+    healthCache = { at: now, mongo: mongoUp };
+  }
+  res.status(200).json({
+    status: healthCache.mongo ? 'ok' : 'degraded',
+    mongo: healthCache.mongo ? 'up' : 'down',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Root endpoint
@@ -83,8 +171,28 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+
+  // Multer errors are client errors — must not surface as 500
+  if (err && err.name === 'MulterError') {
+    const tooLarge = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooLarge ? 413 : 400).json({
+      error: tooLarge
+        ? `File too large. Maximum size allowed: ${((err.limit || 0) / (1024 * 1024))}MB`
+        : (err.message || 'Invalid file upload')
+    });
+  }
+
+  const status = err.status || 500;
+  // M15: never leak internal error messages for unhandled (500) errors in
+  // production — they can expose stack/db details. Explicit err.status (4xx
+  // set by our code) is safe to relay.
+  const isProd = process.env.NODE_ENV === 'production';
+  const message = (status < 500 || !isProd) && err.message
+    ? err.message
+    : 'Internal Server Error';
+
+  res.status(status).json({
+    error: message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });

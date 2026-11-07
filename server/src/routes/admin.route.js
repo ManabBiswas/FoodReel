@@ -1,12 +1,29 @@
 import express from 'express';
 import adminController from '../controllers/admin.controller.js';
+import {
+    listContactMessages,
+    updateContactMessageStatus,
+    replyToContactMessage
+} from '../controllers/contact.controller.js';
+import { getPendingRefunds, decidePendingRefund } from '../controllers/adminRefund.controller.js';
+import { getPendingCancelRequests, decideCancelRequest } from '../controllers/adminCancelRequest.controller.js';
 import isAdmin from '../middlewares/isAdmin.js';
+import { adminRateLimiter } from '../middlewares/rateLimiter.js';
+import { validateParams, isObjectId } from '../utils/validate.js';
 
 const router = express.Router();
 
+const adminIdParams = validateParams({
+    adminId: { check: isObjectId, message: 'adminId must be a valid id' }
+});
+
+const messageIdParams = validateParams({
+    messageId: { check: isObjectId, message: 'messageId must be a valid id' }
+});
+
 // ============ AUTH ROUTES ============
-// POST /api/admin/login - Admin login
-router.post('/login', adminController.login);
+// POST /api/admin/login - Admin login (rate-limited: unauthenticated endpoint to stop brute force)
+router.post('/login', adminRateLimiter, adminController.login);
 
 // POST /api/admin/logout - Admin logout
 router.post('/logout', isAdmin, adminController.logout);
@@ -19,7 +36,23 @@ router.get('/profile', isAdmin, adminController.getAdminProfile);
 
 // ============ DASHBOARD ROUTES ============
 // GET /api/admin/dashboard - Get dashboard statistics
-router.get('/dashboard', isAdmin, adminController.getDashboardStats);
+router.get('/dashboard', isAdmin, adminRateLimiter, adminController.getDashboardStats);
+
+// Live poll target: metadata counters + newest order only (no aggregation)
+router.get('/dashboard/live', isAdmin, adminRateLimiter, adminController.getDashboardLive);
+
+// Daily revenue/order buckets for the trend chart (range=7d|30d|90d)
+router.get('/dashboard/timeseries', isAdmin, adminRateLimiter, adminController.getDashboardTimeseries);
+
+// ============ CONTACT MESSAGE INBOX ============
+router.get('/contact-messages', isAdmin, listContactMessages);
+
+router.patch('/contact-messages/:messageId/status', isAdmin, messageIdParams, updateContactMessageStatus);
+
+router.post('/contact-messages/:messageId/reply', isAdmin, messageIdParams, replyToContactMessage);
+
+// ============ ADMIN MANAGEMENT ROUTES ============
+router.put('/admins/:adminId/active', isAdmin, adminIdParams, adminController.toggleAdminActive);
 
 // ============ USER MANAGEMENT ROUTES ============
 // GET /api/admin/users - Get all users
@@ -79,6 +112,9 @@ router.get('/reviews', isAdmin, adminController.getAllReviews);
 // DELETE /api/admin/reviews/:reviewId - Delete review
 router.delete('/reviews/:reviewId', isAdmin, adminController.deleteReview);
 
+// PATCH /api/admin/reviews/:reviewId/status - Moderate review (pending/approved/rejected/flagged)
+router.patch('/reviews/:reviewId/status', isAdmin, adminController.updateReviewStatus);
+
 // ============ ORDERS MANAGEMENT ============
 // GET /api/admin/orders - Get all orders
 router.get('/orders', isAdmin, adminController.getAllOrders);
@@ -103,4 +139,25 @@ router.get('/support-tickets', isAdmin, adminController.getSupportTickets);
 // PUT /api/admin/support-tickets/:ticketId - Update support ticket status
 router.put('/support-tickets/:ticketId', isAdmin, adminController.updateSupportTicket);
 
-export default router
+// ============ REFUND APPROVAL ROUTES ============
+// A partner cancellation parks the refund in pending_approval. These are the only ways out, so they must exist or the customer's money is stranded.
+
+// GET /api/admin/refunds/pending - Refunds awaiting a decision (oldest first)
+router.get('/refunds/pending', isAdmin, adminRateLimiter, getPendingRefunds);
+
+// POST /api/admin/orders/:orderId/refund/decision - Approve or reject a refund
+// body: { decision: 'approve' | 'reject', note?: string }
+router.post('/orders/:orderId/refund/decision', isAdmin, adminRateLimiter, decidePendingRefund);
+
+// ============ PARTNER CANCELLATION REQUESTS ============
+// A partner whose food is already being prepared cannot cancel unilaterally.
+// These requests wait here for a human to approve or reject them.
+
+// GET /api/admin/cancel-requests - Cancellation requests awaiting a decision (oldest first)
+router.get('/cancel-requests', isAdmin, adminRateLimiter, getPendingCancelRequests);
+
+// POST /api/admin/orders/:orderId/cancel-request/decision - Approve or reject a request
+// body: { decision: 'approve' | 'reject', note?: string }
+router.post('/orders/:orderId/cancel-request/decision', isAdmin, adminRateLimiter, decideCancelRequest);
+
+export default router;

@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { ChefHat, MapPin, UserPlus, UserCheck, Clock } from 'lucide-react'
+import displayName from '../utils/displayName'
+import getProfileImageUrl from '../utils/profileImage'
 
-const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
+const ReelBottomInfo = ({ item, isFollowing, onFollow, formatDate }) => {
   if (item.type !== 'post') return null
 
   return (
@@ -11,8 +13,16 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
         {item.postSource === 'partner' && item.partnerId && (
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-600 p-0.5 flex-shrink-0">
-              <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                <ChefHat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
+                {getProfileImageUrl(item.partnerId) ? (
+                  <img
+                    src={getProfileImageUrl(item.partnerId)}
+                    alt={displayName(item.partnerId)}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <ChefHat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                )}
               </div>
             </div>
             <div className="flex-1 min-w-0">
@@ -29,12 +39,12 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
             <button 
               onClick={() => onFollow(item.partnerId._id, 'FoodPartner')}
               className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
-                followingStatus[item.partnerId._id] 
+                isFollowing 
                   ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
                   : 'bg-white text-black hover:bg-white/90'
               }`}
             >
-              {followingStatus[item.partnerId._id] ? (
+              {isFollowing ? (
                 <>
                   <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   Following
@@ -54,22 +64,23 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
           <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 p-0.5 flex-shrink-0">
               <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                {item.postedBy.profileImage ? (
-                  <img 
-                    src={item.postedBy.profileImage} 
-                    alt={item.postedBy.name}
+    {/* profile image or initial */}
+                {getProfileImageUrl(item.postedBy) ? (
+                  <img
+                    src={getProfileImageUrl(item.postedBy)}
+                    alt={displayName(item.postedBy)}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
                   <span className="text-white text-xs sm:text-sm font-bold">
-                    {item.postedBy.name?.[0]?.toUpperCase() || 'U'}
+                    {displayName(item.postedBy)?.[0]?.toUpperCase() || 'U'}
                   </span>
                 )}
               </div>
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-white font-semibold text-xs sm:text-sm truncate">
-                {item.postedBy.name || item.postedBy.email || 'User'}
+                {displayName(item.postedBy)}
               </h4>
               {item.taggedPartner && (
                 <p className="text-white/70 text-[10px] sm:text-xs truncate">
@@ -80,12 +91,12 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
             <button 
               onClick={() => onFollow(item.postedBy._id, 'User')}
               className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
-                followingStatus[item.postedBy._id] 
+                isFollowing 
                   ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' 
                   : 'bg-white text-black hover:bg-white/90'
               }`}
             >
-              {followingStatus[item.postedBy._id] ? (
+              {isFollowing ? (
                 <>
                   <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   Following
@@ -123,4 +134,4 @@ const ReelBottomInfo = ({ item, followingStatus, onFollow, formatDate }) => {
   )
 }
 
-export default ReelBottomInfo
+export default memo(ReelBottomInfo)

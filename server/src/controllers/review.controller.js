@@ -7,17 +7,20 @@ import orderModel from "../models/order.model.js";
 
 // Create a review
 export const createReview = async (req, res) => {
+    let userId, foodItemId, rating, comment, sanitizedRatings, resolvedFoodPartnerId, images, isVerifiedPurchase;
+
     try {
-        const userId = req.user._id;
+        userId = req.user._id;
+        const body = req.body || {};
         const {
             foodPartnerId,
-            foodItemId,
             orderId,
-            rating,
-            comment,
-            images,
             ratings // Detailed ratings object
-        } = req.body;
+        } = body;
+        images = body.images;
+        foodItemId = body.foodItemId;
+        rating = body.rating;
+        comment = body.comment;
 
         // Validate required fields
         if (!foodPartnerId || !rating || !comment) {
@@ -36,11 +39,12 @@ export const createReview = async (req, res) => {
         }
 
 
-        let resolvedFoodPartnerId = foodPartnerId;
-        if (!resolvedFoodPartnerId && foodItemId) {
+        let resolvedFoodPartnerIdLocal = foodPartnerId;
+        if (!resolvedFoodPartnerIdLocal && foodItemId) {
             const foodItem = await foodModel.findById(foodItemId).select('foodPartner');
-            resolvedFoodPartnerId = foodItem?.foodPartner;
+            resolvedFoodPartnerIdLocal = foodItem?.foodPartner;
         }
+        resolvedFoodPartnerId = resolvedFoodPartnerIdLocal;
 
         if (!resolvedFoodPartnerId) {
             return res.status(400).json({
@@ -49,27 +53,21 @@ export const createReview = async (req, res) => {
             });
         }
 
-        // Check if user has already reviewed this combination (prefer foodItem if available)
-        // const existingReviewQuery = {
-        //     user: userId,
-        //     isActive: true
-        // };
-        // if (foodItemId) {
-        //     existingReviewQuery.foodItem = foodItemId;
-        // } else {
-        //     existingReviewQuery.foodPartner = resolvedFoodPartnerId;
-        // }
+        // Sanitize detailed ratings: schema requires 1..5, so sending 0 for an
 
-        // const existingReview = await reviewModel.findOne(existingReviewQuery);
-        // // if (existingReview) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "You have already reviewed this"
-        //     });
-        // }
+        let sanitizedRatingsLocal = {};
+        if (ratings && typeof ratings === 'object') {
+            for (const key of ['food', 'service', 'ambiance', 'value']) {
+                const v = Number(ratings[key]);
+                if (Number.isFinite(v) && v >= 1 && v <= 5) sanitizedRatingsLocal[key] = v;
+            }
+        }
+        sanitizedRatings = sanitizedRatingsLocal;
 
-        // Check if verified purchase (if order ID provided)
-        let isVerifiedPurchase = false;
+        // Check if verified purchase (if order ID provided). Needed by both the
+        // create path and the duplicate-key merge in the catch, so it is resolved
+        // into the hoisted variable before either runs.
+        isVerifiedPurchase = false;
         if (orderId) {
             const order = await orderModel.findOne({
                 _id: orderId,
@@ -77,6 +75,68 @@ export const createReview = async (req, res) => {
                 status: 'delivered'
             });
             isVerifiedPurchase = !!order;
+        }
+
+        // Find a review the user already left in this scope.
+        let existingReview = null;
+        if (foodItemId) {
+            existingReview = await reviewModel.findOne({
+                user: userId,
+                isActive: true,
+                foodItem: foodItemId
+            });
+            if (!existingReview) {
+                existingReview = await reviewModel.findOne({
+                    user: userId,
+                    isActive: true,
+                    foodItem: null,
+                    foodPartner: resolvedFoodPartnerId
+                });
+                // Only promote when nothing already claims this item, so the save
+                // cannot collide with uniq_active_user_fooditem.
+                if (existingReview) existingReview.foodItem = foodItemId;
+            }
+        } else {
+            // Restaurant-level: match ONLY a restaurant-level review. Without the
+            // foodItem: null filter this also matched item reviews, so a user who
+            // had reviewed any dish could never file a general review — it was
+            // written into their item review instead.
+            existingReview = await reviewModel.findOne({
+                user: userId,
+                isActive: true,
+                foodItem: null,
+                foodPartner: resolvedFoodPartnerId
+            });
+        }
+
+        // Already reviewed this scope -> update that review instead
+        if (existingReview) {
+            existingReview.rating = rating;
+            existingReview.comment = comment;
+            existingReview.ratings = sanitizedRatings;
+            if (images !== undefined) existingReview.images = images || [];
+            // A later verified order can upgrade a review submitted earlier.
+            if (isVerifiedPurchase) existingReview.isVerifiedPurchase = true;
+            // An edited rejected/flagged review gets a fresh moderation pass.
+            if (existingReview.status === 'rejected' || existingReview.status === 'flagged') {
+                existingReview.status = 'pending';
+            }
+            await existingReview.save();
+
+            // The rating may have moved, so the partner's aggregate must follow.
+            await updateFoodPartnerRatings(existingReview.foodPartner);
+
+            const updatedReview = await reviewModel
+                .findById(existingReview._id)
+                .populate('user', 'firstName lastName profileImage')
+                .populate('foodItem', 'name image');
+
+            return res.status(200).json({
+                success: true,
+                updated: true,
+                message: "Review updated successfully",
+                data: updatedReview
+            });
         }
 
         // Create review
@@ -88,7 +148,7 @@ export const createReview = async (req, res) => {
             rating,
             comment,
             images: images || [],
-            ratings: ratings || {},
+            ratings: sanitizedRatings,
             isVerifiedPurchase,
             status: 'approved'
         });
@@ -110,16 +170,66 @@ export const createReview = async (req, res) => {
 
         res.status(201).json({
             success: true,
+            updated: false,
             message: "Review created successfully",
             data: populatedReview
         });
 
     } catch (error) {
+        // Two submits raced past the lookup; the unique index let exactly one
+        // through. Fold this one into the winning review rather than surfacing a
+        // duplicate-key error the user can't act on.
+        if (error?.code === 11000) {
+            try {
+                // Deliberately NOT the same two-step lookup as the main path, which falls back
+                // to a restaurant-level row
+                let winner = null;
+                if (foodItemId) {
+                    winner = await reviewModel.findOne({
+                        user: userId, isActive: true, foodItem: foodItemId
+                    });
+                } else {
+                    winner = await reviewModel.findOne({
+                        user: userId, isActive: true,
+                        foodItem: null, foodPartner: resolvedFoodPartnerId
+                    });
+                }
+
+                if (winner) {
+                    winner.rating = rating;
+                    winner.comment = comment;
+                    winner.ratings = sanitizedRatings;
+                    // Match the main update path: carry images and the verified
+                    // upgrade, which the merge path previously dropped.
+                    if (images !== undefined) winner.images = images || [];
+                    if (isVerifiedPurchase) winner.isVerifiedPurchase = true;
+                    if (winner.status === 'rejected' || winner.status === 'flagged') {
+                        winner.status = 'pending';
+                    }
+                    await winner.save();
+                    await updateFoodPartnerRatings(winner.foodPartner);
+
+                    const merged = await reviewModel
+                        .findById(winner._id)
+                        .populate('user', 'firstName lastName profileImage')
+                        .populate('foodItem', 'name image');
+
+                    return res.status(200).json({
+                        success: true,
+                        updated: true,
+                        message: "Review updated successfully",
+                        data: merged
+                    });
+                }
+            } catch (mergeErr) {
+                console.error("Error merging raced review:", mergeErr);
+            }
+        }
         console.error("Error in createReview:", error);
         res.status(500).json({
             success: false,
             message: "Failed to create review",
-            error: error.message
+
         });
     }
 };
@@ -188,7 +298,7 @@ export const getReviewsByFoodPartner = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get reviews",
-            error: error.message
+
         });
     }
 };
@@ -241,7 +351,7 @@ export const getReviewsByFoodItem = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get reviews",
-            error: error.message
+
         });
     }
 };
@@ -254,21 +364,20 @@ export const getUserReviews = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
+        const query = { user: userId, isActive: true };
+        // Someone else's profile must not expose reviews that are awaiting or
+        // failed moderation; the owner can still see their own.
+        if (String(userId) !== String(req.user._id)) query.status = 'approved';
+
         const reviews = await reviewModel
-            .find({
-                user: userId,
-                isActive: true
-            })
+            .find(query)
             .populate('foodPartner', 'companyName username profileImage')
             .populate('foodItem', 'name image price')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        const total = await reviewModel.countDocuments({
-            user: userId,
-            isActive: true
-        });
+        const total = await reviewModel.countDocuments(query);
 
         res.status(200).json({
             success: true,
@@ -286,7 +395,7 @@ export const getUserReviews = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to get user reviews",
-            error: error.message
+
         });
     }
 };
@@ -312,10 +421,22 @@ export const updateReview = async (req, res) => {
         }
 
         // Update fields
-        if (rating) review.rating = rating;
+        if (rating !== undefined) {
+            const n = Number(rating);
+            if (!Number.isInteger(n) || n < 1 || n > 5) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Rating must be an integer between 1 and 5"
+                });
+            }
+            review.rating = n;
+        }
         if (comment) review.comment = comment;
         if (images) review.images = images;
         if (ratings) review.ratings = { ...review.ratings, ...ratings };
+        if (review.status === 'rejected' || review.status === 'flagged') {
+            review.status = 'pending';
+        }
 
         await review.save();
 
@@ -338,7 +459,7 @@ export const updateReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to update review",
-            error: error.message
+
         });
     }
 };
@@ -384,7 +505,7 @@ export const deleteReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to delete review",
-            error: error.message
+
         });
     }
 };
@@ -396,7 +517,11 @@ export const markReviewHelpful = async (req, res) => {
         const { helpful } = req.body; // true for helpful, false for not helpful
         const userId = req.user._id;
 
-        const review = await reviewModel.findById(reviewId);
+        const review = await reviewModel.findOne({
+            _id: reviewId,
+            isActive: true,
+            status: 'approved'
+        });
 
         if (!review) {
             return res.status(404).json({
@@ -405,34 +530,35 @@ export const markReviewHelpful = async (req, res) => {
             });
         }
 
+        const inHelpful = review.helpful.some(id => id.toString() === userId.toString());
+        const inNotHelpful = review.notHelpful.some(id => id.toString() === userId.toString());
+
         if (helpful) {
-            // Remove from notHelpful if exists
-            review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
-            
-            // Toggle helpful
-            const index = review.helpful.findIndex(id => id.toString() === userId.toString());
-            if (index > -1) {
-                review.helpful.splice(index, 1);
-                review.helpfulCount = Math.max(0, review.helpfulCount - 1);
+            if (inNotHelpful) {
+                review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
+            }
+            if (inHelpful) {
+                review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
             } else {
                 review.helpful.push(userId);
-                review.helpfulCount += 1;
             }
         } else {
-            // Remove from helpful if exists
-            review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
-            
-            // Toggle notHelpful
-            const index = review.notHelpful.findIndex(id => id.toString() === userId.toString());
-            if (index > -1) {
-                review.notHelpful.splice(index, 1);
-                review.notHelpfulCount = Math.max(0, review.notHelpfulCount - 1);
-                if (review.helpfulCount > 0) review.helpfulCount -= 1;
+            if (inHelpful) {
+                review.helpful = review.helpful.filter(id => id.toString() !== userId.toString());
+            }
+            if (inNotHelpful) {
+                review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId.toString());
             } else {
                 review.notHelpful.push(userId);
-                review.notHelpfulCount += 1;
             }
         }
+
+        // Derive counters from the arrays themselves so they can never drift
+        // again. The old logic never decremented notHelpfulCount when a vote
+        // was switched to helpful, and wrongly decremented helpfulCount when
+        // an un-helpful vote was retracted.
+        review.helpfulCount = review.helpful.length;
+        review.notHelpfulCount = review.notHelpful.length;
 
         await review.save();
 
@@ -450,7 +576,7 @@ export const markReviewHelpful = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to update review feedback",
-            error: error.message
+
         });
     }
 };
@@ -469,7 +595,11 @@ export const addReviewReply = async (req, res) => {
             });
         }
 
-        const review = await reviewModel.findById(reviewId);
+        const review = await reviewModel.findOne({
+            _id: reviewId,
+            isActive: true,
+            status: 'approved'
+        });
 
         if (!review) {
             return res.status(404).json({
@@ -502,7 +632,7 @@ export const addReviewReply = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to add reply",
-            error: error.message
+
         });
     }
 };
@@ -511,10 +641,11 @@ export const addReviewReply = async (req, res) => {
 export const respondToReview = async (req, res) => {
     try {
         const { reviewId } = req.params;
-        const { text } = req.body;
-        const foodPartnerId = req.user._id; // Assuming food partner is logged in
+        const { text, response } = req.body;
+        const responseText = typeof text === 'string' ? text : response;
+        const foodPartnerId = req.foodPartner._id;
 
-        if (!text || text.trim().length === 0) {
+        if (!responseText || responseText.trim().length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "Response text is required"
@@ -523,7 +654,9 @@ export const respondToReview = async (req, res) => {
 
         const review = await reviewModel.findOne({
             _id: reviewId,
-            foodPartner: foodPartnerId
+            foodPartner: foodPartnerId,
+            isActive: true,
+            status: 'approved'
         });
 
         if (!review) {
@@ -534,7 +667,7 @@ export const respondToReview = async (req, res) => {
         }
 
         review.response = {
-            text: text.trim(),
+            text: responseText.trim(),
             respondedAt: new Date(),
             respondedBy: foodPartnerId
         };
@@ -557,13 +690,39 @@ export const respondToReview = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to add response",
-            error: error.message
+
         });
     }
 };
 
+// Average each dimension over the reviews that actually scored it.
+export const computeRatingBreakdown = (reviews) => {
+    const breakdown = {
+        food: 0,
+        service: 0,
+        ambiance: 0,
+        value: 0
+    };
+    const counts = { food: 0, service: 0, ambiance: 0, value: 0 };
+
+    reviews.forEach(review => {
+        for (const key of Object.keys(breakdown)) {
+            const value = review.ratings?.[key];
+            if (typeof value === 'number' && value >= 1) {
+                breakdown[key] += value;
+                counts[key] += 1;
+            }
+        }
+    });
+
+    for (const key of Object.keys(breakdown)) {
+        breakdown[key] = counts[key] ? breakdown[key] / counts[key] : 0;
+    }
+    return breakdown;
+};
+
 // Helper function to update food partner ratings
-async function updateFoodPartnerRatings(foodPartnerId) {
+export async function updateFoodPartnerRatings(foodPartnerId) {
     try {
         const reviews = await reviewModel.find({
             foodPartner: foodPartnerId,
@@ -587,34 +746,7 @@ async function updateFoodPartnerRatings(foodPartnerId) {
 
         const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
         const averageRating = totalRating / reviews.length;
-
-        // Calculate detailed ratings breakdown
-        const breakdown = {
-            food: 0,
-            service: 0,
-            ambiance: 0,
-            value: 0
-        };
-
-        let detailedCount = 0;
-        reviews.forEach(review => {
-            if (review.ratings) {
-                if (review.ratings.food) {
-                    breakdown.food += review.ratings.food;
-                    detailedCount++;
-                }
-                if (review.ratings.service) breakdown.service += review.ratings.service;
-                if (review.ratings.ambiance) breakdown.ambiance += review.ratings.ambiance;
-                if (review.ratings.value) breakdown.value += review.ratings.value;
-            }
-        });
-
-        if (detailedCount > 0) {
-            breakdown.food = breakdown.food / detailedCount;
-            breakdown.service = breakdown.service / detailedCount;
-            breakdown.ambiance = breakdown.ambiance / detailedCount;
-            breakdown.value = breakdown.value / detailedCount;
-        }
+        const breakdown = computeRatingBreakdown(reviews);
 
         await foodPartnerModel.findByIdAndUpdate(foodPartnerId, {
             averageRating: Math.round(averageRating * 10) / 10,
@@ -624,6 +756,9 @@ async function updateFoodPartnerRatings(foodPartnerId) {
 
     } catch (error) {
         console.error("Error updating food partner ratings:", error);
+        // Callers must know the aggregate is stale; silently returning left
+        // the partner's public rating wrong with no way to detect it.
+        throw error;
     }
 }
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
+import { useAuth } from '../../hooks/useAuth'
 import { LogOut, Menu, X, RefreshCw, Bell, Zap } from 'lucide-react'
 
 import AdminGlobalStyles from '../../Components/admin/AdminGlobalStyles'
@@ -13,14 +12,18 @@ import UsersTab from '../../Components/admin/tabs/UsersTab'
 import PartnersTab from '../../Components/admin/tabs/PartnersTab'
 import ContentTab from '../../Components/admin/tabs/ContentTab'
 import OrdersTab from '../../Components/admin/tabs/OrdersTab'
+import CancelRequestsTab from '../../Components/admin/tabs/CancelRequestsTab'
 import ReviewsTab from '../../Components/admin/tabs/ReviewsTab'
 import AnalyticsTab from '../../Components/admin/tabs/AnalyticsTab'
+import EventProposalsTab from '../../Components/admin/tabs/EventProposalsTab'
+import EventManagementTab from '../../Components/admin/tabs/EventManagementTab'
 
 /* ═══════════════════════════════════════════════════════
    ADMIN DASHBOARD — Thin Shell
 ═══════════════════════════════════════════════════════ */
 const AdminDashboard = () => {
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState('')
@@ -28,9 +31,9 @@ const AdminDashboard = () => {
 
   /* ── Logout ────────────────────────────────────────── */
   const handleLogout = async () => {
-    try { await axios.post(API_ENDPOINTS.auth.adminLogout, {}, axiosConfig) } catch {
-      console.warn('Logout request failed')
-     }
+    // Context logout clears the admin cookie AND auth state — otherwise
+    // ProtectedRoute sees the user as still authenticated and bounces.
+    await logout()
     navigate('/admin-login')
   }
 
@@ -134,6 +137,9 @@ const AdminDashboard = () => {
           {activeTab === 'partners' && <PartnersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'content' && <ContentTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'orders' && <OrdersTab navigate={navigate} setError={setError} />}
+      {activeTab === 'cancels' && <CancelRequestsTab navigate={navigate} setError={setError} />}
+      {activeTab === 'event-proposals' && <EventProposalsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
+      {activeTab === 'events' && <EventManagementTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'reviews' && <ReviewsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
           {activeTab === 'analytics' && <AnalyticsTab navigate={navigate} setError={setError} />}
         </div>

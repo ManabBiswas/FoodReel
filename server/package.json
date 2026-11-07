@@ -4,35 +4,54 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "check:imports": "node check-imports.cjs src",
+    "sweep": "node scripts/data-sweep.mjs",
+    "exploit:repro": "node scripts/exploit-repro.mjs",
+    "webhook:repro": "node scripts/webhook-repro.mjs",
+    "test:refund-race": "node scripts/refund-race.mjs",
+    "test:cancel-refund": "node scripts/cancel-autorefund.mjs",
+    "test:gap-closure": "node scripts/gap-closure.mjs",
+    "test:sweeper": "node scripts/sweeper-repro.mjs"
   },
   "keywords": [],
   "author": "Manab Biswas",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
     "dotenv": "^17.2.2",
-    "ejs": "^3.1.10",
     "express": "^5.1.0",
-    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.1.0",
-    "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.18.1",
-    "multer": "^2.0.2",
-    "nodemailer": "^8.0.1",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.1.1",
+    "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
-    "uuid": "^13.0.0",
-    "xss": "^1.0.15",
-    "xss-clean": "^0.1.4"
+    "socket.io": "^4.8.3",
+    "uuid": "^14.0.3",
+    "xss": "^1.0.15"
+  },
+  "overrides": {
+    "proxy-addr": "2.0.8",
+    "imagekit": {
+      "uuid": "^11.1.1"
+    }
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
   }
 }

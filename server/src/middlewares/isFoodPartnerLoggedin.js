@@ -19,6 +19,20 @@ async function isFoodPartnerLoggedin(req, res, next) {
                 message: "Partner not found" 
             });
         }
+
+        if (foodPartner.isBlocked) {
+            return res.status(403).json({
+                isAuthenticated: false,
+                message: "Your account has been blocked. Please contact support."
+            });
+        }
+
+        if ((decoded.tv ?? 0) !== (foodPartner.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Session expired, please log in again"
+            });
+        }
         
         req.foodPartner = foodPartner;
         next();

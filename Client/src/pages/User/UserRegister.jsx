@@ -1,58 +1,43 @@
 import React, { useState } from 'react'
 import axios from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useNavigate, Link } from 'react-router-dom'
-import { showSuccess, showError } from '../../utils/toast'
-import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
-import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2, Phone, Home } from 'lucide-react'
+import { showError, showSuccess } from '../../utils/toast'
+import { API_ENDPOINTS, multipartConfig } from '../../config/Api'
+import AuthShell from '../../Components/auth/AuthShell'
+import AuthField from '../../Components/auth/AuthField'
+
+const initialForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  mobile: ''
+}
 
 const UserRegister = () => {
-
-  const { loginUser } = useAuth()
+  const { checkAuth } = useAuth()
   const navigate = useNavigate()
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    mobile: '',
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
+  const [formData, setFormData] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-
-    // Clear error when user starts typing
+  const handleInputChange = (event) => {
+    const { name, value } = event.target
+    setFormData((current) => ({ ...current, [name]: value }))
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }))
+      setErrors((current) => ({ ...current, [name]: '' }))
     }
   }
 
   const validateForm = () => {
     const newErrors = {}
 
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required'
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required'
-    }
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
 
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required'
@@ -81,8 +66,8 @@ const UserRegister = () => {
     return newErrors
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
 
     const newErrors = validateForm()
     if (Object.keys(newErrors).length > 0) {
@@ -91,10 +76,9 @@ const UserRegister = () => {
     }
 
     setLoading(true)
-    setMessage('')
+    setErrors({})
 
     try {
-      // Create FormData for file upload
       const submitData = new FormData()
       submitData.append('firstName', formData.firstName)
       submitData.append('lastName', formData.lastName)
@@ -102,242 +86,150 @@ const UserRegister = () => {
       submitData.append('password', formData.password)
       submitData.append('mobile', formData.mobile)
 
-      await axios.post(
-        API_ENDPOINTS.auth.userRegister,
-        submitData,
-        axiosConfig
-      )
+      await axios.post(API_ENDPOINTS.auth.userRegister, submitData, multipartConfig)
 
-      showSuccess('Registration successful! Logging you in...')
-
-      // Automatically log in the user with their credentials
-      const loginResult = await loginUser({
-        email: formData.email,
-        password: formData.password
-      })
-
-      if (loginResult.success) {
-        showSuccess('Welcome!')
-        navigate('/', { replace: true })
-      } else {
-        showError('Registration successful, but auto-login failed. Please login manually.')
-        navigate('/login', { replace: true })
-      }
-
+      showSuccess('Registration successful!')
+      await checkAuth(true)
+      showSuccess('Welcome!')
+      navigate('/', { replace: true })
     } catch (error) {
       console.error('Registration error:', error)
-      showError(
+      const serverMessage =
+        error.response?.data?.error ||
         error.response?.data?.message ||
         'Registration failed. Please try again.'
-      )
+      setErrors({ general: serverMessage })
+      showError(serverMessage)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-200 to-purple-200 p-6">
-      <div className="w-full max-w-md bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-fadeIn">
-        <div className="mb-6">
+    <AuthShell
+      mode="user"
+      eyebrow="Join the table"
+      title={
+        <>
+          Start with a{' '}
+          <span className="italic text-[#e55a00]">craving.</span>
+        </>
+      }
+      subtitle="Create an account to save reels, order from local kitchens, and keep every event ticket together."
+      image="https://images.pexels.com/photos/7625056/pexels-photo-7625056.jpeg?auto=compress&cs=tinysrgb&w=1200&h=1600&fit=crop"
+      imageAlt="Butter chicken and garlic naan on a restaurant table"
+      sideEyebrow="The FoodReel edit"
+      sideTitle="From scroll to table."
+      sideCopy="Save what looks good, order what you crave, and keep the whole food trail in one place."
+      sideNote="Watch. Connect. Taste."
+      footer={
+        <>
+          Already have an account?{' '}
           <Link
-            to="/"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors duration-200 group"
+            to="/login"
+            className="font-semibold text-[#9a3412] underline decoration-[#ffb800] decoration-2 underline-offset-4 transition-colors hover:text-[#1a1208]"
           >
-            <Home className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
-            <span className="font-medium">Back to Home</span>
+            Sign in
           </Link>
-        </div>
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
-            Create Account
-          </h1>
-          <p className="text-gray-600">Join us today and get started</p>
-        </div>
-
-        {message && (
-          <div className={`mb-6 p-4 rounded-md ${message.includes('successful')
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
-            {message}
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {errors.general && (
+          <div
+            role="alert"
+            className="rounded-xl border border-[#f0c7b4] bg-[#fff4ee] px-4 py-3 font-sans text-sm text-[#9a3412]"
+          >
+            {errors.general}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  placeholder="First Name"
-                  className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                />
-              </div>
-              {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
-              )}
-            </div>
-
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  placeholder="Last Name"
-                  className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                />
-              </div>
-              {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Email Address"
-                className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-              />
-            </div>
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
-          </div>
-
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Password"
-                className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.password ? 'border-red-500' : 'border-gray-300'
-                  }`}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                )}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-            )}
-          </div>
-
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                placeholder="Confirm Password"
-                className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  }`}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                )}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-            )}
-          </div>
-
-          <div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Phone className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="tel"
-                name="mobile"
-                value={formData.mobile}
-                onChange={handleInputChange}
-                placeholder="Mobile Number"
-                className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm ${errors.mobile ? 'border-red-500' : 'border-gray-300'
-                  }`}
-              />
-            </div>
-            {errors.mobile && (
-              <p className="mt-1 text-sm text-red-600">{errors.mobile}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:hover:scale-100"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center">
-                <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                <span>Registering...</span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                <UserPlus className="h-5 w-5 mr-2" />
-                <span>Create Account</span>
-              </div>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors duration-200">
-              Sign in
-            </Link>
-          </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <AuthField
+            id="firstName"
+            label="First name"
+            value={formData.firstName}
+            onChange={handleInputChange}
+            placeholder="Manab"
+            autoComplete="given-name"
+            error={errors.firstName}
+          />
+          <AuthField
+            id="lastName"
+            label="Last name"
+            value={formData.lastName}
+            onChange={handleInputChange}
+            placeholder="Biswas"
+            autoComplete="family-name"
+            error={errors.lastName}
+          />
         </div>
-      </div>
-    </div>
+
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          value={formData.email}
+          onChange={handleInputChange}
+          placeholder="you@example.com"
+          autoComplete="email"
+          error={errors.email}
+        />
+
+        <AuthField
+          id="mobile"
+          label="Mobile number"
+          type="tel"
+          value={formData.mobile}
+          onChange={handleInputChange}
+          placeholder="10-digit mobile number"
+          autoComplete="tel"
+          inputMode="numeric"
+          error={errors.mobile}
+        />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            value={formData.password}
+            onChange={handleInputChange}
+            placeholder="At least 6 characters"
+            autoComplete="new-password"
+            error={errors.password}
+          />
+          <AuthField
+            id="confirmPassword"
+            label="Confirm password"
+            type="password"
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Repeat your password"
+            autoComplete="new-password"
+            error={errors.confirmPassword}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-3.5 font-sans text-sm font-bold text-[#1a1208] transition-colors hover:bg-[#ffb800] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Creating account...
+            </>
+          ) : (
+            <>
+              Create account
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </>
+          )}
+        </button>
+      </form>
+    </AuthShell>
   )
 }
 

@@ -18,6 +18,21 @@ async function isAdmin(req, res, next) {
                 message: "Unauthorized - Admin not found"
             });
         }
+        
+        if (admin.isActive === false) {
+            return res.status(403).json({
+                isAuthenticated: false,
+                message: "This admin account has been deactivated"
+            });
+        }
+
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Session expired, please log in again"
+            });
+        }
+
         req.admin = admin;
         next();
     } catch (error) {

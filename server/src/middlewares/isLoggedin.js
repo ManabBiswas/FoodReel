@@ -19,7 +19,23 @@ async function isLoggedin(req, res, next) {
                 message: "User not found" 
             });
         }
+
+        if (user.isBlocked) {
+            return res.status(403).json({
+                isAuthenticated: false,
+                message: "Your account has been blocked. Please contact support."
+            });
+        }
+
+        // Session revocation
         
+        if ((decoded.tv ?? 0) !== (user.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Session expired, please log in again"
+            });
+        }
+
         req.user = user;
         next();
     } catch (error) {

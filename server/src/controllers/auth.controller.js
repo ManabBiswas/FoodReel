@@ -1,8 +1,15 @@
 import userModel from "../models/user.Model.js";
 import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
+import { hashPassword as hashNewPassword, verifyPassword } from "../utils/password.js";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
+import { authCookieOptions } from "../utils/cookies.js";
+import { timingSafeStringEqual } from "../utils/secureCompare.js";
+import { serverFail, serverError } from "../utils/apiError.js";
+
+const REGISTER_TAKEN_MESSAGE =
+    "Registration could not be completed with these details. If you already have an account, please log in or reset your password.";
 
 async function register(req, res) {
     try {
@@ -17,10 +24,10 @@ async function register(req, res) {
 
         const isUserExist = await userModel.findOne({ email });
         if (isUserExist) {
-            return res.status(400).json({ error: "User already exists" });
+            return res.status(409).json({ error: REGISTER_TAKEN_MESSAGE });
         }
 
-        const hashPassword = await bcrypt.hash(password, 10);
+        const hashPassword = await hashNewPassword(password);
 
         const userData = {
             firstName,
@@ -37,15 +44,8 @@ async function register(req, res) {
 
         const user = await userModel.create(userData);
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
-        res.cookie("token", token, {
-            httpOnly: true,
-            // Use Lax so localhost:5173 (frontend) can send cookies to localhost:3000 (API) during dev
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-            path: '/'
-        });
+        const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.cookie("token", token, authCookieOptions());
 
         res.status(201).json({
             message: "User created successfully",
@@ -66,7 +66,10 @@ async function register(req, res) {
         // console.log("User created successfully", user);
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(400).json({ error: error.message });
+        if (error?.code === 11000) {
+            return res.status(409).json({ error: REGISTER_TAKEN_MESSAGE });
+        }
+        serverFail(res, error);
     }
 }
 
@@ -88,18 +91,21 @@ async function login(req, res) {
             });
         }
 
-        // Compare password
-        const isPasswordMatched = await bcrypt.compare(password, user.password);
+        if (user.isBlocked) {
+            return res.status(403).json({
+                error: "Your account has been blocked. Please contact support."
+            });
+        }
+
+        // Compare password (upgrades a legacy cost-10 hash on success)
+        const isPasswordMatched = await verifyPassword(password, user.password, async (newHash) => {
+            user.password = newHash;
+            await user.save();
+        });
 
         if (isPasswordMatched) {
-            const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET);
-            res.cookie('token', token, {
-                httpOnly: true,
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                maxAge: 24 * 60 * 60 * 1000,
-                path: '/'
-            });
+            const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
+            res.cookie('token', token, authCookieOptions());
 
             res.status(200).json({
                 message: "User logged in successfully",
@@ -166,8 +172,7 @@ async function getProfile(req, res) {
             updatedAt: user.updatedAt
         });
     } catch (error) {
-        console.error('Error in getProfile:', error);
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to load profile');
     }
 }
 
@@ -213,7 +218,7 @@ async function updateProfile(req, res) {
         });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to update profile');
     }
 }
 
@@ -242,15 +247,18 @@ async function changePassword(req, res) {
         }
 
         // Hash new password
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        const hashedNewPassword = await hashNewPassword(newPassword);
 
         // Update password
-        await userModel.findByIdAndUpdate(userId, { password: hashedNewPassword });
+        await userModel.findByIdAndUpdate(userId, {
+            password: hashedNewPassword,
+            $inc: { tokenVersion: 1 }
+        });
 
         res.status(200).json({ message: "Password changed successfully" });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to change password');
     }
 }
 
@@ -278,17 +286,17 @@ async function deleteAccount(req, res) {
         await userModel.findByIdAndDelete(userId);
 
         // Clear cookie
-        res.clearCookie('token');
+        res.clearCookie('token', authCookieOptions(0));
 
         res.status(200).json({ message: "Account deleted successfully" });
 
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error, 'Failed to delete account');
     }
 }
 
 async function logout(req, res) {
-    res.clearCookie('token', { path: '/' });
+    res.clearCookie('token', authCookieOptions(0));
     res.status(200).json({ message: "User logged out successfully" });
 
 }
@@ -310,8 +318,7 @@ async function verify(req, res) {
     } catch (error) {
         res.status(401).json({
             isAuthenticated: false,
-            message: "Not authenticated",
-            error: error.message
+            message: "Not authenticated"
         });
     }
 }
@@ -334,27 +341,27 @@ async function adminLogin(req, res) {
             });
         }
 
-        if (admin.code !== code) {
+        if (!timingSafeStringEqual(admin.code, code)) {
             return res.status(400).json({
                 error: "Invalid email or code"
             });
         }
 
-        const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET);
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-            path: '/'
-        });
+        if (admin.isActive === false) {
+            return res.status(400).json({
+                error: "Invalid email or code"
+            });
+        }
+
+        const token = jwt.sign({ id: admin._id, email: admin.email, tv: admin.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.cookie('token', token, authCookieOptions());
         
         res.status(200).json({ 
             message: "Admin login successful",
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -367,7 +374,7 @@ async function adminLogin(req, res) {
 
 async function adminLogout(req, res) {
     try {
-        res.clearCookie('token', { path: '/' });
+        res.clearCookie('token', authCookieOptions(0));
         res.status(200).json({ message: "Admin logout successful" });
     } catch (error) {
         console.error('Admin logout error:', error);
@@ -388,10 +395,18 @@ async function adminVerify(req, res) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const admin = await adminModel.findById(decoded.id).select('-code');
         
-        if (!admin) {
-            return res.status(404).json({ 
+
+        if (!admin || admin.isActive === false) {
+            return res.status(401).json({
                 isAuthenticated: false,
-                error: "Admin not found" 
+                message: "Not authenticated"
+            });
+        }
+
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
+            return res.status(401).json({
+                isAuthenticated: false,
+                message: "Not authenticated"
             });
         }
         
@@ -400,7 +415,7 @@ async function adminVerify(req, res) {
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' ')
             }
         });
     } catch (error) {
@@ -424,15 +439,21 @@ async function adminProfile(req, res) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const admin = await adminModel.findById(decoded.id).select('-code');
         
-        if (!admin) {
-            return res.status(404).json({ error: "Admin not found" });
+        // This route does not run through isAdmin, so the kill switch and
+        // tokenVersion have to be enforced here too.
+        if (!admin || admin.isActive === false) {
+            return res.status(401).json({ error: "Not authenticated" });
+        }
+
+        if ((decoded.tv ?? 0) !== (admin.tokenVersion ?? 0)) {
+            return res.status(401).json({ error: "Not authenticated" });
         }
         
         res.status(200).json({
             admin: {
                 id: admin._id,
                 email: admin.email,
-                name: admin.name,
+                name: [admin.firstName, admin.lastName].filter(Boolean).join(' '),
                 createdAt: admin.createdAt
             }
         });

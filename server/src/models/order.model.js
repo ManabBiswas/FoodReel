@@ -34,7 +34,7 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
+        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'cancel_requested'],
         default: 'pending'
     },
     statusTimestamps: {
@@ -42,13 +42,24 @@ const orderSchema = new mongoose.Schema({
         preparingAt: Date,
         readyAt: Date,
         deliveredAt: Date,
-        cancelledAt: Date
+        cancelledAt: Date,
+        cancelRequestedAt: Date
     },
     orderSource: {
         type: String,
-        enum: ['reel', 'home', 'menu', 'search', 'cart', 'other'],
+        enum: ['reel', 'home', 'menu', 'search', 'cart', 'other', 'foodfest'],
         default: 'reel',
         required: true
+    },
+    eventId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FoodFestEvent',
+        sparse: true
+    },
+    stallId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FoodFestStallApplication',
+        sparse: true
     },
     // CONSOLIDATED PAYMENT INFORMATION (removed duplicates)
     paymentDetails: {
@@ -60,6 +71,8 @@ const orderSchema = new mongoose.Schema({
         razorpayOrderId: String,
         razorpayPaymentId: String,
         razorpaySignature: String,
+        razorpayAmount: Number,
+        razorpayOrderCreatedAt: Date,
         transactionId: String,
         paidAt: Date,
         status: {
@@ -174,10 +187,54 @@ const orderSchema = new mongoose.Schema({
         reason: String,
         refundStatus: {
             type: String,
-            enum: ['not_applicable', 'pending', 'processing', 'completed'],
+            // pending_approval: a partner cancelled, so the refund waits for a human
+            // rejected: an admin declined the refund (the customer must be told)
+            enum: ['not_applicable', 'pending', 'pending_approval', 'processing', 'completed', 'failed', 'rejected'],
             default: 'not_applicable'
         },
-        refundAmount: Number
+        refundAmount: Number,
+        // Set when a refund is claimed, so a stuck claim can be found and retried
+        refundInitiatedAt: Date,
+        refundInitiatedBy: {
+            type: String,
+            enum: ['user', 'partner', 'admin', 'system'],
+        },
+        refundId: String,
+    },
+    cancelRequest: {
+        requestedBy: {
+            type: String,
+            enum: ['partner']
+        },
+        reason: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        details: {
+            type: String,
+            trim: true,
+            maxlength: 1000
+        },
+        requestedAt: Date,
+        previousStatus: {
+            type: String,
+            enum: ['preparing', 'ready']
+        },
+        status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected']
+        },
+        decidedAt: Date,
+        decidedBy: {
+            type: String,
+            enum: ['admin', 'system']
+        },
+        decisionNote: {
+            type: String,
+            trim: true,
+            maxlength: 500
+        }
     }
 }, {
     timestamps: true
@@ -185,8 +242,10 @@ const orderSchema = new mongoose.Schema({
 
 // Add indexes for better query performance
 orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ createdAt: -1 }); // dashboard time-series range scans
 orderSchema.index({ 'items.foodPartner': 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ 'cancelRequest.status': 1, 'cancelRequest.requestedAt': 1 }); // admin review queue
 orderSchema.index({ 'paymentDetails.status': 1 });
 orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 }, { unique: true, sparse: true });
 
@@ -209,5 +268,15 @@ orderSchema.set('toJSON', { virtuals: true, getters: true });
 orderSchema.set('toObject', { virtuals: true, getters: true });
 
 const orderModel = mongoose.model("Order", orderSchema);
+
+export const ORDER_STATUSES = [
+    'pending',
+    'confirmed',
+    'preparing',
+    'ready',
+    'delivered',
+    'cancelled',
+    'cancel_requested'
+];
 
 export default orderModel;

@@ -1,16 +1,29 @@
 import userModel from "../models/user.Model.js";
+import orderModel from "../models/order.model.js";
+import reviewModel from "../models/review.model.js";
 import bcrypt from "bcrypt";
+import { serverError } from "../utils/apiError.js";
 
 // Get user statistics (orders, favorites, etc.)
 async function getUserStats(req, res) {
     try {
         const userId = req.user._id;
-        
-        // This is a placeholder - you would integrate with your order model when available
+
+        const [totalOrders, spentAgg, favoritePartners, user] = await Promise.all([
+            orderModel.countDocuments({ user: userId }),
+            orderModel.aggregate([
+                { $match: { user: userId, status: { $ne: "cancelled" } } },
+                { $group: { _id: null, total: { $sum: "$pricing.totalAmount" } } }
+            ]),
+            orderModel.distinct("items.foodPartner", { user: userId, status: { $ne: "cancelled" } }),
+            userModel.findById(userId).select("savedFoods")
+        ]);
+
         const stats = {
-            totalOrders: 0,
-            favoriteRestaurants: 0,
-            totalSpent: 0,
+            totalOrders,
+            favoriteRestaurants: favoritePartners.length,
+            totalSpent: spentAgg[0]?.total ?? 0,
+            savedFoods: user?.savedFoods?.length ?? 0,
             memberSince: req.user.createdAt
         };
 
@@ -19,7 +32,8 @@ async function getUserStats(req, res) {
             stats
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error("Error getting user stats:", error);
+        serverError(res, error);
     }
 }
 
@@ -52,7 +66,7 @@ async function uploadProfilePicture(req, res) {
             profileImage: `data:image/jpeg;base64,${updatedUser.profileImage.toString('base64')}`
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -75,7 +89,7 @@ async function removeProfilePicture(req, res) {
             message: "Profile picture removed successfully"
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -105,7 +119,7 @@ async function updatePreferences(req, res) {
             preferences: updatedUser.preferences
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -114,35 +128,68 @@ async function updatePreferences(req, res) {
 async function getUserActivity(req, res) {
     try {
         const userId = req.user._id;
-        const { page = 1, limit = 10 } = req.query;
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
+        const skip = (page - 1) * limit;
+        const [orders, reviews] = await Promise.all([
+            orderModel.find({ user: userId })
+                .select("status pricing.totalAmount items.foodItem createdAt")
+                .populate("items.foodItem", "name")
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .lean(),
+            reviewModel.find({ user: userId, isActive: true })
+                .select("rating comment foodPartner foodItem createdAt")
+                .populate("foodPartner", "companyName")
+                .populate("foodItem", "name")
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .lean()
+        ]);
 
-        // This is a placeholder - you would integrate with your order/activity models
-        const activities = [
-            {
-                type: "order",
-                description: "Ordered Pizza from Tony's Pizza",
-                timestamp: new Date(),
-                amount: 25.99
-            },
-            {
-                type: "review",
-                description: "Left a review for Burger Palace",
-                timestamp: new Date(),
-                rating: 5
-            }
-        ];
+        const orderActivities = orders.map(o => ({
+            type: "order",
+            orderId: o._id,
+            status: o.status,
+            description: o.items?.[0]?.foodItem?.name
+                ? `Ordered ${o.items[0].foodItem.name}${o.items.length > 1 ? ` +${o.items.length - 1} more` : ""}`
+                : "Placed an order",
+            amount: o.pricing?.totalAmount,
+            timestamp: o.createdAt
+        }));
+
+        const reviewActivities = reviews.map(r => ({
+            type: "review",
+            reviewId: r._id,
+            rating: r.rating,
+            description: r.foodItem?.name
+                ? `Reviewed ${r.foodItem.name}`
+                : r.foodPartner?.companyName
+                    ? `Reviewed ${r.foodPartner.companyName}`
+                    : "Left a review",
+            timestamp: r.createdAt
+        }));
+
+        const merged = [...orderActivities, ...reviewActivities]
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        const [totalOrders, totalReviews] = await Promise.all([
+            orderModel.countDocuments({ user: userId }),
+            reviewModel.countDocuments({ user: userId, isActive: true })
+        ]);
 
         res.status(200).json({
             message: "User activity retrieved successfully",
-            activities,
+            activities: merged.slice(skip, skip + limit),
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: activities.length
+                page,
+                limit,
+                total: totalOrders + totalReviews
             }
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error("Error getting user activity:", error);
+        serverError(res, error);
     }
 }
 
@@ -175,8 +222,27 @@ async function validatePassword(req, res) {
             });
         }
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
+}
+
+// Normalize the two address shapes the frontend sends:
+// - QuickOrderModal: fullName, phone, addressLine1, city, state, pincode
+// - ProfileSettings: label, street, city, state, pinCode, country
+function normalizeAddressInput(body, user) {
+    return {
+        label: body.label || 'Home',
+        fullName: body.fullName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''),
+        phone: body.phone || (user && user.mobile) || '',
+        addressLine1: body.addressLine1 || body.street || '',
+        addressLine2: body.addressLine2 || '',
+        landmark: body.landmark || '',
+        city: body.city || '',
+        state: body.state || '',
+        pincode: String(body.pincode || body.pinCode || ''),
+        country: body.country || 'India',
+        isDefault: !!body.isDefault
+    };
 }
 
 // Get all user addresses
@@ -197,7 +263,7 @@ async function getAddresses(req, res) {
             addresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -205,18 +271,20 @@ async function getAddresses(req, res) {
 async function addAddress(req, res) {
     try {
         const userId = req.user._id;
-        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode, isDefault } = req.body;
-
-        // Validate required fields
-        if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
-            return res.status(400).json({ 
-                error: "Required fields: fullName, phone, addressLine1, city, state, pincode" 
-            });
-        }
-
         const user = await userModel.findById(userId);
         if (!user) {
             return res.status(404).json({ error: "User not found" });
+        }
+
+        const input = normalizeAddressInput(req.body, user);
+
+        // Validate required fields (after normalization so ProfileSettings'
+        // {street, pinCode} shape and QuickOrderModal's {addressLine1, pincode}
+        // shape both work)
+        if (!input.addressLine1 || !input.city || !input.state || !input.pincode) {
+            return res.status(400).json({ 
+                error: "Required fields: addressLine1 (or street), city, state, pincode (or pinCode)" 
+            });
         }
 
         // Initialize addresses array if it doesn't exist
@@ -225,7 +293,7 @@ async function addAddress(req, res) {
         }
 
         // If this is the first address or marked as default, set it as default
-        const makeDefault = isDefault || user.deliveryAddresses.length === 0;
+        const makeDefault = input.isDefault || user.deliveryAddresses.length === 0;
         
         // If making this default, unset all other defaults
         if (makeDefault) {
@@ -233,17 +301,7 @@ async function addAddress(req, res) {
         }
 
         // Add new address
-        user.deliveryAddresses.push({
-            fullName,
-            phone,
-            addressLine1,
-            addressLine2,
-            landmark,
-            city,
-            state,
-            pincode,
-            isDefault: makeDefault
-        });
+        user.deliveryAddresses.push({ ...input, isDefault: makeDefault });
 
         await user.save();
 
@@ -252,16 +310,15 @@ async function addAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
-// Update delivery address
+// Update delivery address (by :addressId)
 async function updateAddress(req, res) {
     try {
         const userId = req.user._id;
         const { addressId } = req.params;
-        const { fullName, phone, addressLine1, addressLine2, landmark, city, state, pincode } = req.body;
 
         const user = await userModel.findById(userId);
         if (!user) {
@@ -273,15 +330,25 @@ async function updateAddress(req, res) {
             return res.status(404).json({ error: "Address not found" });
         }
 
-        // Update fields if provided
-        if (fullName) address.fullName = fullName;
-        if (phone) address.phone = phone;
-        if (addressLine1) address.addressLine1 = addressLine1;
-        if (addressLine2 !== undefined) address.addressLine2 = addressLine2;
-        if (landmark !== undefined) address.landmark = landmark;
-        if (city) address.city = city;
-        if (state) address.state = state;
-        if (pincode) address.pincode = pincode;
+        // Accept both frontend shapes (street/pinCode vs addressLine1/pincode)
+        const body = req.body || {};
+        if (body.label !== undefined) address.label = body.label;
+        if (body.fullName) address.fullName = body.fullName;
+        if (body.phone) address.phone = body.phone;
+        const line1 = body.addressLine1 || body.street;
+        if (line1) address.addressLine1 = line1;
+        if (body.addressLine2 !== undefined) address.addressLine2 = body.addressLine2;
+        if (body.landmark !== undefined) address.landmark = body.landmark;
+        if (body.city) address.city = body.city;
+        if (body.state) address.state = body.state;
+        const pin = body.pincode || body.pinCode;
+        if (pin) address.pincode = String(pin);
+        if (body.country) address.country = body.country;
+
+        if (body.isDefault === true) {
+            user.deliveryAddresses.forEach(addr => { addr.isDefault = false; });
+            address.isDefault = true;
+        }
 
         await user.save();
 
@@ -290,7 +357,39 @@ async function updateAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
+    }
+}
+
+// Update the profile's single address object (PUT /user/address, no :addressId).
+// This is what ProfileSettings.handleAddressUpdate calls — it is NOT a
+// delivery-address CRUD call (that uses /:addressId).
+async function updateProfileAddress(req, res) {
+    try {
+        const userId = req.user._id;
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const body = req.body || {};
+        user.address = {
+            ...(user.address?.toObject?.() || user.address || {}),
+            street: body.street || body.addressLine1 || user.address?.street || '',
+            city: body.city || user.address?.city || '',
+            state: body.state || user.address?.state || '',
+            pincode: String(body.pincode || body.pinCode || user.address?.pincode || ''),
+            country: body.country || user.address?.country || 'India'
+        };
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Address updated successfully",
+            address: user.address
+        });
+    } catch (error) {
+        serverError(res, error);
     }
 }
 
@@ -312,7 +411,7 @@ async function deleteAddress(req, res) {
 
         // If deleting default address, make first remaining address default
         const wasDefault = address.isDefault;
-        address.remove();
+        user.deliveryAddresses.pull({ _id: addressId });
 
         if (wasDefault && user.deliveryAddresses.length > 0) {
             user.deliveryAddresses[0].isDefault = true;
@@ -325,7 +424,7 @@ async function deleteAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -358,7 +457,7 @@ async function setDefaultAddress(req, res) {
             addresses: user.deliveryAddresses
         });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        serverError(res, error);
     }
 }
 
@@ -370,6 +469,7 @@ export default {
     getAddresses,
     addAddress,
     updateAddress,
+    updateProfileAddress,
     deleteAddress,
     setDefaultAddress,
     getUserActivity,

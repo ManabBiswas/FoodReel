@@ -8,6 +8,7 @@ import HowItWorksSection      from '../Components/landingPage/HowItWorksSection'
 import TrendingReelsSection   from '../Components/landingPage/TrendingReelsSection'
 import FoodFestSection        from '../Components/landingPage/FoodFestSection'
 import ValuePropositionsSection from '../Components/landingPage/ValuePropositionsSection'
+import FAQSection             from '../Components/landingPage/FAQSection'
 import CTABannerSection       from '../Components/landingPage/CTABannerSection'
 
 const Home = () => {
@@ -34,7 +35,10 @@ const Home = () => {
         {/* 6. Value props — audience-split benefits */}
         <ValuePropositionsSection />
 
-        {/* 7. CTA — final conversion push for partners */}
+        {/* 7. FAQ — objection handling before the final ask */}
+        <FAQSection />
+
+        {/* 8. CTA — final conversion push for partners */}
         <CTABannerSection />
       </main>
 

@@ -10,10 +10,19 @@ export const showError = (message) => toast.error(message, errorOpts)
 export const showWarning = (message) => toast(message, { ...infoOpts, icon: '⚠️' })
 export const showInfo = (message) => toast(message, infoOpts)
 
+// Extract the real error message from an API response.
+
+export const extractApiError = (error, fallbackMessage = 'An error occurred') => {
+  const data = error?.response?.data
+  if (data) {
+    return data.error || data.message || (typeof data === 'string' ? data : fallbackMessage)
+  }
+  return error?.message || fallbackMessage
+}
+
 // Toast for API errors with fallback message
 export const showApiError = (error, fallbackMessage = 'An error occurred') => {
-  const message = error?.response?.data?.message || error?.message || fallbackMessage
-  showError(message)
+  showError(extractApiError(error, fallbackMessage))
 }
 
 // Toast for loading states

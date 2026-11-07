@@ -1,3 +1,10 @@
+# Locally installed agent skills (npx skills) — never commit
+.agents/
+.agent/
+.claude/
+.opencode/skills/
+skills-lock.json
+agent
 
 .env
 node_modules/
@@ -5,11 +12,25 @@ node_modules/
 # Ignore all Markdown files
 *.md
 
+
+!README.md
+!Client/README.md
+# !docs/architecture/*.md
+# !docs/architecture/**/*.md
+
+!FOOD_VS_ADVERTISEMENT_SYSTEM.md
+!BUSINESS_MODEL.md
+
 # Ignore local server jsconfig (use jsconfig.example.json in repo)
 server/jsconfig.json
 
-# But do NOT ignore these specific ones
-!README.md
-!FOOD_VS_ADVERTISEMENT_SYSTEM.md
-!FOOD_VS_ADVERTISEMENT_SYSTEM.md
-!BUSINESS_MODEL.md
+.env.production
+
+# Data-repair backups contain real order and user documents. Generated locally,
+# never committed.
+server/scripts/data-repair-backup.json
+
+*.log
+*.err
+*.out
+server-run.log

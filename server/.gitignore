@@ -1,3 +1,7 @@
 node_modules/
 .env
 .log
+
+boot.log
+boot.out
+boot.err

@@ -28,13 +28,21 @@ const foodPartnerSchema = new mongoose.Schema({
         type: Buffer,
     },
     mobile: {
-        type: Number,
+        type: String,
         required: true,
-        length: 10
+        match: [/^\d{10}$/, 'Mobile number must be exactly 10 digits']
     },
     address: {
         type: String,
         required: true
+    },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
+    tokenVersion: {
+        type: Number,
+        default: 0
     },
     latitude: {
         type: Number
