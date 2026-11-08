@@ -372,7 +372,7 @@ const handlePlaceOrder = async () => {
 
               {loadingAddresses ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-green-600" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--color-primary)]" />
                   <span className="ml-2 text-gray-600">Loading addresses...</span>
                 </div>
               ) : (

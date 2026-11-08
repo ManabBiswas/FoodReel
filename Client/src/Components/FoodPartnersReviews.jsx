@@ -48,7 +48,7 @@ const FoodPartnersReviews = () => {
   if (loading) {
     return (
       <div className="text-center py-16 px-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)] mx-auto mb-4" />
         <p className="text-gray-600">Loading reviews...</p>
       </div>
     )

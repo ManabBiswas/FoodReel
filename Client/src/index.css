@@ -275,6 +275,18 @@ a:focus-visible {
   100% { transform: scale(1.6);  opacity: 0;   }
 }
 
+/* Route loading bar */
+@keyframes foodreelLoadSlide {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(450%); }
+}
+.foodreel-load-bar > div {
+  animation: foodreelLoadSlide 1.4s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .foodreel-load-bar > div { animation: none; transform: none; width: 100%; }
+}
+
 .animate-scale-in  { animation: scaleIn  0.3s ease-out; }
 .animate-fade-in   { animation: fadeIn   0.3s ease-out; }
 .animate-float     { animation: float    3s ease-in-out infinite; }

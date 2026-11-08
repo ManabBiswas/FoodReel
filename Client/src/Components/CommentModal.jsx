@@ -200,7 +200,7 @@ if (!isOpen || !post) return null
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+              <div className="animate-spin rounded-full h-8 w-8" style={{ border: '3px solid var(--color-border-light)', borderTopColor: 'var(--color-primary)' }} />
             </div>
           ) : comments.length > 0 ? (
             comments.map(comment => (
