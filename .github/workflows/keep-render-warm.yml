@@ -10,9 +10,8 @@ name: Keep Render Warm
 
 on:
   schedule:
-    # Every 5 minutes. Render idles out at 15, so there is margin for the drift
     # GitHub's scheduler applies to cron jobs.
-    - cron: '*/5 * * * *'
+    - cron: '0 0 */7 * *'
   workflow_dispatch: {} # allow a manual run to verify it works
 
 # Never let two pings overlap; a queued run is wasted free-tier time.

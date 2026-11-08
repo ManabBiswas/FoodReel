@@ -12,12 +12,13 @@ FoodReel supports two post types:
 
 #### Food model (`food.model.js`)
 ```javascript
+// Status (2026-11): fields as implemented
 // New fields:
 postType: { type: String, enum: ['food', 'advertisement'], default: 'food' }
 
 // Food-specific fields:
 price: { type: Number, min: 0 }
-currency: { type: String, enum: ['INR', 'USD'], default: 'INR' }
+currency: { type: String, enum: ['INR'], default: 'INR' }
 preparationTime: { type: Number, min: 0 } // in minutes
 
 // Advertisement-specific fields:
@@ -28,7 +29,16 @@ prices: {
 }
 validUntil: { type: Date }
 promoCode: { type: String, uppercase: true, trim: true }
+// Advertisement promo codes sync into the dedicated Coupon collection —
+// see coupon.model.js. A code conflict returns 409.
 ```
+
+#### Coupon model (`coupon.model.js`) — dedicated promo system
+- `code`: 5–32 chars, uppercase alphanumerics plus `-` and `_` (deliberately above the trivially-guessable 3-4 char range).
+- One restaurant per code; a cart/order is restricted to a single restaurant as well.
+- `applicableItemIds`: opt-in item scoping. The discount, the minimum order amount and the minimum quantity all count only the eligible portion — an ineligible item can't smuggle a scoped code past its minimums.
+- `minOrderAmount` (rupees, partner-set minimum order value — eligible items only), `minQuantity` (eligible items count), `usageLimit` / `usedCount`, `perUserLimit`, valid window, `isActive`.
+- COD orders consume the coupon at creation; Razorpay orders consume it on payment verification/webhook. Invalid/stale codes hard-fail with `COUPON_INVALID`. Orders snapshot the coupon (`coupon` subdocument) immutably; cancellations release the redemption.
 
 #### Order model (`order.model.js`)
 The ordering system handles food items only:
@@ -67,11 +77,30 @@ GET    /api/food/statistics         # Get post analytics for partners
 
 #### Order endpoints
 ```
-POST   /api/orders                  # Create order (food items only)
-GET    /api/orders                  # Get user's orders
-GET    /api/orders/partner          # Get partner's orders
-PUT    /api/orders/partner/:id/status # Update order status
-GET    /api/orders/partner/statistics # Get order analytics
+POST   /api/orders                      # Create order (food items only)
+POST   /api/orders/validate-coupon      # Preview a promo code for reel quick checkout (user only)
+GET    /api/orders                      # Get user's orders
+GET    /api/orders/partner              # Get partner's orders
+PUT    /api/orders/partner/:id/status   # Update order status
+POST   /api/orders/partner/:id/cancel   # Partner cancel (refund needs admin approval)
+POST   /api/orders/:id/cancel           # User cancel (auto-refund)
+GET    /api/orders/partner/statistics   # Get order analytics
+```
+
+#### Coupon endpoints (partner)
+```
+POST   /api/coupons                     # Create coupon (5–32 char code)
+GET    /api/coupons/partner             # Partner's coupons
+GET    /api/coupons/partner/stats       # Coupon usage stats
+PUT    /api/coupons/:couponId           # Update coupon
+DELETE /api/coupons/:couponId           # Delete coupon
+```
+
+#### Cart endpoints
+```
+POST   /api/cart/apply-coupon           # Validate and apply promo code
+DELETE /api/cart/coupon                 # Remove applied promo code
+POST   /api/cart/checkout               # Convert cart to order (idempotent)
 ```
 
 ## Frontend enhancements
@@ -89,7 +118,8 @@ GET    /api/orders/partner/statistics # Get order analytics
   - Promotion type
   - Optional price comparison
   - Validity period with expiry
-  - Promo code generation
+  - Promo code generation (advertisement promo codes sync into the dedicated Coupon collection — 5–32 char code, one restaurant per code)
+- **Quick checkout**: users order directly from a reel via the quick order modal, with a live coupon preview (`POST /api/orders/validate-coupon`) and an immutable order snapshot.
 
 #### Step 2: Detailed form
 - **Conditional fields**: Different fields based on selection.
@@ -170,19 +200,21 @@ GET    /api/orders/partner/statistics # Get order analytics
 
 ## Future enhancements
 
-### Planned features
-1. **Advanced ordering**: Cart functionality and multiple items.
-2. **Payment integration**: Online payments and wallets.
-3. **Delivery tracking**: Real-time order status updates.
-4. **Review system**: Post-order reviews and ratings.
-5. **Promotional analytics**: Marketing metrics.
-6. **Recommendation engine**: Personalized content based on order history.
+### Already implemented (since the original draft)
+1. **Advanced ordering**: Cart functionality and one-vendor orders — delivered (`cart.model`, cart checkout).
+2. **Payment integration**: Razorpay (auto-capture) and Cash on Delivery.
+3. **Delivery tracking**: Order status with timestamps and an order tracking page.
+4. **Review system**: Post-order reviews and ratings (`review.model`).
+5. **Promo codes**: Dedicated coupon system with 5–32 character codes, eligible-item scoping, minimum order value/quantity, redemption limits — usable in cart and in reel quick checkout.
+6. **Realtime updates**: Socket.IO per-event rooms wired for food fest events (`foodfest.socket.service`), with `useEventSocket` on the client planned.
+7. **Promotional analytics**: partner coupon stats and post statistics endpoints.
 
-### Technical roadmap
+### Still planned
 1. **Mobile app**: React Native implementation.
-2. **Real-time updates**: WebSocket for live order tracking.
-3. **AI recommendations**: Machine learning for content discovery.
-4. **Advanced search**: Filter by price, location, and cuisine.
+2. **AI recommendations**: Machine learning for content discovery.
+3. **Advanced search**: Filter feed by price, location, and cuisine (client top bar → server-backed `/search`).
+4. **Real-time order tracking**: Socket.IO for live order status.
+5. **Recommendation engine**: Personalized content based on order history.
 
 ## Success metrics
 

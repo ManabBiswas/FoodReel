@@ -2,6 +2,8 @@
 
 This document describes the commercial plan for FoodReel in India: ad revenue from food partners (restaurants and kitchens), a small platform fee on customer orders, suggested pricing, go-to-market, operations, financial assumptions in INR, and product requirements.
 
+> **Status note (updated 2026-11):** Parts of this plan are now live. The platform already implements the order flow with a platform fee and GST, a coupon/promo-code system (partner-created, one restaurant per code, eligible-item scoping, minimum order value, per-user and total usage limits), the Razorpay and COD payment rails, advertisements with promo codes synced into the coupon system, and food fest ticket booking. Prices and revenue assumptions below remain a model, not audited results.
+
 ---
 
 ## 1) Thesis
@@ -66,12 +68,13 @@ Notes:
 - Payouts to partners: use bank transfers or a PSP integration such as Stripe Connect or Razorpay Route.
 
 ## 7) Product changes required
-- `ad.model` and `ad.controller`: store campaigns, targeting, spend, and status.
-- Ad placement layer in feed rendering: prioritize ad posts and track impressions and clicks.
-- `product.model` and `order.model`: product catalog and orders with platform fee calculation.
-- Payment integration module (`services/payment.service.js`) with UPI and gateway support.
-- Billing and invoices for partners: monthly statement and GST details.
-- Partner dashboard to manage campaigns and view analytics and invoices.
+- Feed posts are a single `food.model` / `food.controller` pair with a `postType` enum (`food` | `advertisement`) and a matching advertisement route module. The separate `ad.model` / `product.model` from earlier drafts were not built — advertisements live in the food post model.
+- `order.model` / `order.controller`: orders now carry a 3% platform fee, 5% GST, a distance-based delivery fee, and an immutable coupon snapshot when a code is used.
+- `coupon.model` / `coupon.service`: promo codes (5–32 chars, one restaurant per code, eligible-item scoping via `applicableItemIds`, minimum order value, minimum quantity, per-user and total usage limits) applied in cart checkout and in the reel quick checkout; advertised promo codes sync into the same collection.
+- Payment integration module (`services/payment.service.js`): Razorpay with auto-capture and COD. COD coupons are consumed at order creation; Razorpay coupons are consumed on payment verification.
+- Partner dashboard manages posts, advertisements, promo codes, orders and payments. Email service is wired for order and refund notifications.
+- Billing and GST invoices for partners remain to be built.
+- Delivery fee is distance-based (0/20/40/60 INR bands) — see `calculatePricing` in `services/payment.service.js`.
 
 ## 8) Go-to-market strategy
 1. Pilot in a small city or two metro neighbourhoods.
