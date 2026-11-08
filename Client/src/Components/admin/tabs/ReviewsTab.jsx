@@ -40,7 +40,7 @@ const ReviewsTab = ({ navigate, setError, setConfirmAction }) => {
             <div key={r._id} className="review-card">
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #ffb800, #ff6a00)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ color: 'white', fontWeight: 800, fontSize: 13 }}>{(r.user?.name || 'A')[0].toUpperCase()}</span>
                   </div>
                   <div>
@@ -54,7 +54,7 @@ const ReviewsTab = ({ navigate, setError, setConfirmAction }) => {
               </div>
               <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} style={{ width: 15, height: 15, color: i < (r.rating || 0) ? '#FCD34D' : 'rgba(255,255,255,0.08)', fill: i < (r.rating || 0) ? '#FCD34D' : 'none' }} />
+                  <Star key={i} style={{ width: 15, height: 15, color: i < (r.rating || 0) ? '#ffb800' : 'rgba(26,18,8,0.12)', fill: i < (r.rating || 0) ? '#ffb800' : 'none' }} />
                 ))}
               </div>
               {r.comment && <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.55, margin: 0 }}>{r.comment}</p>}

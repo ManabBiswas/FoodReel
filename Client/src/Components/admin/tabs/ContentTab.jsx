@@ -95,7 +95,7 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
               {foodItems.map(f => (
                 <div key={f._id} className="food-card">
                   {(f.image || f.video) && (
-                    <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.04)' }}>
+                    <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(26,18,8,0.05)' }}>
                       {f.video ? <video src={f.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                         : <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                     </div>
@@ -103,7 +103,7 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name || 'Untitled'}</p>
-                      <span className="pill" style={{ background: f.isActive ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)', color: f.isActive ? '#34D399' : '#F87171', flexShrink: 0 }}>
+                      <span className="pill" style={{ background: f.isActive ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.08)', color: f.isActive ? '#16a34a' : '#dc2626', flexShrink: 0 }}>
                         {f.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -136,7 +136,7 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
               {ads.map(a => (
                 <div key={a._id} className="food-card">
                   {a.file && (
-                    <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.04)' }}>
+                    <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(26,18,8,0.05)' }}>
                       {a.type === 'video' ? <video src={a.file} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                         : <img src={a.file} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                     </div>
@@ -144,10 +144,10 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                        <Megaphone style={{ width: 13, height: 13, color: '#A78BFA', flexShrink: 0 }} />
+                        <Megaphone style={{ width: 13, height: 13, color: '#ff6a00', flexShrink: 0 }} />
                         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name || a.title || 'Ad'}</p>
                       </div>
-                      <span className="pill" style={{ background: a.isActive ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)', color: a.isActive ? '#34D399' : '#F87171', flexShrink: 0 }}>
+                      <span className="pill" style={{ background: a.isActive ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.08)', color: a.isActive ? '#16a34a' : '#dc2626', flexShrink: 0 }}>
                         {a.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>

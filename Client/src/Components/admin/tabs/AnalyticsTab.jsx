@@ -44,25 +44,25 @@ const AnalyticsTab = ({ navigate, setError }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <StatCard title="Total Users"       value={analytics.users.totalUsers ?? 0}          icon={Users}       color="#60A5FA" bg="rgba(96,165,250,0.1)" />
-        <StatCard title="Active Users"      value={analytics.users.activeUsers ?? 0}         icon={Activity}    color="#34D399" bg="rgba(52,211,153,0.1)" />
-        <StatCard title="Verified Partners" value={analytics.partners.verifiedPartners ?? 0} icon={CheckCircle} color="#22D3EE" bg="rgba(34,211,238,0.1)" />
-        <StatCard title="Blocked Users"     value={analytics.users.blockedUsers ?? 0}        icon={Ban}         color="#F87171" bg="rgba(248,113,113,0.1)" />
+        <StatCard title="Total Users"       value={analytics.users.totalUsers ?? 0}          icon={Users}       color="#ff6a00" bg="rgba(255,106,0,0.1)" />
+        <StatCard title="Active Users"      value={analytics.users.activeUsers ?? 0}         icon={Activity}    color="#16a34a" bg="rgba(22,163,74,0.1)" />
+        <StatCard title="Verified Partners" value={analytics.partners.verifiedPartners ?? 0} icon={CheckCircle} color="#ffb800" bg="rgba(255,184,0,0.12)" />
+        <StatCard title="Blocked Users"     value={analytics.users.blockedUsers ?? 0}        icon={Ban}         color="#dc2626" bg="rgba(220,38,38,0.08)" />
       </div>
 
       {/* Revenue + Orders combo chart */}
       <div className="chart-container">
-        <p className="chart-title"><TrendingUp style={{ width: 15, height: 15, color: '#818CF8' }} /> Revenue & Orders — Monthly</p>
+        <p className="chart-title"><TrendingUp style={{ width: 15, height: 15, color: '#ff6a00' }} /> Revenue & Orders — Monthly</p>
         {analytics.revenue.length === 0 ? <Empty text="No revenue data yet" /> : (
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={analytics.revenue}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366F1" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#6366F1" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#ff6a00" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#ff6a00" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,18,8,0.07)" />
               <XAxis dataKey="_id" tick={{ fontSize: 11, fill: 'var(--text3)' }} axisLine={false} tickLine={false} />
               <YAxis yAxisId="rev" orientation="left" tick={{ fontSize: 10, fill: 'var(--text3)' }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} />
@@ -70,8 +70,8 @@ const AnalyticsTab = ({ navigate, setError }) => {
               <Tooltip content={<ChartTooltip />} />
               <Legend iconType="circle" iconSize={7}
                 formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600 }}>{v}</span>} />
-              <Area yAxisId="rev" type="monotone" dataKey="revenue" name="Revenue (₹)" stroke="#6366F1" strokeWidth={2.5}
-                fill="url(#revGrad)" dot={{ r: 4, fill: '#6366F1', strokeWidth: 2, stroke: '#111520' }} />
+              <Area yAxisId="rev" type="monotone" dataKey="revenue" name="Revenue (₹)" stroke="#ff6a00" strokeWidth={2.5}
+                fill="url(#revGrad)" dot={{ r: 4, fill: '#ff6a00', strokeWidth: 2, stroke: '#ffffff' }} />
               <Bar yAxisId="ord" dataKey="orders" name="Orders" radius={[5, 5, 0, 0]} maxBarSize={28}>
                 {analytics.revenue.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} fillOpacity={0.75} />)}
               </Bar>
@@ -83,17 +83,17 @@ const AnalyticsTab = ({ navigate, setError }) => {
       {/* Revenue growth line chart */}
       {analytics.revenue.length > 1 && (
         <div className="chart-container">
-          <p className="chart-title"><Activity style={{ width: 15, height: 15, color: '#34D399' }} /> Revenue Growth Trend</p>
+          <p className="chart-title"><Activity style={{ width: 15, height: 15, color: '#16a34a' }} /> Revenue Growth Trend</p>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={analytics.revenue}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,18,8,0.07)" />
               <XAxis dataKey="_id" tick={{ fontSize: 11, fill: 'var(--text3)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} axisLine={false} tickLine={false}
                 tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
               <Tooltip content={<ChartTooltip prefix="₹" />} />
-              <Line type="monotone" dataKey="revenue" stroke="#34D399" strokeWidth={2.5}
-                dot={{ r: 5, fill: '#34D399', stroke: '#111520', strokeWidth: 2 }}
-                activeDot={{ r: 7, fill: '#34D399', stroke: '#111520', strokeWidth: 2 }} />
+              <Line type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2.5}
+                dot={{ r: 5, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }}
+                activeDot={{ r: 7, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -102,7 +102,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
       {/* Donut charts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         <div className="chart-container">
-          <p className="chart-title"><Users style={{ width: 15, height: 15, color: '#60A5FA' }} /> User Breakdown</p>
+          <p className="chart-title"><Users style={{ width: 15, height: 15, color: '#ff6a00' }} /> User Breakdown</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={[
@@ -111,7 +111,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
                 { name: 'Blocked', value: analytics.users.blockedUsers || 0 },
               ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={58} outerRadius={85}
                 paddingAngle={4} dataKey="value" stroke="none">
-                {['#34D399', '#60A5FA', '#F87171'].map((c, i) => <Cell key={i} fill={c} />)}
+                {['#16a34a', '#ff6a00', '#dc2626'].map((c, i) => <Cell key={i} fill={c} />)}
               </Pie>
               <Tooltip content={<ChartTooltip />} />
               <Legend iconType="circle" iconSize={7}
@@ -121,7 +121,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
         </div>
 
         <div className="chart-container">
-          <p className="chart-title"><Store style={{ width: 15, height: 15, color: '#34D399' }} /> Partner Breakdown</p>
+          <p className="chart-title"><Store style={{ width: 15, height: 15, color: '#16a34a' }} /> Partner Breakdown</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={[
@@ -130,7 +130,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
                 { name: 'Blocked', value: analytics.partners.blockedPartners || 0 },
               ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={58} outerRadius={85}
                 paddingAngle={4} dataKey="value" stroke="none">
-                {['#22D3EE', '#FCD34D', '#F87171'].map((c, i) => <Cell key={i} fill={c} />)}
+                {['#ffb800', '#ff6a00', '#dc2626'].map((c, i) => <Cell key={i} fill={c} />)}
               </Pie>
               <Tooltip content={<ChartTooltip />} />
               <Legend iconType="circle" iconSize={7}
@@ -140,15 +140,15 @@ const AnalyticsTab = ({ navigate, setError }) => {
         </div>
 
         <div className="chart-container">
-          <p className="chart-title"><BarChart3 style={{ width: 15, height: 15, color: '#A78BFA' }} /> Partner Stats</p>
+          <p className="chart-title"><BarChart3 style={{ width: 15, height: 15, color: '#1a1208' }} /> Partner Stats</p>
           <ResponsiveContainer width="100%" height={220}>
             <RadialBarChart cx="50%" cy="50%" innerRadius="25%" outerRadius="90%"
               data={[
-                { name: 'Verified', value: analytics.partners.verifiedPartners || 0, fill: '#22D3EE' },
-                { name: 'Unverified', value: analytics.partners.unverifiedPartners || 0, fill: '#FCD34D' },
-                { name: 'Blocked', value: analytics.partners.blockedPartners || 0, fill: '#F87171' },
+                { name: 'Verified', value: analytics.partners.verifiedPartners || 0, fill: '#ffb800' },
+                { name: 'Unverified', value: analytics.partners.unverifiedPartners || 0, fill: '#ff6a00' },
+                { name: 'Blocked', value: analytics.partners.blockedPartners || 0, fill: '#dc2626' },
               ]} startAngle={90} endAngle={-270}>
-              <RadialBar dataKey="value" cornerRadius={5} background={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <RadialBar dataKey="value" cornerRadius={5} background={{ fill: 'rgba(26,18,8,0.06)' }} />
               <Tooltip content={<ChartTooltip />} />
               <Legend iconType="circle" iconSize={7}
                 formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 600 }}>{v}</span>} />

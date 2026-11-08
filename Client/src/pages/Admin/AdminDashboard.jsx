@@ -49,19 +49,13 @@ const AdminDashboard = () => {
 
       {/* ── Mobile toggle ── */}
       <button onClick={() => setSidebarOpen(!sidebarOpen)}
-        style={{ display: 'none', position: 'fixed', top: 14, left: 14, zIndex: 50, padding: '8px', borderRadius: 10, background: 'rgba(17,21,32,0.9)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text2)' }}
+        style={{ display: 'none', position: 'fixed', top: 14, left: 14, zIndex: 50, padding: '8px', borderRadius: 10, background: 'rgba(255,255,255,0.9)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text2)' }}
         className="mobile-toggle">
         {sidebarOpen ? <X style={{ width: 20, height: 20 }} /> : <Menu style={{ width: 20, height: 20 }} />}
       </button>
 
       {/* ── Sidebar ── */}
-      <aside style={{
-        position: 'fixed', left: 0, top: 0, height: '100%', width: 260,
-        background: 'var(--surface)', borderRight: '1px solid var(--border)',
-        zIndex: 40, display: 'flex', flexDirection: 'column',
-        transform: sidebarOpen ? 'translateX(0)' : undefined,
-        transition: 'transform 0.3s ease',
-      }}>
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Logo */}
         <div style={{ padding: '24px 20px 18px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -84,10 +78,10 @@ const AdminDashboard = () => {
               <button key={tab.id}
                 className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => { setActiveTab(tab.id); setSidebarOpen(false) }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: 'none', background: 'transparent', color: isActive ? '#A5B4FC' : 'var(--text2)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
-                <tab.icon style={{ width: 17, height: 17, color: isActive ? '#A5B4FC' : 'var(--text3)', flexShrink: 0 }} />
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: 'none', background: isActive ? 'linear-gradient(135deg, rgba(255,106,0,0.11), rgba(255,184,0,0.06))' : 'transparent', color: isActive ? '#e55a00' : 'var(--text2)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
+                <tab.icon style={{ width: 17, height: 17, color: isActive ? '#e55a00' : 'var(--text3)', flexShrink: 0 }} />
                 {tab.label}
-                {isActive && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#A5B4FC', boxShadow: '0 0 8px #6366F1' }} />}
+                {isActive && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#ff6a00', boxShadow: '0 0 8px #ff6a00' }} />}
               </button>
             )
           })}
@@ -96,7 +90,7 @@ const AdminDashboard = () => {
         {/* Bottom */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <button style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--text3)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)', width: '100%', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; e.currentTarget.style.color = '#F87171' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; e.currentTarget.style.color = '#dc2626' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text3)' }}
             onClick={handleLogout}>
             <LogOut style={{ width: 17, height: 17 }} /> Logout
@@ -104,7 +98,7 @@ const AdminDashboard = () => {
         </div>
       </aside>
 
-      {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 30 }} />}
+      {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,8,0.5)', backdropFilter: 'blur(4px)', zIndex: 30 }} />}
 
       {/* ── Main ── */}
       <main className="main-content">
@@ -119,16 +113,16 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text2)', transition: 'all 0.2s', position: 'relative' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'rgba(99,102,241,0.08)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}>
+            <button style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text2)', transition: 'all 0.2s', position: 'relative' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'rgba(255,106,0,0.08)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface2)' }}>
               <Bell style={{ width: 16, height: 16 }} />
-              <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: '50%', background: '#F87171', border: '1.5px solid var(--surface)' }} />
+              <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: '50%', background: '#dc2626', border: '1.5px solid var(--surface)' }} />
             </button>
           </div>
         </div>
 
-        <div style={{ padding: '28px 32px', maxWidth: 1400 }} className="anim-fade">
+        <div className="admin-content anim-fade">
           {error && <ErrBox msg={error} onRetry={() => setError('')} />}
 
           {/* Tab Content Router */}

@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import {
   Users, Store, ShoppingBag, Package, IndianRupee, Activity,
-  TrendingUp, ArrowUpRight, RefreshCw, Pause, Play, Radio, AlertTriangle
+  TrendingUp, ArrowUpRight, ArrowRight, RefreshCw, Pause, Play, Radio, AlertTriangle
 } from 'lucide-react'
 import { Spinner, Empty, ChartTooltip } from '../AdminUI'
 import { fmtCur, STATUS_COLORS } from '../adminConstants'
@@ -213,28 +213,29 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
 
             {/* ── Stat grid ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
-                <LiveStat title="Total Users" value={users} icon={Users} color="#60A5FA" bg="rgba(96,165,250,0.12)"
+                <LiveStat title="Total Users" value={users} icon={Users} color="#ff6a00" bg="rgba(255,106,0,0.10)"
                     sub={<Delta current={users} previous={stats?.usersPrev24h} label="vs 24h ago" />} />
-                <LiveStat title="Food Partners" value={partners} icon={Store} color="#34D399" bg="rgba(52,211,153,0.12)"
+                <LiveStat title="Food Partners" value={partners} icon={Store} color="#16a34a" bg="rgba(22,163,74,0.10)"
                     sub={<span style={{ color: 'var(--text3)' }}>Verified & active</span>} />
-                <LiveStat title="Total Orders" value={orders} icon={ShoppingBag} color="#A78BFA" bg="rgba(167,139,250,0.12)"
+                <LiveStat title="Total Orders" value={orders} icon={ShoppingBag} color="#1a1208" bg="rgba(26,18,8,0.08)"
                     sub={<Delta current={stats?.orders24h || 0} previous={0} label="in last 24h" />} />
-                <LiveStat title="Food Items" value={items} icon={Package} color="#FCD34D" bg="rgba(252,211,77,0.12)"
+                <LiveStat title="Food Items" value={items} icon={Package} color="#ffb800" bg="rgba(255,184,0,0.14)"
                     sub={<span style={{ color: 'var(--text3)' }}>{stats?.totalAds || 0} advertisements</span>} />
             </div>
 
             {/* ── Revenue + activity ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)', gap: 14, alignItems: 'stretch' }} className="live-split">
                 <div className="revenue-banner">
+                    <div className="revenue-shine" aria-hidden="true" />
                     <div style={{ position: 'relative', zIndex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <IndianRupee style={{ width: 16, height: 16, color: '#A5B4FC' }} />
-                            <p style={{ color: '#A5B4FC', fontSize: 12, fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lifetime Revenue</p>
+                            <IndianRupee style={{ width: 16, height: 16, color: '#ffb800' }} />
+                            <p style={{ color: '#ffb800', fontSize: 12, fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lifetime Revenue</p>
                         </div>
                         <p style={{ fontSize: 40, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, letterSpacing: '-0.03em', color: 'white', lineHeight: 1.1 }}>
                             {fmtCur(stats?.totalRevenue || 0)}
                         </p>
-                        <p style={{ color: 'rgba(165,180,252,0.72)', fontSize: 12, margin: '8px 0 0' }}>
+                        <p style={{ color: 'rgba(255,184,0,0.8)', fontSize: 12, margin: '8px 0 0' }}>
                             {fmtCur(stats?.paidRevenue || 0)} captured · {fmtCur(stats?.revenue24h || 0)} in the last 24h
                         </p>
                     </div>
@@ -249,7 +250,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                                 <p style={{ fontSize: 20, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'white', margin: 0, lineHeight: 1.2 }}>
                                     {m.val.toLocaleString('en-IN')}
                                 </p>
-                                <p style={{ fontSize: 10, color: 'rgba(165,180,252,0.75)', margin: '2px 0 0', fontWeight: 600 }}>{m.label}</p>
+                                <p style={{ fontSize: 10, color: 'rgba(255,184,0,0.75)', margin: '2px 0 0', fontWeight: 600 }}>{m.label}</p>
                             </div>
                         ))}
                     </div>
@@ -292,7 +293,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
             <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 6px', gap: 12, flexWrap: 'wrap' }}>
                     <p className="chart-title" style={{ margin: 0 }}>
-                        <TrendingUp style={{ width: 15, height: 15, color: '#34D399' }} /> Order trend
+                        <TrendingUp style={{ width: 15, height: 15, color: '#ff6a00' }} /> Order trend
                     </p>
                     <div className="range-switch">
                         {RANGES.map(r => (
@@ -313,20 +314,20 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                             <AreaChart data={series} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#A78BFA" stopOpacity={0.45} />
-                                        <stop offset="100%" stopColor="#A78BFA" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="#ff6a00" stopOpacity={0.35} />
+                                        <stop offset="100%" stopColor="#ff6a00" stopOpacity={0} />
                                     </linearGradient>
                                     <linearGradient id="gradOrders" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
-                                        <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="#1a1208" stopOpacity={0.22} />
+                                        <stop offset="100%" stopColor="#1a1208" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <CartesianGrid stroke="rgba(26,18,8,0.07)" vertical={false} />
                                 <XAxis dataKey="label" tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={18} />
                                 <YAxis tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
                                 <Tooltip content={<ChartTooltip />} />
-                                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#A78BFA" strokeWidth={2} fill="url(#gradRevenue)" />
-                                <Line type="monotone" dataKey="orders" name="Orders" stroke="#34D399" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#ff6a00" strokeWidth={2} fill="url(#gradRevenue)" />
+                                <Line type="monotone" dataKey="orders" name="Orders" stroke="#1a1208" strokeWidth={2} dot={false} />
                             </AreaChart>
                         </ResponsiveContainer>
                     )}
@@ -336,12 +337,12 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
             {/* ── Pipeline breakdown ── */}
             <div className="card">
                 <p className="chart-title" style={{ margin: 0, padding: '16px 18px 12px' }}>
-                    <ShoppingBag style={{ width: 15, height: 15, color: '#A78BFA' }} /> Order pipeline
+                    <ShoppingBag style={{ width: 15, height: 15, color: '#ff6a00' }} /> Order pipeline
                 </p>
                 {statusRows.length === 0 ? <Empty text="No orders yet" /> : (
                     <div className="pipeline">
                         {statusRows.map(r => {
-                            const sc = STATUS_COLORS[r.status] || { bg: 'rgba(255,255,255,0.05)', text: '#94A3B8', dot: '#94A3B8' }
+                            const sc = STATUS_COLORS[r.status] || { bg: 'rgba(26,18,8,0.05)', text: '#6b6460', dot: '#9e9890' }
                             const pct = orders ? Math.round((r.count / orders) * 100) : 0
                             return (
                                 <div key={r.status} className="pipeline-row">
@@ -367,19 +368,27 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
             {/* ── Quick actions ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                 {[
-                    { label: 'Manage Users', icon: Users,      tab: 'users',     g: 'linear-gradient(135deg, #1e40af, #3b82f6)',   shadow: 'rgba(59,130,246,0.3)' },
-                    { label: 'Partners',     icon: Store,      tab: 'partners',  g: 'linear-gradient(135deg, #065f46, #10b981)',   shadow: 'rgba(16,185,129,0.3)' },
-                    { label: 'Content',      icon: Package,     tab: 'content',   g: 'linear-gradient(135deg, #78350f, #f59e0b)',   shadow: 'rgba(245,158,11,0.3)' },
-                    { label: 'Analytics',    icon: TrendingUp, tab: 'analytics', g: 'linear-gradient(135deg, #4c1d95, #8b5cf6)',   shadow: 'rgba(139,92,246,0.3)' },
+                    { label: 'Manage Users', icon: Users,      tab: 'users',     accent: '#ff6a00' },
+                    { label: 'Partners',     icon: Store,      tab: 'partners',  accent: '#16a34a' },
+                    { label: 'Content',      icon: Package,    tab: 'content',   accent: '#b45309' },
+                    { label: 'Analytics',    icon: TrendingUp, tab: 'analytics', accent: '#1a1208' },
                 ].map(c => (
                     <button key={c.tab} onClick={() => setActiveTab(c.tab)}
                         className="quick-action"
-                        style={{ background: c.g, color: 'white', border: 'none' }}
-                        onMouseEnter={e => e.currentTarget.style.boxShadow = `0 16px 40px ${c.shadow}`}
-                        onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                        <c.icon style={{ width: 22, height: 22, marginBottom: 10, display: 'block', opacity: 0.9 }} />
-                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, margin: '0 0 3px' }}>{c.label}</p>
-                        <p style={{ fontSize: 11, opacity: 0.6, margin: 0 }}>Manage →</p>
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+                        <span
+                            className="quick-action-chip"
+                            style={{ width: 38, height: 38, borderRadius: 10, background: `${c.accent}14`, border: `1px solid ${c.accent}2E`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        >
+                            <c.icon style={{ width: 19, height: 19, color: c.accent }} />
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                            <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, margin: '0 0 4px', color: 'var(--text)', letterSpacing: '-0.01em', textAlign: 'left' }}>{c.label}</p>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                Manage
+                                <ArrowRight className="quick-action-arrow" style={{ width: 13, height: 13, color: 'var(--accent)' }} />
+                            </span>
+                        </span>
                     </button>
                 ))}
             </div>

@@ -28,7 +28,7 @@ const OrdersTab = ({ navigate, setError }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: 'var(--surface)', padding: '8px 10px', borderRadius: 12, border: '1px solid var(--border)', width: 'fit-content' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: 'var(--surface)', padding: '8px 10px', borderRadius: 12, border: '1px solid var(--border)', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
         {['all', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancel_requested', 'cancelled'].map(s => (
           <button key={s} className={`status-filter ${status === s ? 'active' : ''}`}
             onClick={() => { setStatus(s); setPage(1) }}>{s}</button>
@@ -38,12 +38,12 @@ const OrdersTab = ({ navigate, setError }) => {
       {loading ? <Spinner /> : orders.length === 0 ? <Empty text="No orders found" /> : (
         <div className="card">
           {orders.map((o, idx) => {
-            const sc = STATUS_COLORS[o.status] || { bg: 'rgba(255,255,255,0.05)', text: '#94A3B8', dot: '#94A3B8' }
+            const sc = STATUS_COLORS[o.status] || { bg: 'rgba(26,18,8,0.05)', text: '#6b6460', dot: '#9e9890' }
             return (
               <div key={o._id} className="row-item"
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Package style={{ width: 17, height: 17, color: '#A78BFA' }} />
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(26,18,8,0.06)' : 'none' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,106,0,0.1)', border: '1px solid rgba(255,106,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Package style={{ width: 17, height: 17, color: '#ff6a00' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -53,7 +53,7 @@ const OrdersTab = ({ navigate, setError }) => {
                     </span>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--text3)', margin: 0 }}>{o.user?.name || o.user?.email || 'Unknown'} · {o.items?.length || 0} items</p>
-                  <p style={{ fontSize: 10, color: 'rgba(148,163,184,0.5)', margin: '2px 0 0' }}>
+                  <p style={{ fontSize: 10, color: 'var(--text3)', margin: '2px 0 0', opacity: 0.7 }}>
                     {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>

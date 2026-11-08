@@ -62,20 +62,20 @@ const PartnersTab = ({ navigate, setError, setConfirmAction }) => {
         <div className="card">
           {partners.map((p, idx) => (
             <div key={p._id} className="row-item"
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < partners.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #059669, #34d399)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(52,211,153,0.25)' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < partners.length - 1 ? '1px solid rgba(26,18,8,0.06)' : 'none' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #16a34a, #4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(22,163,74,0.25)' }}>
                 <Store style={{ width: 18, height: 18, color: 'white' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.companyName}</p>
-                  {p.verified && <CheckCircle style={{ width: 14, height: 14, color: '#22D3EE', flexShrink: 0 }} />}
+                  {p.verified && <CheckCircle style={{ width: 14, height: 14, color: '#ff6a00', flexShrink: 0 }} />}
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.email}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {p.isBlocked && <span className="pill" style={{ background: 'rgba(248,113,113,0.1)', color: '#F87171' }}>Blocked</span>}
-                <span className="pill" style={{ background: p.verified ? 'rgba(34,211,238,0.1)' : 'rgba(252,211,77,0.1)', color: p.verified ? '#22D3EE' : '#FCD34D' }}>
+                {p.isBlocked && <span className="pill" style={{ background: 'rgba(220,38,38,0.08)', color: '#dc2626' }}>Blocked</span>}
+                <span className="pill" style={{ background: p.verified ? 'rgba(255,106,0,0.1)' : 'rgba(255,184,0,0.14)', color: p.verified ? '#e55a00' : '#b45309' }}>
                   {p.verified ? 'Verified' : 'Pending'}
                 </span>
               </div>

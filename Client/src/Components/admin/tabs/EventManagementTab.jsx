@@ -5,11 +5,11 @@ import { formatDateRange } from '../../../utils/foodfest'
 import { API_ENDPOINTS } from '../../../config/Api'
 
 const STATUS_STYLES = {
-  draft: { bg: 'rgba(148,163,184,0.18)', color: '#475569', label: 'Draft' },
-  published: { bg: 'rgba(59,130,246,0.15)', color: '#1d4ed8', label: 'Published' },
-  live: { bg: 'rgba(34,197,94,0.16)', color: '#15803d', label: 'Live' },
-  completed: { bg: 'rgba(139,92,246,0.16)', color: '#6d28d9', label: 'Completed' },
-  cancelled: { bg: 'rgba(239,68,68,0.14)', color: '#b91c1c', label: 'Cancelled' }
+  draft: { bg: 'rgba(26,18,8,0.07)', color: '#6b6460', label: 'Draft' },
+  published: { bg: 'rgba(255,106,0,0.12)', color: '#e55a00', label: 'Published' },
+  live: { bg: 'rgba(22,163,74,0.12)', color: '#16a34a', label: 'Live' },
+  completed: { bg: 'rgba(26,18,8,0.10)', color: '#1a1208', label: 'Completed' },
+  cancelled: { bg: 'rgba(220,38,38,0.10)', color: '#dc2626', label: 'Cancelled' }
 }
 
 const EventManagementTab = ({ setError }) => {
@@ -108,30 +108,30 @@ const EventManagementTab = ({ setError }) => {
                     >
                       {meta.label}
                     </span>
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-500">
+                    <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)]">
                       {event.organizerType === 'user' ? 'User-hosted' : 'Admin'}
                     </span>
                     {event.organizerType === 'user' && (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
                         style={{
-                          background: event.organizerAccess ? 'rgba(34,197,94,0.14)' : 'rgba(239,68,68,0.12)',
-                          color: event.organizerAccess ? '#15803d' : '#b91c1c'
+                          background: event.organizerAccess ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.10)',
+                          color: event.organizerAccess ? '#16a34a' : '#dc2626'
                         }}
                       >
                         {event.organizerAccess ? 'Organizer access' : 'Access revoked'}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                     {event.venue?.address}, {event.venue?.city}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
                     {formatDateRange(event.startTime, event.endTime)}
                   </p>
                   {event.organizerNotes && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      <span className="font-medium text-gray-400">Host notes: </span>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      <span className="font-medium text-[var(--color-text-faint)]">Host notes: </span>
                       {event.organizerNotes}
                     </p>
                   )}
@@ -170,7 +170,7 @@ const EventManagementTab = ({ setError }) => {
                           `Publish "${event.name}"? It will appear on the public events page.`
                         )
                       }
-                      className="rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-200 disabled:opacity-50"
+                      className="rounded-lg bg-orange-100 px-3 py-1.5 text-xs font-bold text-orange-700 transition-colors hover:bg-orange-200 disabled:opacity-50"
                     >
                       Publish
                     </button>

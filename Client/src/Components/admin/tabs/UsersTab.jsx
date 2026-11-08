@@ -55,8 +55,8 @@ const UsersTab = ({ navigate, setError, setConfirmAction }) => {
         <div className="card">
           {users.map((user, idx) => (
             <div key={user._id} className="row-item"
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < users.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(99,102,241,0.25)' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: idx < users.length - 1 ? '1px solid rgba(26,18,8,0.06)' : 'none' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #ff6a00, #ffb800)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(255,106,0,0.25)' }}>
                 <span style={{ color: 'white', fontWeight: 800, fontSize: 15 }}>{(user.firstName || user.name || 'U')[0].toUpperCase()}</span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -64,8 +64,8 @@ const UsersTab = ({ navigate, setError, setConfirmAction }) => {
                 <p style={{ fontSize: 12, color: 'var(--text3)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {user.isBlocked && <span className="pill" style={{ background: 'rgba(248,113,113,0.1)', color: '#F87171' }}>Blocked</span>}
-                <span style={{ fontSize: 11, color: 'var(--text3)', background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)', fontWeight: 500 }}>
+                {user.isBlocked && <span className="pill" style={{ background: 'rgba(220,38,38,0.08)', color: '#dc2626' }}>Blocked</span>}
+                <span style={{ fontSize: 11, color: 'var(--text3)', background: 'rgba(26,18,8,0.04)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)', fontWeight: 500 }}>
                   {new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                 </span>
               </div>

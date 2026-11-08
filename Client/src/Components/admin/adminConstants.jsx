@@ -4,22 +4,22 @@ export const fmtCur = n =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n ?? 0)}`
 
 export const STATUS_COLORS = {
-  pending:   { bg: 'rgba(251,191,36,0.15)',  text: '#F59E0B', dot: '#F59E0B' },
-  confirmed: { bg: 'rgba(59,130,246,0.15)',  text: '#3B82F6', dot: '#3B82F6' },
-  preparing: { bg: 'rgba(139,92,246,0.15)',  text: '#8B5CF6', dot: '#8B5CF6' },
-  ready:     { bg: 'rgba(20,184,166,0.15)',  text: '#14B8A6', dot: '#14B8A6' },
-  delivered: { bg: 'rgba(34,197,94,0.15)',   text: '#22C55E', dot: '#22C55E' },
-  completed: { bg: 'rgba(34,197,94,0.15)',   text: '#22C55E', dot: '#22C55E' },
-  cancelled: { bg: 'rgba(239,68,68,0.15)',   text: '#EF4444', dot: '#EF4444' },
-  cancel_requested: { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B', dot: '#F59E0B' },
+  pending:   { bg: 'rgba(255,184,0,0.15)',  text: '#b45309', dot: '#ffb800' },
+  confirmed: { bg: 'rgba(255,106,0,0.12)',  text: '#e55a00', dot: '#ff6a00' },
+  preparing: { bg: 'rgba(26,18,8,0.08)',    text: '#1a1208', dot: '#1a1208' },
+  ready:     { bg: 'rgba(229,90,0,0.12)',   text: '#e55a00', dot: '#e55a00' },
+  delivered: { bg: 'rgba(22,163,74,0.12)',  text: '#16a34a', dot: '#16a34a' },
+  completed: { bg: 'rgba(22,163,74,0.12)',  text: '#16a34a', dot: '#16a34a' },
+  cancelled: { bg: 'rgba(220,38,38,0.10)',  text: '#dc2626', dot: '#dc2626' },
+  cancel_requested: { bg: 'rgba(255,184,0,0.15)', text: '#b45309', dot: '#ffb800' },
 }
 
 export const PALETTE = [
-  '#6EE7F7', '#818CF8', '#A78BFA', '#F472B6',
-  '#34D399', '#FCD34D', '#FB923C', '#60A5FA'
+  '#ff6a00', '#ffb800', '#1a1208', '#e55a00',
+  '#16a34a', '#ff8533', '#b45309', '#dc2626'
 ]
 
-export const PIE_COLORS = ['#34D399', '#818CF8', '#F472B6', '#FBBF24']
+export const PIE_COLORS = ['#16a34a', '#ff6a00', '#ffb800', '#dc2626']
 
 export const TABS = [
   { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },

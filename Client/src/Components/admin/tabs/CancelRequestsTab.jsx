@@ -119,7 +119,7 @@ const CancelRequestsTab = ({ navigate, setError }) => {
                   disabled={deciding === `${r.orderId}:approve`}
                   onClick={() => decide(r.orderId, 'approve')}
                   title="Approve — cancel the order and refund the customer"
-                  style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22C55E', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.3)', color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                 >
                   <Check style={{ width: 13, height: 13 }} /> Approve
                 </button>
@@ -128,7 +128,7 @@ const CancelRequestsTab = ({ navigate, setError }) => {
                   disabled={deciding === `${r.orderId}:reject`}
                   onClick={() => decide(r.orderId, 'reject')}
                   title="Reject — the partner must prepare and deliver the order"
-                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                 >
                   <X style={{ width: 13, height: 13 }} /> Reject
                 </button>
