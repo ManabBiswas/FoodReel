@@ -47,6 +47,12 @@ const advertisementSchema = new mongoose.Schema({
     trim: true,
     uppercase: true
   },
+  // The redeemable Coupon created from this ad's promo code. `promoCode` stays as the display sticker; the coupon is what the cart validates.
+  couponId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Coupon',
+    sparse: true
+  },
   file: {
     type: String
   },

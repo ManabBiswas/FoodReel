@@ -200,7 +200,7 @@ export const generateReceipt = (order) => {
     
     if (pricing.discount > 0) {
       doc.setTextColor(0, 128, 0);
-      doc.text('Discount:', margin, yPos);
+      doc.text(`Discount${order.coupon?.code ? ` (${order.coupon.code})` : ''}:`, margin, yPos);
       doc.text(`- Rs. ${pricing.discount.toFixed(2)}`, rightAlign, yPos, { align: 'right' });
       doc.setTextColor(0, 0, 0);
       yPos += 6;

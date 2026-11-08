@@ -81,14 +81,22 @@ const cartSchema = new mongoose.Schema({
             default: 0
         }
     },
-    // Applied coupon/promo code
+    // Applied coupon/promo code. The discount is re-validated server-side on
+    // every cart mutation; nothing here is trusted at checkout.
     appliedPromo: {
+        couponId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Coupon'
+        },
         code: String,
         discountAmount: Number,
         discountType: {
             type: String,
             enum: ['percentage', 'fixed']
-        }
+        },
+        // Portion of the cart the code actually discounted (scoped coupons).
+        eligibleTotal: Number,
+        eligibleQuantity: Number
     }
 }, {
     timestamps: true

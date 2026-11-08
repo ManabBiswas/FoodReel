@@ -168,7 +168,8 @@ test('every limiter declares a shared store', async () => {
         'utf8'
     );
     const limiters = [...src.matchAll(/export const (\w+) = rateLimit\(\{/g)].map((m) => m[1]);
-    assert.equal(limiters.length, 5, 'expected five limiters');
+    assert.equal(limiters.length, 6, 'expected six limiters');
+    assert.ok(limiters.includes('couponRateLimiter'), 'the coupon limiter must exist');
     for (const name of limiters) {
         const body = src.slice(src.indexOf(`export const ${name} = rateLimit({`));
         assert.match(

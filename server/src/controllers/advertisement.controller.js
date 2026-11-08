@@ -1,6 +1,7 @@
 import Advertisement from '../models/advertisement.model.js'
 import { serverError } from '../utils/apiError.js'
 import storageService from '../services/storage.service.js'
+import couponService from '../services/coupon.service.js'
 import { v4 as uuid } from 'uuid'
 
 export const createAdvertisement = async (req, res) => {
@@ -25,6 +26,22 @@ export const createAdvertisement = async (req, res) => {
     if (type === 'image' && !mimeIsImage) return res.status(400).json({ error: "Please upload a valid image file" })
     if (validUntil && new Date(validUntil) < new Date())
       return res.status(400).json({ error: "Valid until date must be in the future" })
+
+    // A code belongs to exactly one restaurant
+    const normalizedPromoCode = couponService.normalizeCode(promoCode)
+    if (normalizedPromoCode && !couponService.isValidCode(normalizedPromoCode)) {
+      return res.status(400).json({
+        error: "Promo code must be 5-32 characters using letters, numbers, hyphens or underscores"
+      })
+    }
+    if (normalizedPromoCode) {
+      const conflict = await couponService.findCodeConflict(normalizedPromoCode, req.foodPartner._id)
+      if (conflict) {
+        return res.status(409).json({
+          error: `Promo code ${normalizedPromoCode} is already used by another restaurant`
+        })
+      }
+    }
 
     // ── FIXED UPLOAD ─────────────────────────────────────────────
     const { url: fileUrl, isVideo: uploadedAsVideo } = await storageService.uploadFile(
@@ -65,7 +82,7 @@ export const createAdvertisement = async (req, res) => {
       promotionType,
       prices: parsedPrices,
       validUntil: validUntil ? new Date(validUntil) : null,
-      promoCode: promoCode ? promoCode.toUpperCase() : null,
+      promoCode: normalizedPromoCode || null,
       // ── Store in the correct field so FoodMedia/getFoodMedia works ──
       ...(uploadedAsVideo ? { video: fileUrl } : { image: fileUrl }),
       // Legacy `file` field kept for backward compatibility
@@ -75,7 +92,31 @@ export const createAdvertisement = async (req, res) => {
 
     await advertisement.save()
 
-    res.status(201).json({ message: 'Advertisement created successfully', advertisement })
+    // Turn the displayed code into a redeemable coupon
+    let couponWarning = null
+    if (advertisement.promoCode) {
+      const synced = await couponService.syncCouponForPromotion({
+        code: advertisement.promoCode,
+        partnerId: req.foodPartner._id,
+        prices: parsedPrices,
+        validUntil: advertisement.validUntil,
+        description: `${advertisement.name} offer`,
+        createdBy: 'partner'
+      })
+
+      if (synced.ok && synced.coupon) {
+        advertisement.couponId = synced.coupon._id
+        await advertisement.save()
+      } else if (!synced.ok) {
+        couponWarning = synced.message
+      }
+    }
+
+    res.status(201).json({
+      message: 'Advertisement created successfully',
+      advertisement,
+      ...(couponWarning ? { couponWarning } : {})
+    })
   } catch (error) {
     console.error('Create advertisement error:', error)
     serverError(res, error, 'Failed to create advertisement')
@@ -162,10 +203,27 @@ export const updateAdvertisement = async (req, res) => {
 
     const { name, description, type, tags, promotionType, prices, validUntil, promoCode } = req.body
 
+    const normalizedPromoCode = couponService.normalizeCode(promoCode)
+    if (normalizedPromoCode && !couponService.isValidCode(normalizedPromoCode)) {
+      return res.status(400).json({
+        error: "Promo code must be 5-32 characters using letters, numbers, hyphens or underscores"
+      })
+    }
+    if (normalizedPromoCode) {
+      const conflict = await couponService.findCodeConflict(normalizedPromoCode, req.foodPartner._id)
+      if (conflict) {
+        return res.status(409).json({
+          error: `Promo code ${normalizedPromoCode} is already used by another restaurant`
+        })
+      }
+    }
+
     const updateData = {
-      name, description, type, promotionType, promoCode,
+      name, description, type, promotionType,
       validUntil: validUntil ? new Date(validUntil) : null
     }
+    // Normalise on write; an explicit empty string clears the code.
+    if (promoCode !== undefined) updateData.promoCode = normalizedPromoCode || null
 
     if (tags) {
       try { updateData.tags = JSON.parse(tags) }
@@ -196,7 +254,41 @@ export const updateAdvertisement = async (req, res) => {
 
     if (!advertisement) return res.status(404).json({ error: 'Advertisement not found' })
 
-    res.status(200).json({ message: 'Advertisement updated successfully', advertisement })
+    // Keep the redeemable coupon in step with the edited ad
+    let couponWarning = null
+    if (advertisement.promoCode) {
+      const synced = await couponService.syncCouponForPromotion({
+        existingCouponId: existing.couponId,
+        code: advertisement.promoCode,
+        partnerId: req.foodPartner._id,
+        prices: advertisement.prices,
+        validUntil: advertisement.validUntil,
+        description: `${advertisement.name} offer`,
+        createdBy: 'partner'
+      })
+
+      if (synced.ok && synced.coupon) {
+        if (String(advertisement.couponId || '') !== String(synced.coupon._id)) {
+          advertisement.couponId = synced.coupon._id
+          await advertisement.save()
+        }
+      } else if (!synced.ok) {
+        couponWarning = synced.message
+      }
+    } else if (existing.couponId) {
+      // The code was cleared, so the redeemable version must stop working too.
+      await couponService.syncCouponForPromotion({
+        existingCouponId: existing.couponId,
+        code: '',
+        partnerId: req.foodPartner._id
+      })
+    }
+
+    res.status(200).json({
+      message: 'Advertisement updated successfully',
+      advertisement,
+      ...(couponWarning ? { couponWarning } : {})
+    })
   } catch (error) {
     console.error('Update advertisement error:', error)
     serverError(res, error, 'Failed to update advertisement')
@@ -213,6 +305,16 @@ export const deleteAdvertisement = async (req, res) => {
 
     const advertisement = await Advertisement.findByIdAndDelete(req.params.id)
     if (!advertisement) return res.status(404).json({ error: 'Advertisement not found' })
+
+    // Deleting the ad must also stop its code from being redeemable.
+    if (existing.couponId) {
+      await couponService.syncCouponForPromotion({
+        existingCouponId: existing.couponId,
+        code: '',
+        partnerId: req.foodPartner._id
+      })
+    }
+
     res.status(200).json({ message: 'Advertisement deleted successfully' })
   } catch (error) {
     console.error('Delete advertisement error:', error)

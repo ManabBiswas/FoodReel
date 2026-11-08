@@ -168,14 +168,25 @@ class PaymentService {
         const platformFee = Math.round(basePrice * 0.03 * 100) / 100;
         const subtotal = basePrice + deliveryFee + platformFee;
         const gst = Math.round(subtotal * 0.05 * 100) / 100;
-        const totalAmount = Math.round((subtotal + gst - discount) * 100) / 100;
+
+        // Never let a coupon produce a negative charge.
+        const requestedDiscount = Number(discount);
+        const safeDiscount = Number.isFinite(requestedDiscount) && requestedDiscount > 0
+            ? Math.round(requestedDiscount * 100) / 100
+            : 0;
+        const payableBeforeDiscount = Math.round((subtotal + gst) * 100) / 100;
+        const appliedDiscount = Math.min(safeDiscount, payableBeforeDiscount);
+        const totalAmount = Math.max(
+            0,
+            Math.round((subtotal + gst - appliedDiscount) * 100) / 100
+        );
 
         return {
             itemPrice: basePrice,
             deliveryFee,
             platformFee,
             taxes: { gst, total: gst },
-            discount,
+            discount: appliedDiscount,
             totalAmount
         };
     }

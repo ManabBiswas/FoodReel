@@ -1,6 +1,7 @@
 import express from 'express';
 import cartController from '../controllers/cart.controller.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
+import { couponRateLimiter } from '../middlewares/rateLimiter.js';
 import { withIdempotency } from '../services/idempotency.js';
 import { validateBody, validateParams, isObjectId } from '../utils/validate.js';
 
@@ -26,6 +27,17 @@ router.delete('/remove/:itemId', isLoggedin, itemIdParams, cartController.remove
 
 // DELETE /api/cart/clear - Clear entire cart
 router.delete('/clear', isLoggedin, cartController.clearCart);
+
+// POST /api/cart/apply-coupon - Validate and apply a promo code
+router.post('/apply-coupon', isLoggedin, couponRateLimiter, validateBody({
+    code: {
+        check: (v) => typeof v === 'string' && v.trim().length >= 5 && v.trim().length <= 32,
+        message: 'code must be 5-32 characters'
+    }
+}), cartController.applyCoupon);
+
+// DELETE /api/cart/coupon - Remove the applied promo code
+router.delete('/coupon', isLoggedin, cartController.removeCoupon);
 
 // GET /api/cart/validate - Validate cart (check prices, availability)
 router.get('/validate', isLoggedin, cartController.validateCart);

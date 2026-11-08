@@ -64,11 +64,12 @@ describe('calculatePricing', () => {
         assert.equal(p.deliveryFee, 0);
     });
 
-    // KNOWN WEAKNESS: negative price or a NaN quantity is not rejected here.
-    // Callers validate, but the service itself is unguarded. A test that
-    // documents the current (unsafe) behaviour makes an eventual fix visible.
-    test('KNOWN GAP: does not reject a negative price', () => {
+    // FIXED (coupon work): calculatePricing now clamps the total to >= 0, so
+    // a negative price can no longer produce a negative charge. The old test
+    // pinned the unsafe behaviour; this locks the safe one.
+    test('does not produce a negative total for a negative price', () => {
         const p = paymentService.calculatePricing(-100, 1);
-        assert.ok(p.totalAmount < 0, 'expected the unguarded negative total');
+        assert.equal(p.totalAmount, 0, 'the total must be clamped at zero');
+        assert.ok(p.itemPrice <= 0);
     });
 });

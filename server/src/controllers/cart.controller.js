@@ -3,6 +3,7 @@ import foodModel from '../models/food.model.js';
 import orderModel from '../models/order.model.js';
 import userModel from '../models/user.Model.js';
 import paymentService from '../services/payment.service.js';
+import couponService from '../services/coupon.service.js';
 
 // Get user's cart
 const getCart = async (req, res) => {
@@ -27,11 +28,13 @@ const getCart = async (req, res) => {
         }
 
         // Calculate totals before returning
-        await calculateCartTotals(cart);
+        const totals = await calculateCartTotals(cart);
+        if (totals.couponCleared) await cart.save();
 
         res.status(200).json({
             success: true,
-            cart
+            cart,
+            ...(totals.couponMessage ? { couponNotice: totals.couponMessage } : {})
         });
     } catch (error) {
         console.error('Error getting cart:', error);
@@ -208,7 +211,7 @@ const addToCart = async (req, res) => {
         }
 
         // Calculate totals
-        await calculateCartTotals(cart);
+        const totals = await calculateCartTotals(cart);
         await cart.save();
 
         // Populate and return
@@ -221,7 +224,8 @@ const addToCart = async (req, res) => {
         res.status(200).json({
             success: true,
             message: `Added ${foodItem.name} to cart`,
-            cart
+            cart,
+            ...(totals.couponMessage ? { couponNotice: totals.couponMessage } : {})
         });
 
     } catch (error) {
@@ -295,7 +299,7 @@ const updateQuantity = async (req, res) => {
             });
         }
 
-        await calculateCartTotals(cart);
+        const totals = await calculateCartTotals(cart);
         await cart.save();
 
         await cart.populate([
@@ -307,7 +311,8 @@ const updateQuantity = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Cart updated',
-            cart
+            cart,
+            ...(totals.couponMessage ? { couponNotice: totals.couponMessage } : {})
         });
 
     } catch (error) {
@@ -361,7 +366,7 @@ const removeItem = async (req, res) => {
             cart.activeRestaurant = null;
         }
 
-        await calculateCartTotals(cart);
+        const totals = await calculateCartTotals(cart);
         await cart.save();
 
         await cart.populate([
@@ -373,7 +378,8 @@ const removeItem = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Item removed from cart',
-            cart
+            cart,
+            ...(totals.couponMessage ? { couponNotice: totals.couponMessage } : {})
         });
 
     } catch (error) {
@@ -428,6 +434,142 @@ const clearCart = async (req, res) => {
     }
 };
 
+// Apply a promo code to the cart
+const applyCoupon = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const code = couponService.normalizeCode(req.body?.code);
+
+        if (!code) {
+            return res.status(400).json({
+                success: false,
+                code: 'COUPON_REQUIRED',
+                error: 'Enter a promo code.'
+            });
+        }
+
+        const cart = await cartModel.findOne({ user: userId });
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                code: 'CART_EMPTY',
+                error: 'Add items to your cart before applying a promo code.'
+            });
+        }
+
+        if (!cart.activeRestaurant) {
+            return res.status(400).json({
+                success: false,
+                code: 'CART_NO_RESTAURANT',
+                error: 'Your cart has no restaurant assigned yet.'
+            });
+        }
+
+        const items = cart.items.map((item) => ({
+            foodItemId: item.foodItem?._id || item.foodItem,
+            quantity: item.quantity,
+            price: item.priceAtAdd
+        }));
+
+        const validation = await couponService.validateCoupon({
+            code,
+            userId,
+            partnerId: cart.activeRestaurant,
+            items
+        });
+
+        if (!validation.ok) {
+            return res.status(400).json({
+                success: false,
+                code: validation.code,
+                error: validation.message,
+                ...(validation.minOrderAmount !== undefined
+                    ? { minOrderAmount: validation.minOrderAmount }
+                    : {}),
+                ...(validation.minQuantity !== undefined
+                    ? { minQuantity: validation.minQuantity }
+                    : {})
+            });
+        }
+
+        cart.appliedPromo = {
+            couponId: validation.coupon._id,
+            code: validation.coupon.code,
+            discountType: validation.coupon.discountType,
+            discountAmount: validation.discountAmount,
+            eligibleTotal: validation.eligibleTotal,
+            eligibleQuantity: validation.eligibleQuantity
+        };
+
+        await calculateCartTotals(cart);
+        await cart.save();
+
+        await cart.populate([
+            { path: 'items.foodItem', select: 'name description image video price currency postType isAvailable' },
+            { path: 'items.foodPartner', select: 'companyName' },
+            { path: 'activeRestaurant', select: 'companyName' }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            message: `Promo code ${validation.coupon.code} applied — you saved ₹${validation.discountAmount}.`,
+            cart,
+            coupon: {
+                code: validation.coupon.code,
+                discountType: validation.coupon.discountType,
+                discountAmount: validation.discountAmount,
+                eligibleTotal: validation.eligibleTotal,
+                eligibleQuantity: validation.eligibleQuantity,
+                scoped: validation.scoped,
+                ineligibleItems: validation.ineligibleItems
+            }
+        });
+    } catch (error) {
+        console.error('Error applying coupon:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to apply promo code'
+        });
+    }
+};
+
+// Remove the applied promo code from the cart
+const removeCoupon = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const cart = await cartModel.findOne({ user: userId });
+
+        if (!cart) {
+            return res.status(404).json({
+                success: false,
+                error: 'Cart not found'
+            });
+        }
+
+        cart.appliedPromo = undefined;
+        await calculateCartTotals(cart);
+        await cart.save();
+
+        await cart.populate([
+            { path: 'items.foodItem', select: 'name description image video price currency postType isAvailable' },
+            { path: 'items.foodPartner', select: 'companyName' },
+            { path: 'activeRestaurant', select: 'companyName' }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            message: 'Promo code removed',
+            cart
+        });
+    } catch (error) {
+        console.error('Error removing coupon:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to remove promo code'
+        });
+    }
+};
+
 // Validate cart (check prices, availability)
 const validateCart = async (req, res) => {
     try {
@@ -460,14 +602,15 @@ const validateCart = async (req, res) => {
         const issues = [...deadIssues, ...auditCartIssues(cart)];
 
         // Keep totals in sync even when no issues
-        await calculateCartTotals(cart);
+        const totals = await calculateCartTotals(cart);
         await cart.save();
 
         res.status(200).json({
             success: true,
             valid: issues.length === 0,
             issues,
-            cart
+            cart,
+            ...(totals.couponMessage ? { couponNotice: totals.couponMessage } : {})
         });
 
     } catch (error) {
@@ -535,6 +678,7 @@ const checkout = async (req, res) => {
         }
 
         // Validate cart before checkout (handles price changes too)
+        const appliedCode = cart.appliedPromo?.code || null;
         const issues = [...deadIssues, ...auditCartIssues(cart)];
         await calculateCartTotals(cart);
         await cart.save();
@@ -544,6 +688,16 @@ const checkout = async (req, res) => {
                 success: false,
                 error: 'Cart validation failed',
                 issues
+            });
+        }
+
+        // The code was valid when it was applied but is not valid now (expired,
+        // exhausted, or the cart dropped below its minimum)
+        if (appliedCode && !cart.appliedPromo) {
+            return res.status(409).json({
+                success: false,
+                code: 'COUPON_INVALID',
+                error: 'Your promo code is no longer valid. It has been removed from the cart — review the new total and try again.'
             });
         }
 
@@ -580,7 +734,27 @@ const checkout = async (req, res) => {
             }]
         };
 
+        if (cart.appliedPromo?.couponId) {
+            orderData.coupon = {
+                couponId: cart.appliedPromo.couponId,
+                code: cart.appliedPromo.code,
+                discountType: cart.appliedPromo.discountType,
+                discountAmount: cart.appliedPromo.discountAmount,
+                eligibleTotal: cart.appliedPromo.eligibleTotal,
+                eligibleQuantity: cart.appliedPromo.eligibleQuantity
+            };
+        }
+
         const newOrder = await orderModel.create(orderData);
+
+        // COD has no payment event to hook, so the redemption is counted now.
+        // Razorpay orders are counted on successful verification instead.
+        if (paymentMethod === 'cod' && newOrder.coupon?.couponId) {
+            const consumed = await couponService.consumeCoupon(newOrder);
+            if (!consumed.ok) {
+                console.error(`[req:${req.id}] Coupon consume failed for order ${newOrder._id}: ${consumed.code}`);
+            }
+        }
 
         // Track in user history
         await userModel.findByIdAndUpdate(
@@ -606,6 +780,7 @@ const checkout = async (req, res) => {
             discount: 0,
             grandTotal: 0
         };
+        cart.appliedPromo = undefined;
         await cart.save();
 
         res.status(201).json({
@@ -625,7 +800,8 @@ const checkout = async (req, res) => {
     }
 };
 
-// Helper function to calculate cart totals
+// Helper function to calculate cart totals. Re-validates any applied coupon so
+// the discount shown is always the discount the server will actually honour.
 async function calculateCartTotals(cart) {
     let itemsTotal = 0;
 
@@ -633,9 +809,29 @@ async function calculateCartTotals(cart) {
     for (const item of cart.items) {
         itemsTotal += item.priceAtAdd * item.quantity;
     }
+    itemsTotal = Math.round(itemsTotal * 100) / 100;
+
+    let discount = 0;
+    let couponCleared = false;
+    let couponMessage = null;
+
+    if (cart.appliedPromo?.code && itemsTotal > 0) {
+        const resolved = await couponService.resolveCartDiscount(cart);
+        if (resolved.ok) {
+            discount = resolved.discount;
+        } else {
+            couponCleared = true;
+            couponMessage = resolved.message || 'Your promo code was removed because it is no longer valid.';
+            cart.appliedPromo = undefined;
+        }
+    } else if (cart.appliedPromo?.code && itemsTotal <= 0) {
+        couponCleared = true;
+        couponMessage = 'Your promo code was removed because the cart is empty.';
+        cart.appliedPromo = undefined;
+    }
 
     // Calculate fees using payment service
-    const pricing = paymentService.calculatePricing(itemsTotal);
+    const pricing = paymentService.calculatePricing(itemsTotal, 1, 0, discount);
 
     cart.totals = {
         itemsTotal: pricing.itemPrice,
@@ -646,7 +842,7 @@ async function calculateCartTotals(cart) {
         grandTotal: pricing.totalAmount
     };
 
-    return cart.totals;
+    return { ...cart.totals, couponCleared, couponMessage };
 }
 
 // Lines whose food item was deleted can never be ordered or re-priced - drop
@@ -711,6 +907,8 @@ export default {
     updateQuantity,
     removeItem,
     clearCart,
+    applyCoupon,
+    removeCoupon,
     validateCart,
     checkout
 };

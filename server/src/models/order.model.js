@@ -115,6 +115,30 @@ const orderSchema = new mongoose.Schema({
             longitude: Number
         }
     },
+    // Immutable snapshot of the promo code used. Never read live coupon data
+    // for an order: the code may later be edited, exhausted or deleted.
+    coupon: {
+        couponId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Coupon"
+        },
+        code: String,
+        discountType: {
+            type: String,
+            enum: ["percentage", "fixed"]
+        },
+        discountAmount: {
+            type: Number,
+            default: 0
+        },
+        // For scoped coupons: the eligible portion the discount came from.
+        eligibleTotal: Number,
+        eligibleQuantity: Number,
+        // Set when the redemption is counted against the coupon's usageLimit.
+        consumedAt: Date,
+        // Set when a cancellation returns the redemption to the pool.
+        releasedAt: Date
+    },
     // CONSOLIDATED PRICING (this is the single source of truth)
     pricing: {
         itemPrice: {
@@ -248,17 +272,19 @@ orderSchema.index({ status: 1 });
 orderSchema.index({ 'cancelRequest.status': 1, 'cancelRequest.requestedAt': 1 }); // admin review queue
 orderSchema.index({ 'paymentDetails.status': 1 });
 orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 }, { unique: true, sparse: true });
+// Coupon redemption counts (per-user limit + partner stats) scan by coupon.
+orderSchema.index({ 'coupon.couponId': 1, user: 1, status: 1 });
 
 // Calculate pricing before saving
 orderSchema.pre('save', function (next) {
     if (this.pricing && this.isModified('pricing')) {
         const { itemPrice, deliveryFee, platformFee, taxes, discount } = this.pricing;
 
-        // Auto-calculate total amount
-        this.pricing.totalAmount = Math.max(
-            itemPrice + deliveryFee + platformFee + (taxes?.total || 0) - (discount || 0),
-            0
-        );
+        // Auto-calculate total amount. Round to paise: the unrounded sum can
+        // produce values like 101.74000000000001, which then leak into receipts
+        // and the payment gateway.
+        const rawTotal = itemPrice + deliveryFee + platformFee + (taxes?.total || 0) - (discount || 0);
+        this.pricing.totalAmount = Math.max(0, Math.round(rawTotal * 100) / 100);
     }
     next();
 });

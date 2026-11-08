@@ -43,6 +43,7 @@ const userSchema = new mongoose.Schema({
         type: Date
     },
     address: {
+        phone: String,
         street: String,
         city: String,
         state: String,

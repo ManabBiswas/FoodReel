@@ -4,6 +4,17 @@ import reviewModel from "../models/review.model.js";
 import bcrypt from "bcrypt";
 import { serverError } from "../utils/apiError.js";
 
+// Delivery contact numbers are stored as canonical 10-digit Indian mobiles.
+// Accept +91/0 prefixes on input so pasted numbers still work.
+const normalizePhone = (value) => {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.length > 10 && digits.startsWith('91')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits.slice(0, 10);
+};
+
+const isValidPhone = (value) => /^[6-9]\d{9}$/.test(normalizePhone(value));
+
 // Get user statistics (orders, favorites, etc.)
 async function getUserStats(req, res) {
     try {
@@ -230,10 +241,14 @@ async function validatePassword(req, res) {
 // - QuickOrderModal: fullName, phone, addressLine1, city, state, pincode
 // - ProfileSettings: label, street, city, state, pinCode, country
 function normalizeAddressInput(body, user) {
+    const phoneInput = body.phone !== undefined && body.phone !== null && String(body.phone).trim() !== ''
+        ? body.phone
+        : (user && user.mobile) || '';
+
     return {
         label: body.label || 'Home',
         fullName: body.fullName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''),
-        phone: body.phone || (user && user.mobile) || '',
+        phone: normalizePhone(phoneInput),
         addressLine1: body.addressLine1 || body.street || '',
         addressLine2: body.addressLine2 || '',
         landmark: body.landmark || '',
@@ -287,6 +302,12 @@ async function addAddress(req, res) {
             });
         }
 
+        if (!isValidPhone(input.phone)) {
+            return res.status(400).json({
+                error: "A valid 10-digit mobile number is required for delivery"
+            });
+        }
+
         // Initialize addresses array if it doesn't exist
         if (!user.deliveryAddresses) {
             user.deliveryAddresses = [];
@@ -334,7 +355,12 @@ async function updateAddress(req, res) {
         const body = req.body || {};
         if (body.label !== undefined) address.label = body.label;
         if (body.fullName) address.fullName = body.fullName;
-        if (body.phone) address.phone = body.phone;
+        if (body.phone !== undefined) {
+            if (!isValidPhone(body.phone)) {
+                return res.status(400).json({ error: "Enter a valid 10-digit mobile number" });
+            }
+            address.phone = normalizePhone(body.phone);
+        }
         const line1 = body.addressLine1 || body.street;
         if (line1) address.addressLine1 = line1;
         if (body.addressLine2 !== undefined) address.addressLine2 = body.addressLine2;
@@ -373,8 +399,19 @@ async function updateProfileAddress(req, res) {
         }
 
         const body = req.body || {};
+
+        let phone = user.address?.phone || '';
+        if (body.phone !== undefined) {
+            const normalized = normalizePhone(body.phone);
+            if (normalized && !isValidPhone(normalized)) {
+                return res.status(400).json({ error: "Enter a valid 10-digit mobile number" });
+            }
+            phone = normalized;
+        }
+
         user.address = {
             ...(user.address?.toObject?.() || user.address || {}),
+            phone,
             street: body.street || body.addressLine1 || user.address?.street || '',
             city: body.city || user.address?.city || '',
             state: body.state || user.address?.state || '',

@@ -1,4 +1,5 @@
 import paymentService from '../services/payment.service.js';
+import couponService from '../services/coupon.service.js';
 import { serverFail } from '../utils/apiError.js';
 import orderModel from '../models/order.model.js';
 import mongoose from 'mongoose';
@@ -236,6 +237,14 @@ export const verifyPayment = async (req, res) => {
     });
 
     await order.save();
+
+    // Count the redemption exactly once. The order-level `consumedAt` claim in the service makes this safe even when the webhook lands at the same time.
+    if (order.coupon?.couponId) {
+      const consumed = await couponService.consumeCoupon(order);
+      if (!consumed.ok) {
+        console.error(`[req:${req.id}] Coupon consume failed for order ${order._id}: ${consumed.code}`);
+      }
+    }
 
     res.status(200).json({
 
@@ -585,5 +594,15 @@ const applyWebhookChanges = async (order, decision) => {
   if (note) order.orderNotes.push({ note, addedBy: 'system' });
 
   await order.save();
+
+  // A webhook can be the only payment-success signal (the customer closed the
+  // tab). Count the redemption here too; the service is idempotent.
+  if (changes.paymentStatus === 'completed' && order.coupon?.couponId) {
+    const consumed = await couponService.consumeCoupon(order);
+    if (!consumed.ok) {
+      console.error(`Webhook coupon consume failed for order ${order._id}: ${consumed.code}`);
+    }
+  }
+
   console.log(`Webhook applied to order ${order._id}: ${JSON.stringify(changes)}`);
 };

@@ -3,6 +3,7 @@ import { serverError } from "../utils/apiError.js";
 import foodModel from "../models/food.model.js";
 import userModel from "../models/user.Model.js";
 import paymentService from "../services/payment.service.js";
+import couponService from "../services/coupon.service.js";
 import emailService from "../services/email.service.js";
 import { decideRefundOnCancellation, decideFulfilmentAllowed, OUTCOME } from "../services/refund.policy.js";
 import { initiateClaimedRefund } from "../services/refund.service.js";
@@ -16,7 +17,8 @@ const createOrder = async (req, res) => {
       specialInstructions,
       orderNotes,
       orderSource = 'cart',
-      paymentMethod = 'cod'
+      paymentMethod = 'cod',
+      couponCode
     } = req.body;
 
     if (!req.user) {
@@ -118,7 +120,47 @@ if (foodItem.postType !== 'food') {
     }
 
     // Calculate pricing (subtotal + fees + taxes - discounts)
-    const pricing = paymentService.calculatePricing(itemPriceTotal);
+    let couponSnapshot = null;
+    let discount = 0;
+
+    if (couponCode) {
+      const validation = await couponService.validateCoupon({
+        code: couponCode,
+        userId,
+        partnerId: orderItems[0]?.foodPartner,
+        items: orderItems.map((item) => ({
+          foodItemId: item.foodItem,
+          quantity: item.quantity,
+          price: item.priceAtOrder
+        }))
+      });
+
+      if (!validation.ok) {
+        return res.status(400).json({
+          success: false,
+          code: validation.code,
+          error: validation.message,
+          ...(validation.minOrderAmount !== undefined
+            ? { minOrderAmount: validation.minOrderAmount }
+            : {}),
+          ...(validation.minQuantity !== undefined
+            ? { minQuantity: validation.minQuantity }
+            : {})
+        });
+      }
+
+      discount = validation.discountAmount;
+      couponSnapshot = {
+        couponId: validation.coupon._id,
+        code: validation.coupon.code,
+        discountType: validation.coupon.discountType,
+        discountAmount: validation.discountAmount,
+        eligibleTotal: validation.eligibleTotal,
+        eligibleQuantity: validation.eligibleQuantity
+      };
+    }
+
+    const pricing = paymentService.calculatePricing(itemPriceTotal, 1, 0, discount);
 
     // Estimated delivery time (max prep time among items + delivery buffer).
     // Uses prepTimes collected above — no N+1 refetch per item.
@@ -146,7 +188,20 @@ if (foodItem.postType !== 'food') {
       }]
     };
 
+    if (couponSnapshot) {
+      orderData.coupon = couponSnapshot;
+    }
+
     const newOrder = await orderModel.create(orderData);
+
+    // COD has no payment event to hook, so the redemption is counted now.
+    // Razorpay orders are counted on successful verification instead.
+    if (paymentMethod === 'cod' && newOrder.coupon?.couponId) {
+      const consumed = await couponService.consumeCoupon(newOrder);
+      if (!consumed.ok) {
+        console.error(`[req:${req.id}] Coupon consume failed for order ${newOrder._id}: ${consumed.code}`);
+      }
+    }
 
     // Populate related data
     await newOrder.populate([
@@ -605,6 +660,11 @@ const cancelOrder = async (req, res) => {
 
         await order.save();
 
+        // The order will not be fulfilled, so the redemption returns to the coupon's pool. Idempotent: a repeated cancel cannot double-release.
+        if (order.coupon?.couponId) {
+          await couponService.releaseCoupon(order);
+        }
+
         // Auto-refund: the customer cancelled, so the money goes back without
         // them having to ask. Claimed atomically, so a duplicate request here
         // cannot produce a second refund.
@@ -728,6 +788,11 @@ const partnerCancelOrder = async (req, res) => {
         });
 
         await order.save();
+
+        // Return the coupon redemption to the pool.
+        if (order.coupon?.couponId) {
+          await couponService.releaseCoupon(order);
+        }
 
         res.status(200).json({
             success: true,

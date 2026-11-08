@@ -61,3 +61,14 @@ export const adminRateLimiter = rateLimit({
     legacyHeaders: false,
     skip: skipInDev,
 });
+
+// Promo-code entry is an enumeration target: a tight bucket keeps a script from guessing codes while still allowing a customer to correct a typo.
+export const couponRateLimiter = rateLimit({
+  store: buildStore({ windowMs: 10 * 60 * 1000, prefix: 'coupon' }),
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  message: 'Too many promo code attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInDev,
+});

@@ -1,5 +1,6 @@
 import orderModel from '../models/order.model.js';
 import emailService from '../services/email.service.js';
+import couponService from '../services/coupon.service.js';
 import { decideCancelRequestDecision, RESUME_STATUS } from '../services/cancelRequest.policy.js';
 import { decideRefundOnCancellation, OUTCOME } from '../services/refund.policy.js';
 import { initiateClaimedRefund } from '../services/refund.service.js';
@@ -176,6 +177,11 @@ export const decideCancelRequest = async (req, res) => {
         });
 
         await order.save();
+
+        // The order is cancelled, so the coupon redemption returns to the pool.
+        if (order.coupon?.couponId) {
+            await couponService.releaseCoupon(order);
+        }
 
         // The admin's approval is the approval the refund was waiting for, so
         // it is claimed through the same atomic path as every other refund.
