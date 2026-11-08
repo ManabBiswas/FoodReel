@@ -508,6 +508,11 @@ const CreateFood = () => {
       } else if (new Date(formData.validUntil).getTime() <= Date.now()) {
         nextErrors.validUntil = 'Choose a date and time in the future.'
       }
+
+      const promoCode = formData.promoCode.trim().toUpperCase()
+      if (promoCode && !/^[A-Z0-9_-]{5,32}$/.test(promoCode)) {
+        nextErrors.promoCode = 'Use 5–32 characters: letters, numbers, hyphens or underscores.'
+      }
     }
 
     return nextErrors
@@ -1133,8 +1138,20 @@ const CreateFood = () => {
                                 value={formData.promoCode}
                                 onChange={updateField}
                                 placeholder="WEEKEND50"
+                                minLength={5}
+                                maxLength={32}
+                                autoComplete="off"
+                                spellCheck={false}
+                                aria-invalid={Boolean(errors.promoCode)}
                                 className={`${fieldClass(false)} uppercase placeholder:normal-case`}
                               />
+                              {errors.promoCode ? (
+                                <p className={errorClass}>{errors.promoCode}</p>
+                              ) : (
+                                <p className="mt-1.5 text-xs text-[#9e9890]">
+                                  5–32 characters: letters, numbers, hyphens and underscores.
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}

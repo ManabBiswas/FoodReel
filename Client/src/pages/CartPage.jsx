@@ -4,7 +4,7 @@ import { useCart } from '../hooks/useCart'
 import { showError, showSuccess, showWarning } from '../utils/toast'
 import {
   ShoppingCart, Trash2, Plus, Minus, AlertCircle,
-  ArrowLeft, Lock, CheckCircle, ChevronRight, Tag
+  ArrowLeft, Lock, CheckCircle, ChevronRight, Tag, X, Loader2
 } from 'lucide-react'
 import Navbar from '../Components/Navbar'
 import FoodMedia from '../Components/FoodMedia'
@@ -14,10 +14,12 @@ const fmt = (n) => Number(n ?? 0).toFixed(2)
 
 const CartPage = () => {
   const navigate = useNavigate()
-  const { cart, loading, removeItem, updateQuantity, clearCart, validateCart } = useCart()
+  const { cart, loading, removeItem, updateQuantity, clearCart, validateCart, applyCoupon, removeCoupon, couponNotice, clearCouponNotice } = useCart()
   const [validating, setValidating] = useState(false)
   const [cartIssues, setCartIssues] = useState([])
   const [appliedRestaurant, setAppliedRestaurant] = useState(null)
+  const [couponInput, setCouponInput] = useState('')
+  const [couponBusy, setCouponBusy] = useState(false)
 
   const handleValidateCart = useCallback(async () => {
     setValidating(true)
@@ -29,6 +31,7 @@ const CartPage = () => {
     } else {
       setCartIssues([])
     }
+    if (result.couponNotice) showWarning(result.couponNotice)
     setValidating(false)
   }, [validateCart])
 
@@ -52,6 +55,30 @@ const CartPage = () => {
     if (!window.confirm('Clear your entire cart?')) return
     const result = await clearCart()
     if (result.success) showSuccess('Cart cleared')
+    else showError(result.error)
+  }
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault()
+    const code = couponInput.trim()
+    if (!code) { showWarning('Enter a promo code'); return }
+    if (code.length < 5) { showWarning('Promo codes are at least 5 characters'); return }
+    setCouponBusy(true)
+    const result = await applyCoupon(code)
+    setCouponBusy(false)
+    if (result.success) {
+      showSuccess(result.message)
+      setCouponInput('')
+    } else {
+      showError(result.error || 'That promo code could not be applied')
+    }
+  }
+
+  const handleRemoveCoupon = async () => {
+    setCouponBusy(true)
+    const result = await removeCoupon()
+    setCouponBusy(false)
+    if (result.success) showSuccess('Promo code removed')
     else showError(result.error)
   }
 
@@ -170,6 +197,24 @@ const CartPage = () => {
                       onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-faint)'}
                     >
                       <Trash2 className="h-4 w-4" /> Clear
+                    </button>
+                  </div>
+                )}
+
+                {/* Coupon notice — the server removed a code during recalc */}
+                {couponNotice && (
+                  <div className="flex items-start gap-3 rounded-2xl p-4" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                    <Tag className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold font-sans text-amber-800">Promo code removed</p>
+                      <p className="mt-0.5 text-sm font-sans text-amber-700">{couponNotice}</p>
+                    </div>
+                    <button
+                      onClick={clearCouponNotice}
+                      className="flex-shrink-0 rounded-lg p-1 text-amber-600 transition-colors hover:bg-amber-100 cursor-pointer"
+                      aria-label="Dismiss promo notice"
+                    >
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 )}
@@ -355,18 +400,83 @@ const CartPage = () => {
                     </p>
                   </div>
 
-                  {/* Promo */}
-                  {cart.totals?.discount > 0 && (
-                    <div className="mb-5 flex items-center gap-3 rounded-2xl p-4" style={{ background: 'rgba(255,184,0,0.08)', border: '1px dashed rgba(255,184,0,0.4)' }}>
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full" style={{ background: 'var(--color-accent)' }}>
-                        <Tag className="h-4 w-4" style={{ color: 'var(--color-background-dark)' }} />
+                  {/* Promo code */}
+                  <div className="mb-5">
+                    {cart.appliedPromo?.code ? (
+                      <div
+                        className="flex items-start gap-3 rounded-2xl p-4"
+                        style={{ background: 'rgba(255,184,0,0.08)', border: '1px dashed rgba(255,184,0,0.4)' }}
+                      >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full" style={{ background: 'var(--color-accent)' }}>
+                          <Tag className="h-4 w-4" style={{ color: 'var(--color-background-dark)' }} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold font-sans" style={{ color: 'var(--color-text-base)' }}>
+                            {cart.appliedPromo.code} applied
+                          </p>
+                          <p className="text-xs font-sans" style={{ color: 'var(--color-text-muted)' }}>
+                            You saved ₹{fmt(cart.totals?.discount || cart.appliedPromo.discountAmount)}
+                            {cart.appliedPromo.eligibleQuantity !== undefined &&
+                              (cart.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0) > Number(cart.appliedPromo.eligibleQuantity)
+                              ? ` on ${cart.appliedPromo.eligibleQuantity} item${Number(cart.appliedPromo.eligibleQuantity) === 1 ? '' : 's'}`
+                              : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          disabled={couponBusy}
+                          className="flex-shrink-0 rounded-lg p-1 transition-colors disabled:opacity-40 cursor-pointer"
+                          style={{ color: 'var(--color-text-faint)' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-faint)'}
+                          aria-label={`Remove promo code ${cart.appliedPromo.code}`}
+                        >
+                          {couponBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                        </button>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold font-sans" style={{ color: 'var(--color-text-base)' }}>Promo applied!</p>
-                        <p className="text-xs font-sans" style={{ color: 'var(--color-text-muted)' }}>You saved ₹{fmt(cart.totals.discount)}</p>
-                      </div>
-                    </div>
-                  )}
+                    ) : (
+                      <form onSubmit={handleApplyCoupon}>
+                        <label
+                          htmlFor="promo-code"
+                          className="mb-1.5 block text-xs font-bold uppercase tracking-widest font-sans"
+                          style={{ color: 'var(--color-text-faint)' }}
+                        >
+                          Have a promo code?
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative min-w-0 flex-1">
+                            <Tag className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--color-text-faint)' }} />
+                            <input
+                              id="promo-code"
+                              type="text"
+                              value={couponInput}
+                              onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                              placeholder="Enter code"
+                              autoComplete="off"
+                              spellCheck={false}
+                              minLength={5}
+                              maxLength={32}
+                              className="w-full rounded-xl py-2.5 pl-10 pr-3 font-sans text-sm outline-none transition-colors focus:border-[var(--color-primary)]"
+                              style={{
+                                background: 'var(--color-background-white)',
+                                border: '1px solid var(--color-border-medium)',
+                                color: 'var(--color-text-base)'
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={couponBusy || !couponInput.trim()}
+                            className="flex items-center justify-center rounded-xl px-5 py-2.5 font-bold font-sans text-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                          >
+                            {couponBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
 
                   {cartIssues.length > 0 && (
                     <div className="mb-4 flex items-start gap-2 rounded-xl p-3 font-sans" style={{ background: '#FEF9C3', border: '1px solid #FDE047' }}>

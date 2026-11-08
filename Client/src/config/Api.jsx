@@ -147,6 +147,7 @@ export const API_ENDPOINTS = {
   // Order endpoints
   order: {
     create: `${BASE_URL}/orders`,
+    validateCoupon: `${BASE_URL}/orders/validate-coupon`,
     getAll: `${BASE_URL}/orders`,
     partner: `${BASE_URL}/orders/partner`,
     updateStatus: (id) => `${BASE_URL}/orders/partner/${id}/status`,
@@ -166,7 +167,18 @@ export const API_ENDPOINTS = {
     remove: (itemId) => `${BASE_URL}/cart/remove/${itemId}`,
     clear: `${BASE_URL}/cart/clear`,
     validate: `${BASE_URL}/cart/validate`,
+    applyCoupon: `${BASE_URL}/cart/apply-coupon`,
+    removeCoupon: `${BASE_URL}/cart/coupon`,
     checkout: `${BASE_URL}/cart/checkout`,
+  },
+
+  // Promo-code endpoints (partner issuance)
+  coupon: {
+    create: `${BASE_URL}/coupons`,
+    partnerList: `${BASE_URL}/coupons/partner`,
+    partnerStats: `${BASE_URL}/coupons/partner/stats`,
+    update: (couponId) => `${BASE_URL}/coupons/${couponId}`,
+    remove: (couponId) => `${BASE_URL}/coupons/${couponId}`,
   },
   
   // Payment endpoints

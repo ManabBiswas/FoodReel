@@ -28,6 +28,15 @@ const primaryBtn =
 const secondaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border-medium)] bg-white px-6 py-3 font-sans text-sm font-bold text-[var(--color-text-muted)] transition-[border-color,color] duration-160 ease-out hover:border-[var(--color-primary)] hover:text-[var(--color-text-base)]'
 
+// Indian mobile numbers are stored as 10 digits
+const normalizeMobile = (value) => {
+  let digits = String(value || '').replace(/\D/g, '')
+  if (digits.length > 10 && digits.startsWith('91')) digits = digits.slice(2)
+  if (digits.startsWith('0')) digits = digits.slice(1)
+  return digits.slice(0, 10)
+}
+const isValidMobile = (value) => /^[6-9]\d{9}$/.test(normalizeMobile(value))
+
 const preferenceTileClass =
   'group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--color-border-light)] bg-white px-3.5 py-2.5 font-sans text-sm font-semibold text-[var(--color-text-base)] transition-[border-color,background-color,box-shadow,transform] duration-160 ease-out hover:border-[var(--color-primary)] hover:bg-[#fffaf3] active:scale-[0.98] has-[:checked]:border-[var(--color-primary)] has-[:checked]:bg-[#fff3e6] has-[:checked]:shadow-[0_4px_12px_rgba(255,106,0,0.12)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[rgba(255,106,0,0.35)] has-[:focus-visible]:ring-offset-2'
 
@@ -107,6 +116,7 @@ const ProfileSettings = () => {
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [addressForm, setAddressForm] = useState({
     label: 'Home',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -115,6 +125,7 @@ const ProfileSettings = () => {
     isDefault: false
   })
   const [address, setAddress] = useState({
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -145,6 +156,7 @@ const ProfileSettings = () => {
           spiceLevel: 'medium'
         })
         setAddress(response.data.address || {
+          phone: '',
           street: '',
           city: '',
           state: '',
@@ -187,10 +199,17 @@ const ProfileSettings = () => {
     setUpdating(true)
     setError('')
 
+    const mobile = normalizeMobile(basicInfo.mobile)
+    if (mobile && !isValidMobile(mobile)) {
+      showError('Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9')
+      setUpdating(false)
+      return
+    }
+
     try {
       const response = await axios.put(
         API_ENDPOINTS.auth.userProfile,
-        basicInfo,
+        { ...basicInfo, mobile },
         axiosConfig
       )
 
@@ -281,10 +300,17 @@ const ProfileSettings = () => {
     setUpdating(true)
     setError('')
 
+    const phone = normalizeMobile(address.phone)
+    if (phone && !isValidMobile(phone)) {
+      showError('Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9')
+      setUpdating(false)
+      return
+    }
+
     try {
       await axios.put(
         API_ENDPOINTS.user.address,
-        address,
+        { ...address, phone },
         axiosConfig
       )
 
@@ -297,14 +323,29 @@ const ProfileSettings = () => {
     }
   }
   
+  const getValidatedAddressForm = () => {
+    const phone = normalizeMobile(addressForm.phone)
+    if (!phone) {
+      showError('Mobile number is required for delivery')
+      return null
+    }
+    if (!isValidMobile(phone)) {
+      showError('Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9')
+      return null
+    }
+    return { ...addressForm, phone }
+  }
+
   const handleAddDeliveryAddress = async (e) => {
     e.preventDefault()
+    const payload = getValidatedAddressForm()
+    if (!payload) return
     setUpdating(true)
     
     try {
       const response = await axios.post(
         API_ENDPOINTS.user.address,
-        addressForm,
+        payload,
         axiosConfig
       )
       
@@ -313,6 +354,7 @@ const ProfileSettings = () => {
       setShowAddressForm(false)
       setAddressForm({
         label: 'Home',
+        phone: '',
         street: '',
         city: '',
         state: '',
@@ -330,12 +372,14 @@ const ProfileSettings = () => {
   
   const handleEditDeliveryAddress = async (e) => {
     e.preventDefault()
+    const payload = getValidatedAddressForm()
+    if (!payload) return
     setUpdating(true)
     
     try {
       const response = await axios.put(
         `${API_ENDPOINTS.user.address}/${editingAddress}`,
-        addressForm,
+        payload,
         axiosConfig
       )
       
@@ -345,6 +389,7 @@ const ProfileSettings = () => {
       setShowAddressForm(false)
       setAddressForm({
         label: 'Home',
+        phone: '',
         street: '',
         city: '',
         state: '',
@@ -405,6 +450,7 @@ const ProfileSettings = () => {
     setEditingAddress(address._id)
     setAddressForm({
       label: address.label || 'Home',
+      phone: normalizeMobile(address.phone || user?.mobile || ''),
       street: address.street || address.addressLine1 || '',
       city: address.city || '',
       state: address.state || '',
@@ -420,6 +466,7 @@ const ProfileSettings = () => {
     setEditingAddress(null)
     setAddressForm({
       label: 'Home',
+      phone: '',
       street: '',
       city: '',
       state: '',
@@ -850,7 +897,13 @@ const ProfileSettings = () => {
                 </div>
                 {!showAddressForm && (
                   <button
-                    onClick={() => setShowAddressForm(true)}
+                    onClick={() => {
+                      setAddressForm((current) => ({
+                        ...current,
+                        phone: current.phone || normalizeMobile(user?.mobile || '')
+                      }))
+                      setShowAddressForm(true)
+                    }}
                     className="pressable hover-gated inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 font-sans text-sm font-bold text-[#fffcef] transition-opacity duration-160 ease-out hover:opacity-90 cursor-pointer"
                   >
                     <Plus className="h-4 w-4" aria-hidden="true" />
@@ -907,6 +960,34 @@ const ProfileSettings = () => {
                         />
                         <span className="font-sans text-sm text-[var(--color-text-base)]">Set as default address</span>
                       </label>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label htmlFor="deliveryPhone" className={labelClass}>
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 font-sans text-sm font-semibold text-[var(--color-text-faint)]">
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          id="deliveryPhone"
+                          inputMode="numeric"
+                          autoComplete="tel-national"
+                          value={addressForm.phone}
+                          onChange={(e) => setAddressForm({ ...addressForm, phone: normalizeMobile(e.target.value) })}
+                          className={`${fieldClass} pl-14`}
+                          placeholder="98765 43210"
+                          maxLength={10}
+                          pattern="[6-9][0-9]{9}"
+                          title="Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9"
+                          required
+                        />
+                      </div>
+                      <p className="mt-1.5 font-sans text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        Used by the delivery partner to reach you at this address.
+                      </p>
                     </div>
 
                     <div className="md:col-span-2">
@@ -1050,6 +1131,16 @@ const ProfileSettings = () => {
                             <br />
                             {addr.country}
                           </p>
+                          {isValidMobile(addr.phone) ? (
+                            <p className="mt-1.5 flex items-center gap-1.5 font-sans text-xs font-semibold text-[var(--color-text-muted)]">
+                              <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                              +91 {normalizeMobile(addr.phone)}
+                            </p>
+                          ) : (
+                            <p className="mt-1.5 font-sans text-xs font-semibold text-amber-700">
+                              Mobile number missing — edit this address to add one.
+                            </p>
+                          )}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           {!addr.isDefault && (
@@ -1090,6 +1181,32 @@ const ProfileSettings = () => {
           {activeTab === 'address' && (
             <form onSubmit={handleAddressUpdate} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <label htmlFor="billingPhone" className={labelClass}>
+                    Mobile Number
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 font-sans text-sm font-semibold text-[var(--color-text-faint)]">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      id="billingPhone"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      value={address.phone || ''}
+                      onChange={(e) => setAddress({ ...address, phone: normalizeMobile(e.target.value) })}
+                      className={`${fieldClass} pl-14`}
+                      placeholder="98765 43210"
+                      maxLength={10}
+                      pattern="[6-9][0-9]{9}"
+                      title="Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9"
+                    />
+                  </div>
+                  <p className="mt-1.5 font-sans text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Optional here, but required on delivery addresses.
+                  </p>
+                </div>
                 <div className="md:col-span-2">
                   <label htmlFor="street" className={labelClass}>
                     Street Address

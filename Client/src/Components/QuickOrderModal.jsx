@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { showSuccess, showError } from '../utils/toast'
-import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle, Plus, Minus, ShoppingCart } from 'lucide-react'
+import { X, MapPin, Phone, User, MessageCircle, CreditCard, Loader2, CheckCircle, Plus, Minus, ShoppingCart, Tag } from 'lucide-react'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
@@ -30,6 +30,9 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const [pricing, setPricing] = useState(null)
   const [quant, setQuant] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState('razorpay') // 'razorpay' or 'cod'
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [couponBusy, setCouponBusy] = useState(false)
 
   const handleIncrement = () => {
     setQuant(prev => prev + 1)
@@ -95,7 +98,7 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
     }
   }
 
-  // Recalculate pricing when quantity changes
+  // Recalculate pricing when quantity or the applied coupon changes.
   useEffect(() => {
     if (food && food.price) {
       const basePrice = Math.round(food.price * quant * 100) / 100
@@ -103,17 +106,19 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       const platformFee = Math.round(basePrice * 0.03 * 100) / 100
       const subtotal = basePrice + deliveryFee + platformFee
       const gst = Math.round(subtotal * 0.05 * 100) / 100
-      const total = Math.round((subtotal + gst) * 100) / 100
+      const discount = Math.max(0, Number(appliedCoupon?.discount) || 0)
+      const total = Math.max(0, Math.round((subtotal + gst - discount) * 100) / 100)
 
       setPricing({
         itemPrice: basePrice,
         deliveryFee,
         platformFee,
         gst,
+        discount,
         total
       })
     }
-  }, [food, quant])
+  }, [food, quant, appliedCoupon])
 
   const handleAddressChange = (e) => {
     setAddress({ ...address, [e.target.name]: e.target.value })
@@ -140,6 +145,82 @@ const QuickOrderModal = ({ food, isOpen, onClose }) => {
       setStep(2)
     }
   }
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code) {
+      showError('Enter a promo code')
+      return
+    }
+    if (code.length < 5) {
+      showError('Promo codes are at least 5 characters')
+      return
+    }
+    const foodItemId = food?._id || food?.id
+    if (!foodItemId) {
+      showError('Invalid item')
+      return
+    }
+
+    setCouponBusy(true)
+    try {
+      const { data } = await axios.post(
+        API_ENDPOINTS.order.validateCoupon,
+        { items: [{ foodItemId, quantity: quant }], code },
+        axiosConfig
+      )
+      setAppliedCoupon(data)
+      setCouponInput('')
+      showSuccess(`${data.code} applied — you save ₹${Number(data.discount).toFixed(2)}`)
+    } catch (error) {
+      setAppliedCoupon(null)
+      showError(error.response?.data?.error || 'That promo code could not be applied')
+    } finally {
+      setCouponBusy(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponInput('')
+    showSuccess('Promo code removed')
+  }
+
+  // Quantity changes can change the discount (percentage caps, minimums), so
+  // re-check an applied code against the new quantity. A stale preview must
+  // never sit next to a new total.
+  useEffect(() => {
+    if (!appliedCoupon?.code) return undefined
+    const foodItemId = food?._id || food?.id
+    if (!foodItemId) return undefined
+
+    let cancelled = false
+    const refresh = async () => {
+      setCouponBusy(true)
+      try {
+        const { data } = await axios.post(
+          API_ENDPOINTS.order.validateCoupon,
+          { items: [{ foodItemId, quantity: quant }], code: appliedCoupon.code },
+          axiosConfig
+        )
+        if (!cancelled) setAppliedCoupon(data)
+      } catch (error) {
+        if (!cancelled) {
+          setAppliedCoupon(null)
+          showError(error.response?.data?.error || 'This promo code no longer applies')
+        }
+      } finally {
+        if (!cancelled) setCouponBusy(false)
+      }
+    }
+    refresh()
+
+    return () => {
+      cancelled = true
+    }
+    // Only quantity changes need a re-check; applying a code sets its preview.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quant])
 
   const handleAddToCart = async () => {
     const foodItemId = food?._id || food?.id
@@ -189,7 +270,8 @@ const handlePlaceOrder = async () => {
           deliveryAddress: address,
           specialInstructions: orderNotes,
           orderSource: 'reel',
-          paymentMethod: paymentMethod
+          paymentMethod: paymentMethod,
+          ...(appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {})
         },
         // One key for this submit attempt
         { ...axiosConfig, headers: { ...axiosConfig.headers, 'Idempotency-Key': getIdempotencyKey() } }
@@ -296,6 +378,9 @@ const handlePlaceOrder = async () => {
       setQuant(1)
       setOrderNotes('')
       setPaymentMethod('razorpay')
+      setCouponInput('')
+      setAppliedCoupon(null)
+      setCouponBusy(false)
       setSelectedAddressId(null)
       setShowNewAddressForm(false)
       setSavedAddresses([])
@@ -588,6 +673,62 @@ const handlePlaceOrder = async () => {
                 </div>
               </div>
 
+              {/* Promo code — quick order has no cart, so this validates the
+                  code directly against the item before the order is created. */}
+              <div className="rounded-xl border border-dashed border-gray-300 p-3">
+                {appliedCoupon ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-sm font-bold text-green-700">
+                        <Tag className="h-4 w-4" />
+                        <span className="truncate">{appliedCoupon.code} applied</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-green-700">
+                        You save ₹{Number(appliedCoupon.discount).toFixed(2)} on this order.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      disabled={couponBusy}
+                      className="flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-600 disabled:opacity-40"
+                      aria-label={`Remove promo code ${appliedCoupon.code}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label htmlFor="quick-order-promo" className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                      <Tag className="h-4 w-4 text-green-600" />
+                      Have a promo code?
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="quick-order-promo"
+                        type="text"
+                        value={couponInput}
+                        onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
+                        placeholder="Enter code"
+                        autoComplete="off"
+                        spellCheck={false}
+                        minLength={5}
+                        maxLength={32}
+                        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponBusy || couponInput.trim().length < 5}
+                        className="flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {couponBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* Price Breakdown */}
               <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                 <div className="flex justify-between text-sm">
@@ -608,6 +749,12 @@ const handlePlaceOrder = async () => {
                   <span>GST (5%)</span>
                   <span>₹{pricing.gst.toFixed(2)}</span>
                 </div>
+                {pricing.discount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Promo discount</span>
+                    <span>-₹{pricing.discount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total</span>
                   <span className="text-green-600">₹{pricing.total.toFixed(2)}</span>

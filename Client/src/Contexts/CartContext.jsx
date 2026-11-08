@@ -10,6 +10,9 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  // A promo code can be removed by the server during any cart recalculation
+  // The message is surfaced so the change is never silent.
+  const [couponNotice, setCouponNotice] = useState(null)
 
   // Fetch cart from backend
   const fetchCart = useCallback(async () => {
@@ -19,6 +22,7 @@ export const CartProvider = ({ children }) => {
       const response = await axios.get(API_ENDPOINTS.cart.get, axiosConfig)
       if (response.data?.cart) {
         setCart(response.data.cart)
+        setCouponNotice(response.data.couponNotice || null)
       }
     } catch (err) {
       if (err.response?.status === 401) {
@@ -59,6 +63,7 @@ export const CartProvider = ({ children }) => {
       )
       if (response.data?.cart) {
         setCart(response.data.cart)
+        setCouponNotice(response.data.couponNotice || null)
         return { success: true }
       }
     } catch (err) {
@@ -81,6 +86,7 @@ export const CartProvider = ({ children }) => {
       )
       if (response.data?.cart) {
         setCart(response.data.cart)
+        setCouponNotice(response.data.couponNotice || null)
         return { success: true }
       }
     } catch (err) {
@@ -100,6 +106,7 @@ export const CartProvider = ({ children }) => {
       const response = await axios.delete(API_ENDPOINTS.cart.clear, axiosConfig)
       if (response.data?.cart) {
         setCart(response.data.cart)
+        setCouponNotice(null)
         return { success: true }
       }
     } catch (err) {
@@ -140,6 +147,7 @@ export const CartProvider = ({ children }) => {
       }
       if (response.data?.cart) {
         setCart(response.data.cart)
+        setCouponNotice(response.data.couponNotice || null)
         return { success: true, message: response.data.message }
       }
     } catch (err) {
@@ -160,11 +168,13 @@ export const CartProvider = ({ children }) => {
       if (response.data?.cart) {
         setCart(response.data.cart)
       }
+      setCouponNotice(response.data?.couponNotice || null)
       return {
         success: response.data?.success || false,
         valid: response.data?.valid || false,
         issues: response.data?.issues || [],
-        cart: response.data?.cart
+        cart: response.data?.cart,
+        couponNotice: response.data?.couponNotice || null
       }
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
@@ -174,6 +184,62 @@ export const CartProvider = ({ children }) => {
       setLoading(false)
     }
   }, [])
+
+  // Apply a promo code. Validation and discount math live on the server; this
+  // only sends the code and stores the authoritative cart it returns.
+  const applyCoupon = useCallback(async (code) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await axios.post(
+        API_ENDPOINTS.cart.applyCoupon,
+        { code },
+        axiosConfig
+      )
+      if (response.data?.cart) {
+        setCart(response.data.cart)
+      }
+      setCouponNotice(null)
+      return {
+        success: true,
+        message: response.data?.message || 'Promo code applied',
+        coupon: response.data?.coupon,
+        cart: response.data?.cart
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message
+      return {
+        success: false,
+        error: errorMsg,
+        code: err.response?.data?.code,
+        minOrderAmount: err.response?.data?.minOrderAmount
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Remove the applied promo code.
+  const removeCoupon = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await axios.delete(API_ENDPOINTS.cart.removeCoupon, axiosConfig)
+      if (response.data?.cart) {
+        setCart(response.data.cart)
+      }
+      setCouponNotice(null)
+      return { success: true, message: response.data?.message || 'Promo code removed' }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const clearCouponNotice = useCallback(() => setCouponNotice(null), [])
 
   // Checkout
   // One key per LOGICAL checkout attempt.
@@ -200,6 +266,7 @@ const checkoutKeyRef = useRef(null)
       if (response.data?.order) {
         // Clear cart after successful checkout
         setCart(null)
+        setCouponNotice(null)
         checkoutKeyRef.current = null
         return { success: true, order: response.data.order, orderId: response.data.orderId }
       }
@@ -221,12 +288,16 @@ const checkoutKeyRef = useRef(null)
     cart,
     loading,
     error,
+    couponNotice,
     fetchCart,
     addToCart,
     updateQuantity,
     removeItem,
     clearCart,
     validateCart,
+    applyCoupon,
+    removeCoupon,
+    clearCouponNotice,
     checkout,
     itemCount,
     totals: cart?.totals || null
@@ -234,12 +305,16 @@ const checkoutKeyRef = useRef(null)
     cart,
     loading,
     error,
+    couponNotice,
     fetchCart,
     addToCart,
     updateQuantity,
     removeItem,
     clearCart,
     validateCart,
+    applyCoupon,
+    removeCoupon,
+    clearCouponNotice,
     checkout,
     itemCount
   ])

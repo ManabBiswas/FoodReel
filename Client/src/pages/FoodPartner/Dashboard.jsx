@@ -16,22 +16,23 @@ import {
   IndianRupee, AlertCircle, Package, Clock, ChefHat,
     CheckCircle, XCircle, RefreshCw, Search, AlertTriangle,
   List, Heart, MessageCircle, Activity, BarChart2,
-  Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight
+  Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight, Tag
 } from 'lucide-react'
+import PromoCodeManager from './PromoCodeManager'
 
 /* ─── helpers ────────────────────────────────────────────── */
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)
 const fmtCur = (n) => `₹${fmt(n)}`
 
 const STATUS_CFG = {
-  pending:   { icon: Clock,       color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-200',  dot: 'bg-amber-500'   },
-  confirmed: { icon: CheckCircle, color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-200',   dot: 'bg-blue-500'    },
-  preparing: { icon: ChefHat,     color: 'text-violet-600', bg: 'bg-violet-50',  border: 'border-violet-200', dot: 'bg-violet-500'  },
-  ready:     { icon: CheckCircle, color: 'text-teal-600',   bg: 'bg-teal-50',    border: 'border-teal-200',   dot: 'bg-teal-500'    },
-  delivered: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
-  completed: { icon: CheckCircle, color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-500'   },
-      cancelled: { icon: XCircle,     color: 'text-red-600',    bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500'     },
-      cancel_requested: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
+  pending:   { icon: Clock,       color: 'text-amber-700',  bg: 'bg-amber-50',   border: 'border-amber-200',  dot: 'bg-amber-500'   },
+  confirmed: { icon: CheckCircle, color: 'text-orange-600', bg: 'bg-orange-50',  border: 'border-orange-200', dot: 'bg-orange-500'  },
+  preparing: { icon: ChefHat,     color: 'text-[#1a1208]',  bg: 'bg-[#f3f1ed]',  border: 'border-[#e8e4de]',  dot: 'bg-[#1a1208]'  },
+  ready:     { icon: CheckCircle, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200', dot: 'bg-orange-600'  },
+  delivered: { icon: CheckCircle, color: 'text-[#16a34a]',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-[#16a34a]'  },
+  completed: { icon: CheckCircle, color: 'text-[#16a34a]',  bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-[#16a34a]'  },
+      cancelled: { icon: XCircle,     color: 'text-[#dc2626]', bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-[#dc2626]'   },
+      cancel_requested: { icon: AlertTriangle, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
     }
 
 /* ─── KPI Card ───────────────────────────────────────────── */
@@ -58,13 +59,13 @@ const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
 
 /* ─── Mini stat ──────────────────────────────────────────── */
 const MiniStat = ({ icon: Icon, label, value, cls }) => (
-  <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+  <div className="bg-white rounded-xl p-4 border border-[var(--color-border-light)] shadow-sm flex items-center gap-3">
     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${cls}`}>
       {Icon && <Icon className="w-5 h-5" />}
     </div>
     <div className="min-w-0">
-      <p className="text-xs text-gray-500 truncate">{label}</p>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-[var(--color-text-muted)] truncate">{label}</p>
+      <p className="text-xl font-bold text-[var(--color-text-base)]">{value}</p>
     </div>
   </div>
 )
@@ -83,9 +84,9 @@ const StatusBadge = ({ status }) => {
 /* ─── Skeleton card ──────────────────────────────────────── */
 const SkeletonCard = () => (
   <div className="bg-white rounded-2xl p-5 shadow-sm animate-pulse">
-    <div className="h-9 w-9 bg-gray-200 rounded-xl mb-4" />
-    <div className="h-3 bg-gray-200 rounded w-28 mb-2" />
-    <div className="h-6 bg-gray-200 rounded w-20" />
+    <div className="h-9 w-9 bg-[var(--color-border-light)] rounded-xl mb-4" />
+    <div className="h-3 bg-[var(--color-border-light)] rounded w-28 mb-2" />
+    <div className="h-6 bg-[var(--color-border-light)] rounded w-20" />
   </div>
 )
 
@@ -93,8 +94,8 @@ const SkeletonCard = () => (
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm">
-      <p className="font-semibold text-gray-700 mb-1.5">{label}</p>
+    <div className="bg-white border border-[var(--color-border-light)] rounded-xl shadow-lg p-3 text-sm">
+      <p className="font-semibold text-[var(--color-text-muted)] mb-1.5">{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="flex items-center gap-2" style={{ color: p.color }}>
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
@@ -113,12 +114,12 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
   const amount = order.pricing?.totalAmount || order.totalAmount || 0
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 hover:border-orange-200 hover:shadow-sm transition-all">
+    <div className="bg-white rounded-xl border border-[var(--color-border-light)] p-4 hover:border-orange-200 hover:shadow-sm transition-all">
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         {/* ID + date */}
         <div className="md:w-36 flex-shrink-0">
-          <p className="text-xs font-mono text-gray-400">#{order._id?.slice(-8).toUpperCase()}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs font-mono text-[var(--color-text-faint)]">#{order._id?.slice(-8).toUpperCase()}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">
             {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             {' · '}
             {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -127,20 +128,20 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
 
         {/* Customer */}
         <div className="md:w-40 flex-shrink-0">
-          <p className="text-sm font-semibold text-gray-800 truncate">{customerName}</p>
-          <p className="text-xs text-gray-400 truncate">{order.user?.mobile || order.deliveryAddress?.phone || ''}</p>
+          <p className="text-sm font-semibold text-[var(--color-text-base)] truncate">{customerName}</p>
+          <p className="text-xs text-[var(--color-text-faint)] truncate">{order.user?.mobile || order.deliveryAddress?.phone || ''}</p>
         </div>
 
         {/* Items */}
         <div className="flex-1 min-w-0">
           {(order.items || []).slice(0, 2).map((item, i) => (
-            <p key={i} className="text-sm text-gray-700 truncate">
+            <p key={i} className="text-sm text-[var(--color-text-muted)] truncate">
               <span className="font-semibold text-orange-500">{item.quantity}×</span>{' '}
               {item.foodItem?.name || 'Item'}
             </p>
           ))}
           {(order.items?.length || 0) > 2 && (
-            <p className="text-xs text-gray-400">+{order.items.length - 2} more</p>
+            <p className="text-xs text-[var(--color-text-faint)]">+{order.items.length - 2} more</p>
           )}
           {order.cancellation?.isCancelled && order.cancellation.reason && (
             <p className="mt-1 inline-flex max-w-full items-start gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[11px] text-red-700">
@@ -154,7 +155,7 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
 
         {/* Amount */}
         <div className="md:w-24 flex-shrink-0">
-          <p className="text-sm font-bold text-gray-900">{fmtCur(amount)}</p>
+          <p className="text-sm font-bold text-[var(--color-text-base)]">{fmtCur(amount)}</p>
         </div>
 
         {/* Status */}
@@ -166,25 +167,25 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
         <div className="flex gap-2 flex-wrap flex-shrink-0">
           <button
             onClick={() => onViewDetails(order._id)}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-xs font-medium bg-[var(--color-surface-muted)] hover:bg-[var(--color-border-light)] text-[var(--color-text-muted)] rounded-lg transition-colors"
           >
             Details
           </button>
           {order.status === 'pending' && (
             <button onClick={() => onStatusUpdate(order._id, 'confirmed')} disabled={updating}
-              className="px-3 py-1.5 text-xs font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors">
+              className="px-3 py-1.5 text-xs font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white rounded-lg disabled:opacity-50 transition-colors">
               {updating ? '…' : 'Confirm'}
             </button>
           )}
           {order.status === 'confirmed' && (
             <button onClick={() => onStatusUpdate(order._id, 'preparing')} disabled={updating}
-              className="px-3 py-1.5 text-xs font-semibold bg-violet-500 hover:bg-violet-600 text-white rounded-lg disabled:opacity-50 transition-colors">
+              className="px-3 py-1.5 text-xs font-semibold bg-[#1a1208] hover:bg-[#3a2a12] text-white rounded-lg disabled:opacity-50 transition-colors">
               {updating ? '…' : 'Prepare'}
             </button>
           )}
           {order.status === 'preparing' && (
             <button onClick={() => onStatusUpdate(order._id, 'ready')} disabled={updating}
-              className="px-3 py-1.5 text-xs font-semibold bg-teal-500 hover:bg-teal-600 text-white rounded-lg disabled:opacity-50 transition-colors">
+              className="px-3 py-1.5 text-xs font-semibold bg-[#e55a00] hover:bg-[#ff6a00] text-white rounded-lg disabled:opacity-50 transition-colors">
               {updating ? '…' : 'Ready'}
             </button>
           )}
@@ -222,14 +223,14 @@ const OrderRow = memo(({ order, onViewDetails, onStatusUpdate, onCancelOrder, on
 
 /* ─── Empty state ────────────────────────────────────────── */
 const EmptyState = ({ filtered }) => (
-  <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-      <Package className="w-10 h-10 text-gray-300" />
+  <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-[var(--color-border-light)]">
+    <div className="w-20 h-20 bg-[var(--color-surface-muted)] rounded-full flex items-center justify-center mb-4">
+      <Package className="w-10 h-10 text-[var(--color-text-faint)]" />
     </div>
-    <h3 className="text-lg font-semibold text-gray-700">
+    <h3 className="text-lg font-semibold text-[var(--color-text-muted)]">
       {filtered ? 'No matching orders' : 'No orders yet'}
     </h3>
-    <p className="text-sm text-gray-500 mt-1 max-w-xs text-center">
+    <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-xs text-center">
       {filtered
         ? 'Try adjusting your search or filter.'
         : 'Orders placed by customers will appear here.'}
@@ -525,12 +526,12 @@ const Dashboard = () => {
   const ordersBarData = useMemo(() => {
     if (!statistics) return []
     return [
-      { name: 'Pending',   value: statistics.orders.pending,   fill: '#F59E0B' },
-      { name: 'Confirmed', value: statistics.orders.confirmed, fill: '#3B82F6' },
-      { name: 'Preparing', value: statistics.orders.preparing, fill: '#8B5CF6' },
-      { name: 'Ready',     value: statistics.orders.ready,     fill: '#14B8A6' },
-      { name: 'Completed', value: statistics.orders.completed, fill: '#22C55E' },
-      { name: 'Cancelled', value: statistics.orders.cancelled, fill: '#EF4444' },
+      { name: 'Pending',   value: statistics.orders.pending,   fill: '#ffb800' },
+      { name: 'Confirmed', value: statistics.orders.confirmed, fill: '#ff6a00' },
+      { name: 'Preparing', value: statistics.orders.preparing, fill: '#1a1208' },
+      { name: 'Ready',     value: statistics.orders.ready,     fill: '#e55a00' },
+      { name: 'Completed', value: statistics.orders.completed, fill: '#16a34a' },
+      { name: 'Cancelled', value: statistics.orders.cancelled, fill: '#dc2626' },
     ].filter((d) => d.value > 0)
   }, [statistics])
 
@@ -539,10 +540,10 @@ const Dashboard = () => {
   /* ── loading skeleton ───────────────────────────────────── */
   if (loading || (orderLoading && !ordersLoaded)) {
     return (
-      <div className="min-h-screen bg-[#F8F9FB]">
+      <div className="min-h-screen bg-[var(--color-background-light)]">
         <Navbar />
         <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="h-9 bg-gray-200 rounded-xl w-64 animate-pulse mb-8" />
+          <div className="h-9 bg-[var(--color-border-light)] rounded-xl w-64 animate-pulse mb-8" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
             {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
@@ -559,25 +560,26 @@ const Dashboard = () => {
     { id: 'overview', label: 'Overview', icon: BarChart2 },
     { id: 'orders',   label: `Orders${statistics ? ` (${statistics.orders.total})` : ''}`, icon: List },
     { id: 'content',  label: 'My Content', icon: FileText },
+    { id: 'coupons',  label: 'Promo Codes', icon: Tag },
     { id: 'reviews',  label: 'Reviews', icon: Star },
   ]
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB]">
+    <div className="min-h-screen bg-[var(--color-background-light)]">
       <Navbar />
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
         {/* ══ Header ══ */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md flex-shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff8533] to-[#ff6a00] flex items-center justify-center shadow-md flex-shrink-0">
               <ChefHat className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+              <h1 className="font-serif text-3xl font-black tracking-[-0.02em] leading-tight text-[var(--color-text-base)]">
                 {partnerProfile?.companyName || 'Partner Dashboard'}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             </div>
@@ -586,14 +588,14 @@ const Dashboard = () => {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[var(--color-border-light)] rounded-xl text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] transition-[background-color,color,transform] duration-150 active:scale-95 shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
               onClick={() => navigate('/CreateFood')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl text-sm font-semibold shadow-sm hover:shadow-md transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#ff6a00] to-[#e55a00] hover:from-[#e55a00] hover:to-[#e55a00] text-white rounded-xl text-sm font-semibold shadow-sm hover:shadow-md transition-[box-shadow,transform,background-color] duration-150 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Post</span>
@@ -614,15 +616,16 @@ const Dashboard = () => {
         )}
 
         {/* ══ Tabs ══ */}
-        <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1 mb-8 w-fit shadow-sm">
+        <div className="flex gap-1 bg-[var(--color-background-white)] border border-[var(--color-border-light)] rounded-xl p-1 mb-8 w-fit shadow-sm">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+              aria-pressed={activeTab === tab.id}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-95 ${
                 activeTab === tab.id
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-[#ff6a00] to-[#e55a00] text-white shadow-md shadow-orange-500/25'
+                  : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-base)]'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -630,6 +633,14 @@ const Dashboard = () => {
             </button>
           ))}
         </div>
+
+        {/* ════════════════════════════════════════════════
+            TAB PANELS — keyed by the active tab so each switch remounts
+            and plays the shared `.panel-enter` rise (220ms ease-out).
+            Enter-only by design: tab switching is high-frequency, so no
+            exit animation (an exit would double the perceived wait).
+        ════════════════════════════════════════════════ */}
+        <div key={activeTab} className="panel-enter">
 
         {/* ════════════════════════════════════════════════
             OVERVIEW TAB
@@ -642,21 +653,21 @@ const Dashboard = () => {
                 title="Completed Revenue"
                 value={fmtCur(statistics.orders.revenue)}
                 subtitle={`${statistics.orders.completed} completed orders`}
-                from="from-orange-500" to="to-amber-500"
+                from="from-[#ff6a00]" to="to-[#e55a00]"
                 icon={IndianRupee}
               />
               <KPICard
                 title="Active Orders"
                 value={statistics.orders.pending + statistics.orders.confirmed + statistics.orders.preparing}
                 subtitle={`${statistics.orders.pending} pending right now`}
-                from="from-blue-500" to="to-indigo-600"
+                from="from-[#1a1208]" to="to-[#3a2a12]"
                 icon={Package}
               />
               <KPICard
                 title="Food Items"
                 value={statistics.food.count}
                 subtitle={`${statistics.food.totalLikes} total likes`}
-                from="from-emerald-500" to="to-teal-600"
+                from="from-[#ff8533]" to="to-[#ffb800]"
                 icon={ShoppingBag}
               />
               <KPICard
@@ -666,7 +677,7 @@ const Dashboard = () => {
                   statistics.advertisement.totalLikes + statistics.advertisement.totalComments
                 )}
                 subtitle={`${statistics.advertisement.count} ads running`}
-                from="from-violet-500" to="to-purple-600"
+                from="from-[#ffb800]" to="to-[#ff6a00]"
                 icon={Activity}
               />
             </div>
@@ -674,18 +685,18 @@ const Dashboard = () => {
             {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Area chart — revenue & orders (takes 2/3) */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-[var(--color-border-light)] shadow-sm p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Revenue & Orders</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-base)]">Revenue & Orders</h3>
+                    <p className="text-xs text-[var(--color-text-faint)] mt-0.5">Last 7 days</p>
                   </div>
-                  <div className="flex gap-4 text-xs text-gray-400">
+                  <div className="flex gap-4 text-xs text-[var(--color-text-faint)]">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-orange-400 inline-block rounded" />Revenue
+                      <span className="w-3 h-0.5 bg-[#ff6a00] inline-block rounded" />Revenue
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-blue-400 inline-block rounded" />Orders
+                      <span className="w-3 h-0.5 bg-[#1a1208] inline-block rounded" />Orders
                     </span>
                   </div>
                 </div>
@@ -693,29 +704,29 @@ const Dashboard = () => {
                   <AreaChart data={revenueChartData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
                     <defs>
                       <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#F97316" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#F97316" stopOpacity={0}   />
+                        <stop offset="5%"  stopColor="#ff6a00" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#ff6a00" stopOpacity={0}   />
                       </linearGradient>
                       <linearGradient id="gOrd" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#3B82F6" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}   />
+                        <stop offset="5%"  stopColor="#1a1208" stopOpacity={0.16} />
+                        <stop offset="95%" stopColor="#1a1208" stopOpacity={0}   />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={40} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e8e4de" />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9e9890' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9e9890' }} axisLine={false} tickLine={false} width={40} />
                     <Tooltip content={<ChartTip />} />
-                    <Area type="monotone" dataKey="Revenue (₹)" stroke="#F97316" strokeWidth={2.5} fill="url(#gRev)" dot={false} activeDot={{ r: 5 }} />
-                    <Area type="monotone" dataKey="Orders"      stroke="#3B82F6" strokeWidth={2.5} fill="url(#gOrd)" dot={false} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="Revenue (₹)" stroke="#ff6a00" strokeWidth={2.5} fill="url(#gRev)" dot={false} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="Orders"      stroke="#1a1208" strokeWidth={2.5} fill="url(#gOrd)" dot={false} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Donut + bar — order status (1/3) */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-[var(--color-border-light)] shadow-sm p-6">
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900">Order Status</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Current distribution</p>
+                  <h3 className="text-sm font-semibold text-[var(--color-text-base)]">Order Status</h3>
+                  <p className="text-xs text-[var(--color-text-faint)] mt-0.5">Current distribution</p>
                 </div>
                 {statusPieData.length > 0 ? (
                   <>
@@ -732,17 +743,17 @@ const Dashboard = () => {
                     <div className="space-y-1.5 mt-3">
                       {statusPieData.map((s) => (
                         <div key={s.name} className="flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-2 text-gray-600">
+                          <span className="flex items-center gap-2 text-[var(--color-text-muted)]">
                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.fill }} />
                             {s.name}
                           </span>
-                          <span className="font-semibold text-gray-900">{s.value}</span>
+                          <span className="font-semibold text-[var(--color-text-base)]">{s.value}</span>
                         </div>
                       ))}
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+                  <div className="flex flex-col items-center justify-center h-48 text-[var(--color-text-faint)]">
                     <Package className="w-10 h-10 mb-2" />
                     <p className="text-sm">No orders yet</p>
                   </div>
@@ -752,17 +763,17 @@ const Dashboard = () => {
 
             {/* Orders by status bar chart */}
             {ordersBarData.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+              <div className="bg-white rounded-2xl border border-[var(--color-border-light)] shadow-sm p-6 mb-8">
                 <div className="mb-5">
-                  <h3 className="text-sm font-semibold text-gray-900">Orders by Status</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">All-time breakdown</p>
+                  <h3 className="text-sm font-semibold text-[var(--color-text-base)]">Orders by Status</h3>
+                  <p className="text-xs text-[var(--color-text-faint)] mt-0.5">All-time breakdown</p>
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={ordersBarData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }} barSize={36}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
-                    <Tooltip content={<ChartTip />} cursor={{ fill: '#F9FAFB' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e8e4de" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9e9890' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9e9890' }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
+                    <Tooltip content={<ChartTip />} cursor={{ fill: '#f3f1ed' }} />
                     <Bar dataKey="value" name="Orders" radius={[6, 6, 0, 0]}>
                       {ordersBarData.map((entry, i) => (
                         <Cell key={i} fill={entry.fill} />
@@ -775,17 +786,17 @@ const Dashboard = () => {
 
             {/* Content + engagement mini stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-              <MiniStat icon={ShoppingBag}   label="Food Posts"     value={statistics.food.count}               cls="bg-emerald-50 text-emerald-600" />
-              <MiniStat icon={Megaphone}     label="Ads Running"    value={statistics.advertisement.count}      cls="bg-violet-50 text-violet-600" />
-              <MiniStat icon={Heart}         label="Total Likes"    value={fmt(statistics.food.totalLikes + statistics.advertisement.totalLikes)}  cls="bg-pink-50 text-pink-600" />
-              <MiniStat icon={MessageCircle} label="Total Comments" value={fmt(statistics.food.totalReviews + statistics.advertisement.totalComments)} cls="bg-blue-50 text-blue-600" />
+              <MiniStat icon={ShoppingBag}   label="Food Posts"     value={statistics.food.count}               cls="bg-orange-50 text-orange-600" />
+              <MiniStat icon={Megaphone}     label="Ads Running"    value={statistics.advertisement.count}      cls="bg-amber-50 text-amber-700" />
+              <MiniStat icon={Heart}         label="Total Likes"    value={fmt(statistics.food.totalLikes + statistics.advertisement.totalLikes)}  cls="bg-[#f3f1ed] text-[#1a1208]" />
+              <MiniStat icon={MessageCircle} label="Total Comments" value={fmt(statistics.food.totalReviews + statistics.advertisement.totalComments)} cls="bg-[#fff3e0] text-[#e55a00]" />
             </div>
 
             {/* Recent 5 orders */}
             {orders.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-[var(--color-border-light)] shadow-sm p-6">
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-sm font-semibold text-gray-900">Recent Orders</h3>
+                  <h3 className="text-sm font-semibold text-[var(--color-text-base)]">Recent Orders</h3>
                   <button
                     onClick={() => setActiveTab('orders')}
                     className="text-xs font-semibold text-orange-500 hover:text-orange-700 flex items-center gap-1"
@@ -823,25 +834,31 @@ const Dashboard = () => {
             {statistics && (
               <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 mb-6">
                 {[
-                  { label: 'Total',     key: 'all',              val: statistics.orders.total,     borderActive: 'border-gray-400'   },
-                  { label: 'Pending',   key: 'pending',          val: statistics.orders.pending,   borderActive: 'border-amber-400'  },
-                  { label: 'Confirmed', key: 'confirmed',        val: statistics.orders.confirmed, borderActive: 'border-blue-400'   },
-                  { label: 'Preparing', key: 'preparing',        val: statistics.orders.preparing, borderActive: 'border-violet-400' },
-                  { label: 'Completed', key: 'delivered',        val: statistics.orders.completed, borderActive: 'border-green-400'  },
-                  { label: 'Cancelled', key: 'cancelled',        val: statistics.orders.cancelled, borderActive: 'border-red-400'    },
-                  { label: 'Requested', key: 'cancel_requested', val: statistics.orders.cancel_requested, borderActive: 'border-amber-500' },
+                  { label: 'Total',     key: 'all',              val: statistics.orders.total,     dotActive: 'bg-[#9e9890]' },
+                  { label: 'Pending',   key: 'pending',          val: statistics.orders.pending,   dotActive: 'bg-amber-400'  },
+                  { label: 'Confirmed', key: 'confirmed',        val: statistics.orders.confirmed, dotActive: 'bg-[#ff6a00]'  },
+                  { label: 'Preparing', key: 'preparing',        val: statistics.orders.preparing, dotActive: 'bg-[#1a1208]'  },
+                  { label: 'Completed', key: 'delivered',        val: statistics.orders.completed, dotActive: 'bg-[#16a34a]'  },
+                  { label: 'Cancelled', key: 'cancelled',        val: statistics.orders.cancelled, dotActive: 'bg-[#dc2626]'  },
+                  { label: 'Requested', key: 'cancel_requested', val: statistics.orders.cancel_requested, dotActive: 'bg-amber-500' },
                 ].map((s) => {
                   const isActive = statusFilter === s.key
                   return (
                     <button
                       key={s.label}
                       onClick={() => setStatusFilter(s.key)}
-                      className={`bg-white rounded-xl p-3 border-2 text-center transition-all hover:shadow-sm ${
-                        isActive ? `${s.borderActive} shadow-sm` : 'border-transparent'
+                      aria-pressed={isActive}
+                      className={`rounded-xl p-3 border-2 text-center transition-[background-color,color,border-color,box-shadow,transform] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-95 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-[#ff6a00] to-[#e55a00] text-white border-transparent shadow-md shadow-orange-500/25'
+                          : 'bg-[var(--color-background-white)] text-[var(--color-text-base)] border-transparent hover:border-[var(--color-border-light)]'
                       }`}
                     >
-                      <p className="text-xl font-bold text-gray-900">{s.val}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                      <p className="flex items-center justify-center gap-1.5 text-xl font-bold">
+                        <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white/90' : s.dotActive}`} />
+                        {s.val}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${isActive ? 'text-white/80' : 'text-[var(--color-text-muted)]'}`}>{s.label}</p>
                     </button>
                   )
                 })}
@@ -849,17 +866,17 @@ const Dashboard = () => {
             )}
 
             {/* Search */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 px-4 py-3 mb-4">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <div className="bg-white rounded-xl border border-[var(--color-border-light)] shadow-sm flex items-center gap-3 px-4 py-3 mb-4">
+              <Search className="w-4 h-4 text-[var(--color-text-faint)] flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search by order ID or customer name…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 text-sm outline-none bg-transparent text-gray-800 placeholder:text-gray-400"
+                className="flex-1 text-sm outline-none bg-transparent text-[var(--color-text-base)] placeholder:text-[var(--color-text-faint)]"
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 text-xs">
+                <button onClick={() => setSearchTerm('')} className="text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] text-xs">
                   ✕
                 </button>
               )}
@@ -886,11 +903,11 @@ const Dashboard = () => {
                     <button
                       onClick={() => setOrderPage(p => Math.max(1, p - 1))}
                       disabled={orderPage <= 1}
-                      className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 disabled:opacity-40 hover:bg-gray-50"
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-[var(--color-border-light)] text-[var(--color-text-muted)] disabled:opacity-40 hover:bg-[var(--color-surface-muted)]"
                     >
                       Previous
                     </button>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-[var(--color-text-muted)]">
                       Page {orderPagination.currentPage} of {orderPagination.totalPages}
                     </span>
                     <button
@@ -920,7 +937,7 @@ const Dashboard = () => {
                 { id: 'advertisement', label: `Ads (${posts?.advertisement?.length || 0})` },
               ].map(f => (
                 <button key={f.id} onClick={() => setContentFilter(f.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${contentFilter === f.id ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${contentFilter === f.id ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-[var(--color-text-muted)] border border-[var(--color-border-light)] hover:bg-[var(--color-surface-muted)]'}`}>
                   {f.label}
                 </button>
               ))}
@@ -930,37 +947,37 @@ const Dashboard = () => {
             </div>
 
             {allContent.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-                <FileText className="w-12 h-12 text-gray-300 mb-3" />
-                <h3 className="text-lg font-semibold text-gray-600">No content yet</h3>
-                <p className="text-sm text-gray-400 mt-1">Create your first food post or advertisement</p>
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-[var(--color-border-light)]">
+                <FileText className="w-12 h-12 text-[var(--color-text-faint)] mb-3" />
+                <h3 className="text-lg font-semibold text-[var(--color-text-muted)]">No content yet</h3>
+                <p className="text-sm text-[var(--color-text-faint)] mt-1">Create your first food post or advertisement</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {allContent.map(item => (
-                  <div key={item._id} className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-sm transition-all">
+                  <div key={item._id} className="bg-white rounded-xl border border-[var(--color-border-light)] p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-sm transition-all">
                     {/* Thumbnail */}
-                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--color-surface-muted)]">
                       {item.video ? (
                         <video src={item.video} className="w-full h-full object-cover" muted />
                       ) : item.image ? (
                         <img src={item.image} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center"><FileText className="w-6 h-6 text-gray-300" /></div>
+                        <div className="w-full h-full flex items-center justify-center"><FileText className="w-6 h-6 text-[var(--color-text-faint)]" /></div>
                       )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{item.name || item.title || 'Untitled'}</p>
+                        <p className="text-sm font-semibold text-[var(--color-text-base)] truncate">{item.name || item.title || 'Untitled'}</p>
                         <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          item._type === 'food' ? 'bg-emerald-100 text-emerald-600' : 'bg-violet-100 text-violet-600'
+                          item._type === 'food' ? 'bg-orange-100 text-orange-600' : 'bg-amber-100 text-amber-700'
                         }`}>{item._type === 'food' ? 'Food' : 'Ad'}</span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">{item.description || 'No description'}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                        {item.price && <span className="font-semibold text-gray-600">₹{item.price}</span>}
+                      <p className="text-xs text-[var(--color-text-faint)] mt-0.5 truncate">{item.description || 'No description'}</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-[var(--color-text-faint)]">
+                        {item.price && <span className="font-semibold text-[var(--color-text-muted)]">₹{item.price}</span>}
                         <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {item.likeCount || item.likes?.length || 0}</span>
                         <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {item.commentCount || item.comments?.length || 0}</span>
                         {item.createdAt && <span>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
@@ -970,7 +987,7 @@ const Dashboard = () => {
                     {/* Actions */}
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => navigate(`/CreateFood?edit=${item._id}&type=${item._type}`)}
-                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition" title="Edit">
+                        className="p-2 rounded-lg border border-[var(--color-border-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] transition" title="Edit">
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
@@ -989,6 +1006,11 @@ const Dashboard = () => {
         )}
 
         {/* ════════════════════════════════════════════════
+            PROMO CODES TAB
+        ════════════════════════════════════════════════ */}
+        {activeTab === 'coupons' && <PromoCodeManager />}
+
+        {/* ════════════════════════════════════════════════
             REVIEWS TAB
         ════════════════════════════════════════════════ */}
         {activeTab === 'reviews' && (
@@ -998,26 +1020,26 @@ const Dashboard = () => {
                 <RefreshCw className="w-8 h-8 text-orange-400 animate-spin" />
               </div>
             ) : reviews.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-                <Star className="w-12 h-12 text-gray-300 mb-3" />
-                <h3 className="text-lg font-semibold text-gray-600">No reviews yet</h3>
-                <p className="text-sm text-gray-400 mt-1">Customer reviews will appear here</p>
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-[var(--color-border-light)]">
+                <Star className="w-12 h-12 text-[var(--color-text-faint)] mb-3" />
+                <h3 className="text-lg font-semibold text-[var(--color-text-muted)]">No reviews yet</h3>
+                <p className="text-sm text-[var(--color-text-faint)] mt-1">Customer reviews will appear here</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {/* Summary */}
-                <div className="bg-white rounded-xl border border-gray-100 p-5 mb-2">
+                <div className="bg-white rounded-xl border border-[var(--color-border-light)] p-5 mb-2">
                   <div className="flex items-center gap-4">
                     <div className="text-center">
-                      <p className="text-3xl font-black text-gray-900">
+                      <p className="text-3xl font-black text-[var(--color-text-base)]">
                         {(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1)}
                       </p>
                       <div className="flex gap-0.5 justify-center mt-1">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-4 h-4 ${i < Math.round(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                          <Star key={i} className={`w-4 h-4 ${i < Math.round(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) ? 'text-amber-400 fill-amber-400' : 'text-[#e8e4de]'}`} />
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">{reviews.length} reviews</p>
+                      <p className="text-xs text-[var(--color-text-faint)] mt-1">{reviews.length} reviews</p>
                     </div>
                     <div className="flex-1 space-y-1">
                       {[5, 4, 3, 2, 1].map(star => {
@@ -1025,12 +1047,12 @@ const Dashboard = () => {
                         const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0
                         return (
                           <div key={star} className="flex items-center gap-2 text-xs">
-                            <span className="w-3 text-gray-500">{star}</span>
+                            <span className="w-3 text-[var(--color-text-muted)]">{star}</span>
                             <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                            <div className="flex-1 bg-gray-100 rounded-full h-2">
+                            <div className="flex-1 bg-[var(--color-surface-muted)] rounded-full h-2">
                               <div className="bg-amber-400 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="w-6 text-gray-400 text-right">{count}</span>
+                            <span className="w-6 text-[var(--color-text-faint)] text-right">{count}</span>
                           </div>
                         )
                       })}
@@ -1040,7 +1062,7 @@ const Dashboard = () => {
 
                 {/* Review cards */}
                 {reviews.map(review => (
-                  <div key={review._id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-sm transition">
+                  <div key={review._id} className="bg-white rounded-xl border border-[var(--color-border-light)] p-5 hover:shadow-sm transition">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
                         <span className="text-orange-600 font-bold text-sm">
@@ -1049,24 +1071,24 @@ const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-semibold text-gray-800">
+                          <p className="text-sm font-semibold text-[var(--color-text-base)]">
                             {review.user?.firstName || review.user?.name || 'Customer'}
                           </p>
                           <div className="flex gap-0.5">
                             {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-3.5 h-3.5 ${i < (review.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                              <Star key={i} className={`w-3.5 h-3.5 ${i < (review.rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-[#e8e4de]'}`} />
                             ))}
                           </div>
-                          <span className="text-xs text-gray-300 ml-auto">{new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span className="text-xs text-[var(--color-text-faint)] ml-auto">{new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                         </div>
-                        {review.title && <p className="text-sm font-medium text-gray-700 mb-0.5">{review.title}</p>}
-                        {review.comment && <p className="text-sm text-gray-600">{review.comment}</p>}
+                        {review.title && <p className="text-sm font-medium text-[var(--color-text-muted)] mb-0.5">{review.title}</p>}
+                        {review.comment && <p className="text-sm text-[var(--color-text-muted)]">{review.comment}</p>}
 
                         {/* Partner response */}
                         {review.partnerResponse ? (
                           <div className="mt-3 bg-orange-50 rounded-lg p-3 border border-orange-100">
                             <p className="text-xs font-semibold text-orange-600 mb-1">Your Response</p>
-                            <p className="text-sm text-gray-700">{review.partnerResponse}</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">{review.partnerResponse}</p>
                           </div>
                         ) : (
                           <div className="mt-3">
@@ -1075,13 +1097,13 @@ const Dashboard = () => {
                                 <input type="text" placeholder="Write your response…" value={responseText}
                                   onChange={e => setResponseText(e.target.value)}
                                   onKeyDown={e => e.key === 'Enter' && handleRespondToReview(review._id)}
-                                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-300" />
+                                  className="flex-1 text-sm border border-[var(--color-border-light)] rounded-lg px-3 py-2 outline-none focus:border-orange-300" />
                                 <button onClick={() => handleRespondToReview(review._id)}
                                   className="px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition flex items-center gap-1">
                                   <Send className="w-3.5 h-3.5" /> Send
                                 </button>
                                 <button onClick={() => { setRespondingTo(null); setResponseText('') }}
-                                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50">
+                                  className="px-3 py-2 border border-[var(--color-border-light)] rounded-lg text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
                                   Cancel
                                 </button>
                               </div>
@@ -1101,6 +1123,8 @@ const Dashboard = () => {
             )}
           </div>
         )}
+        </div>
+        {/* /.panel-enter */}
 
       </div>
 

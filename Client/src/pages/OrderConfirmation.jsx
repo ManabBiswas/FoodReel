@@ -337,7 +337,7 @@ const OrderConfirmation = () => {
                   { l: 'Delivery fee', v: pricing.deliveryFee === 0 ? 'FREE' : `₹${fmt(pricing.deliveryFee)}`, g: pricing.deliveryFee === 0 },
                   { l: 'Platform fee', v: `₹${fmt(pricing.platformFee)}` },
                   { l: 'GST (5%)', v: `₹${fmt(pricing.taxes?.gst)}` },
-                  ...(pricing.discount > 0 ? [{ l: 'Discount', v: `-₹${fmt(pricing.discount)}`, g: true }] : []),
+                  ...(pricing.discount > 0 ? [{ l: `Discount${order.coupon?.code ? ` (${order.coupon.code})` : ''}`, v: `-₹${fmt(pricing.discount)}`, g: true }] : []),
                 ].map(({ l, v, g }) => (
                   <div key={l} className="flex justify-between">
                     <span style={{ color: 'var(--color-text-muted)' }}>{l}</span>

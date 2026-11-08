@@ -518,7 +518,7 @@ const OrderDetail = () => {
                 )}
                 {order.pricing?.discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
+                    <span>Discount{order.coupon?.code ? ` (${order.coupon.code})` : ''}</span>
                     <span className="font-medium">-₹{order.pricing.discount.toFixed(2)}</span>
                   </div>
                 )}

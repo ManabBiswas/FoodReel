@@ -235,6 +235,7 @@ const Checkout = () => {
     e.preventDefault()
     const code = couponInput.trim()
     if (!code) { showWarning('Enter a promo code'); return }
+    if (code.length < 5) { showWarning('Promo codes are at least 5 characters'); return }
     setCouponBusy(true)
     const result = await applyCoupon(code)
     setCouponBusy(false)
@@ -543,11 +544,10 @@ const Checkout = () => {
                           <p className="text-xs text-gray-500">
                             {addr.city}, {addr.state} - {addr.pincode || addr.pinCode}
                           </p>
-                          {addr.fullName && (
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {addr.fullName}{addr.phone ? ` · ${addr.phone}` : ''}
-                            </p>
-                          )}
+                          <p className={`text-xs mt-0.5 ${addr.phone ? 'text-gray-500' : 'font-semibold text-amber-700'}`}>
+                            {addr.fullName ? `${addr.fullName} · ` : ''}
+                            {addr.phone ? `+91 ${addr.phone}` : 'Mobile number missing'}
+                          </p>
                         </button>
                       )
                     })}
@@ -897,7 +897,13 @@ const Checkout = () => {
                     <Tag className="mt-0.5 w-4 h-4 flex-shrink-0 text-amber-600" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-800">{cart.appliedPromo.code} applied</p>
-                      <p className="text-xs text-gray-500">You saved ₹{discount.toFixed(2)} on this order</p>
+                      <p className="text-xs text-gray-500">
+                        You saved ₹{discount.toFixed(2)}
+                        {cart.appliedPromo.eligibleQuantity !== undefined &&
+                          (cart.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0) > Number(cart.appliedPromo.eligibleQuantity)
+                          ? ` on ${cart.appliedPromo.eligibleQuantity} item${Number(cart.appliedPromo.eligibleQuantity) === 1 ? '' : 's'}`
+                          : ''}
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -925,6 +931,7 @@ const Checkout = () => {
                           placeholder="Enter code"
                           autoComplete="off"
                           spellCheck={false}
+                          minLength={5}
                           maxLength={32}
                           className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                         />

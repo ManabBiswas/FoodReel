@@ -366,8 +366,8 @@ const OrganizerDashboard = () => {
         <ErrorBoundary>
           {eventsLoading ? (
             <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-              <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
-              <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
+              <div className="h-64 animate-pulse rounded-2xl bg-[var(--color-border-light)]" />
+              <div className="h-96 animate-pulse rounded-2xl bg-[var(--color-border-light)]" />
             </div>
           ) : events.length === 0 ? (
             <div
@@ -455,7 +455,7 @@ const OrganizerDashboard = () => {
                     </p>
                   </div>
                 ) : detailLoading && !detail ? (
-                  <div className="h-96 animate-pulse rounded-2xl bg-gray-100" />
+                  <div className="h-96 animate-pulse rounded-2xl bg-[var(--color-border-light)]" />
                 ) : !detail ? (
                   <div
                     className="rounded-2xl p-8 text-center"
@@ -734,9 +734,9 @@ const OrganizerDashboard = () => {
 
                         {ticketsLoading ? (
                           <div className="mt-4 space-y-2 animate-pulse">
-                            <div className="h-14 rounded-lg bg-gray-100" />
-                            <div className="h-14 rounded-lg bg-gray-100" />
-                            <div className="h-14 rounded-lg bg-gray-100" />
+                            <div className="h-14 rounded-lg bg-[var(--color-border-light)]" />
+                            <div className="h-14 rounded-lg bg-[var(--color-border-light)]" />
+                            <div className="h-14 rounded-lg bg-[var(--color-border-light)]" />
                           </div>
                         ) : tickets.length === 0 ? (
                           <p className="mt-6 font-sans text-sm" style={{ color: 'var(--color-text-muted)' }}>

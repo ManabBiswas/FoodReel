@@ -257,6 +257,118 @@ if (foodItem.postType !== 'food') {
     }
 };
 
+/**
+ * Preview a promo code for the reel quick-order flow.
+ *
+ * Quick order creates an order directly (no cart), so it cannot use the
+ * cart-scoped apply endpoint. This validates the code against the same
+ * item/food rules and returns the discount without creating anything.
+ */
+const validateOrderCoupon = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { items = [], code } = req.body;
+        if (!items.length) {
+            return res.status(400).json({ error: 'At least one food item is required' });
+        }
+
+        const requestedIds = items
+            .map(({ foodItemId }) => foodItemId)
+            .filter(Boolean)
+            .map(String);
+        const uniqueIds = [...new Set(requestedIds)];
+        const foodItems = uniqueIds.length
+            ? await foodModel.find({ _id: { $in: uniqueIds } }).populate('foodPartner')
+            : [];
+        const foodItemById = new Map(foodItems.map((doc) => [doc._id.toString(), doc]));
+
+        const orderItems = [];
+        let itemPriceTotal = 0;
+
+        for (const { foodItemId, quantity = 1 } of items) {
+            const foodItem = foodItemById.get(String(foodItemId));
+            if (!foodItem) {
+                return res.status(404).json({ error: `Food item ${foodItemId} not found` });
+            }
+            if (foodItem.postType !== 'food') {
+                return res.status(400).json({ error: `${foodItem.name} is not orderable` });
+            }
+            if (foodItem.isActive === false || foodItem.isAvailable === false) {
+                return res.status(400).json({ error: `${foodItem.name} is currently unavailable` });
+            }
+            if (!foodItem.price || foodItem.price <= 0) {
+                return res.status(400).json({ error: `${foodItem.name} has no valid price` });
+            }
+            if (!foodItem.foodPartner) {
+                return res.status(400).json({ error: `${foodItem.name} has no restaurant assigned` });
+            }
+
+            const qty = parseInt(quantity);
+            if (!Number.isFinite(qty) || qty < 1 || qty > 100) {
+                return res.status(400).json({ error: `Invalid quantity for ${foodItem.name}` });
+            }
+
+            itemPriceTotal += foodItem.price * qty;
+            orderItems.push({
+                foodItemId: foodItem._id,
+                quantity: qty,
+                price: foodItem.price,
+                foodPartner: foodItem.foodPartner._id
+            });
+        }
+
+        const distinctPartners = new Set(orderItems.map((item) => String(item.foodPartner)));
+        if (distinctPartners.size > 1) {
+            return res.status(400).json({
+                error: 'All items in an order must belong to the same restaurant'
+            });
+        }
+
+        const validation = await couponService.validateCoupon({
+            code,
+            userId: req.user._id,
+            partnerId: orderItems[0]?.foodPartner,
+            items: orderItems
+        });
+
+        if (!validation.ok) {
+            return res.status(400).json({
+                success: false,
+                code: validation.code,
+                error: validation.message,
+                ...(validation.minOrderAmount !== undefined
+                    ? { minOrderAmount: validation.minOrderAmount }
+                    : {}),
+                ...(validation.minQuantity !== undefined
+                    ? { minQuantity: validation.minQuantity }
+                    : {})
+            });
+        }
+
+        const pricing = paymentService.calculatePricing(
+            itemPriceTotal,
+            1,
+            0,
+            validation.discountAmount
+        );
+
+        return res.json({
+            success: true,
+            code: validation.coupon.code,
+            discount: validation.discountAmount,
+            eligibleTotal: validation.eligibleTotal,
+            eligibleQuantity: validation.eligibleQuantity,
+            pricing
+        });
+    } catch (error) {
+        console.error('Error validating order coupon:', error);
+        serverError(res, error, 'Failed to validate promo code');
+    }
+};
+
 const getUserOrders = async (req, res) => {
     try {
         const { status, limit = 10, page = 1 } = req.query;
@@ -1033,6 +1145,7 @@ const getPartnerOrderById = async (req, res) => {
 
 export default {
     createOrder,
+    validateOrderCoupon,
     getUserOrders,
     getPartnerOrders,
     updateOrderStatus,

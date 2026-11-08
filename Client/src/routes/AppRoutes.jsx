@@ -23,7 +23,7 @@ import About from '../pages/About'
 import Contact from '../pages/Contact'
 import AdminPage from '../pages/Admin/AdminPage'
 import { useAuth } from '../hooks/useAuth'
-import { LoaderCircle } from 'lucide-react'
+import FoodReelLogo from '../assets/logo.png'
 
 // Lazy-loaded components for code splitting so heavy components are only loaded when needed. This improves initial load time and performance.
 const Dashboard = lazy(() => import('../pages/FoodPartner/Dashboard'))
@@ -39,13 +39,37 @@ const OrganizerDashboard = lazy(() => import('../pages/User/OrganizerDashboard')
 // This is used to redirect authenticated users away from login/register pages to their intended destination or home page.    
 const AUTH_PATHS = new Set(['/login', '/register', '/partner-login', '/partner-register'])
 
-// Loading Component
+// Loading Component — warm parchment, logo mark, indeterminate bar.
+// Transform/opacity only so it stays smooth while the route chunk resolves.
 const LoadingScreen = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-200 to-purple-200">
-    <div className="text-center">
-      <LoaderCircle className="w-12 h-12 animate-spin mx-auto text-indigo-600 mb-4" />
-      <p className="text-gray-600 font-medium">Loading...</p>
+  <div
+    className="min-h-screen flex flex-col items-center justify-center px-6"
+    style={{ background: 'var(--color-background-light)' }}
+    role="status"
+    aria-live="polite"
+  >
+    <img
+      src={FoodReelLogo}
+      alt="FoodReel"
+      className="h-12 w-32 object-contain animate-pulse"
+      style={{ animationDuration: '2.4s' }}
+    />
+    <p className="mt-4 font-serif text-xl font-bold tracking-tight" style={{ color: 'var(--color-text-base)' }}>
+      FoodReel
+    </p>
+    <div
+      className="foodreel-load-bar mt-5 h-1 w-40 overflow-hidden rounded-full"
+      style={{ background: 'var(--color-border-light)' }}
+      aria-hidden="true"
+    >
+      <div
+        className="h-full w-1/3 rounded-full"
+        style={{ background: 'linear-gradient(90deg, var(--color-accent), var(--color-primary))' }}
+      />
     </div>
+    <p className="mt-3 font-sans text-xs font-medium uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-faint)' }}>
+      Loading your table
+    </p>
   </div>
 )
 

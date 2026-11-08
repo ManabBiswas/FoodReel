@@ -4,6 +4,7 @@ import isLoggedin from '../middlewares/isLoggedin.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import { withIdempotency } from '../services/idempotency.js';
 import { validateBody, validateParams, isObjectId } from '../utils/validate.js';
+import { couponRateLimiter } from '../middlewares/rateLimiter.js';
 
 const router = express.Router();
 
@@ -31,6 +32,25 @@ const orderIdParams = validateParams({
     withIdempotency('order.create'),
     orderController.createOrder
   );
+
+// POST /api/orders/validate-coupon - Preview a promo code for a direct
+// (reel quick-order) checkout without creating an order.
+router.post('/validate-coupon',
+  isLoggedin,
+  couponRateLimiter,
+  validateBody({
+    items: {
+      check: (v) => Array.isArray(v) && v.length > 0 && v.length <= 50
+        && v.every((i) => i && isObjectId(i.foodItemId)),
+      message: 'items must be a non-empty array (max 50) of valid foodItem ids'
+    },
+    code: {
+      check: (v) => typeof v === 'string' && v.trim().length >= 5 && v.trim().length <= 32,
+      message: 'code must be 5-32 characters'
+    }
+  }),
+  orderController.validateOrderCoupon
+);
 
 // GET /api/orders - Get user's orders
 router.get('/',
