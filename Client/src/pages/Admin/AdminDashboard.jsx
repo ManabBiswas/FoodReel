@@ -1,11 +1,16 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { useAuth } from '../../hooks/useAuth'
+import { useLiveQuery } from '../../hooks/useLiveQuery'
+import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { LogOut, Menu, X, RefreshCw, Bell, Zap } from 'lucide-react'
 
 import AdminGlobalStyles from '../../Components/admin/AdminGlobalStyles'
 import { Confirm, ErrBox } from '../../Components/admin/AdminUI'
+import AdminAlerts from '../../Components/admin/AdminAlerts'
 import { TABS } from '../../Components/admin/adminConstants'
+import SplitHeading from '../../Components/admin/SplitHeading'
 
 import OverviewTab from '../../Components/admin/tabs/OverviewTab'
 import UsersTab from '../../Components/admin/tabs/UsersTab'
@@ -28,6 +33,68 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [error, setError] = useState('')
   const [confirmAction, setConfirmAction] = useState(null)
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const alertsWrapRef = useRef(null)
+
+  /* Instant alerts — one cheap aggregate polled every 30s so the bell badge
+     reflects the real queues (cancel requests, reviews, proposals,
+     verifications) on every tab, not just the overview. */
+  const alertsQuery = useLiveQuery({
+    fetcher: async () => {
+      const res = await axios.get(API_ENDPOINTS.admin.alerts, axiosConfig)
+      return res.data
+    },
+    intervalMs: 30000,
+  })
+  const alerts = alertsQuery.data?.alerts || []
+  const tasksCount = alertsQuery.data?.tasksCount || 0
+
+  /* Refresh the bell instantly after any action that clears (or creates) an
+     alert — waiting for the 30s poll made the “tasks to do” list look stuck. */
+  const handleDataChanged = useCallback(() => {
+    alertsQuery.refresh()
+  }, [alertsQuery.refresh])
+
+  /* Also refresh when switching tabs: queues may have changed while the admin
+     was working (including another admin's decisions). */
+  useEffect(() => {
+    handleDataChanged()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  useEffect(() => {
+    if (alertsQuery.error?.response?.status === 401) navigate('/admin-login')
+  }, [alertsQuery.error, navigate])
+
+  useEffect(() => {
+    if (!alertsOpen) return undefined
+    const onPointerDown = (event) => {
+      if (alertsWrapRef.current && !alertsWrapRef.current.contains(event.target)) {
+        setAlertsOpen(false)
+      }
+    }
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setAlertsOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [alertsOpen])
+
+  const toggleAlerts = () => {
+    const next = !alertsOpen
+    setAlertsOpen(next)
+    if (next) alertsQuery.refresh()
+  }
+
+  const goToTab = (tabId) => {
+    setActiveTab(tabId)
+    setAlertsOpen(false)
+    setSidebarOpen(false)
+  }
 
   /* ── Logout ────────────────────────────────────────── */
   const handleLogout = async () => {
@@ -63,7 +130,9 @@ const AdminDashboard = () => {
               <Zap style={{ width: 22, height: 22, color: 'white' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', margin: 0 }}>FoodReel</h1>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', margin: 0 }}>
+                <SplitHeading as="span" text="FoodReel" style={{ display: 'inline-block' }} />
+              </h1>
               <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', margin: 0, opacity: 0.9 }}>Admin Panel</p>
             </div>
           </div>
@@ -112,13 +181,34 @@ const AdminDashboard = () => {
               {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text2)', transition: 'all 0.2s', position: 'relative' }}
+          <div ref={alertsWrapRef} style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+            <button
+              type="button"
+              onClick={toggleAlerts}
+              aria-haspopup="true"
+              aria-expanded={alertsOpen}
+              aria-label={tasksCount > 0 ? `Instant alerts, ${tasksCount} tasks to do` : 'Instant alerts'}
+              style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text2)', transition: 'all 0.2s', position: 'relative' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'rgba(255,106,0,0.08)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface2)' }}>
               <Bell style={{ width: 16, height: 16 }} />
-              <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: '50%', background: '#dc2626', border: '1.5px solid var(--surface)' }} />
+              {tasksCount > 0 && (
+                <span style={{ position: 'absolute', top: 3, right: 3, minWidth: 17, height: 17, padding: '0 5px', borderRadius: 999, background: '#dc2626', color: 'white', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--surface)', boxShadow: '0 0 0 3px rgba(220,38,38,0.18), 0 2px 8px rgba(220,38,38,0.4)' }}>
+                  {tasksCount > 99 ? '99+' : tasksCount}
+                </span>
+              )}
             </button>
+            <AdminAlerts
+              open={alertsOpen}
+              onClose={() => setAlertsOpen(false)}
+              alerts={alerts}
+              tasksCount={tasksCount}
+              loading={alertsQuery.loading}
+              error={alertsQuery.error}
+              lastUpdated={alertsQuery.lastUpdated}
+              onRefresh={() => alertsQuery.refresh()}
+              onNavigate={goToTab}
+            />
           </div>
         </div>
 
@@ -128,13 +218,13 @@ const AdminDashboard = () => {
           {/* Tab Content Router */}
           {activeTab === 'overview' && <OverviewTab navigate={navigate} setError={setError} setActiveTab={setActiveTab} />}
           {activeTab === 'users' && <UsersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
-          {activeTab === 'partners' && <PartnersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
+          {activeTab === 'partners' && <PartnersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} onDataChanged={handleDataChanged} />}
           {activeTab === 'content' && <ContentTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
-          {activeTab === 'orders' && <OrdersTab navigate={navigate} setError={setError} />}
-      {activeTab === 'cancels' && <CancelRequestsTab navigate={navigate} setError={setError} />}
-      {activeTab === 'event-proposals' && <EventProposalsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
+          {activeTab === 'orders' && <OrdersTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} onDataChanged={handleDataChanged} />}
+      {activeTab === 'cancels' && <CancelRequestsTab navigate={navigate} setError={setError} onDataChanged={handleDataChanged} />}
+      {activeTab === 'event-proposals' && <EventProposalsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} onDataChanged={handleDataChanged} />}
       {activeTab === 'events' && <EventManagementTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
-          {activeTab === 'reviews' && <ReviewsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} />}
+          {activeTab === 'reviews' && <ReviewsTab navigate={navigate} setError={setError} setConfirmAction={setConfirmAction} onDataChanged={handleDataChanged} />}
           {activeTab === 'analytics' && <AnalyticsTab navigate={navigate} setError={setError} />}
         </div>
       </main>

@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
   admin: {    
     // Dashboard
     dashboard: `${BASE_URL}/admin/dashboard`,
+    alerts: `${BASE_URL}/admin/alerts`,
     dashboardLive: `${BASE_URL}/admin/dashboard/live`,
     dashboardSeries: (range) => `${BASE_URL}/admin/dashboard/timeseries?range=${range}`,
     
@@ -73,6 +74,7 @@ export const API_ENDPOINTS = {
     // Orders
     orders: `${BASE_URL}/admin/orders`,
     orderDetails: (orderId) => `${BASE_URL}/admin/orders/${orderId}`,
+    cancelOrder: (orderId) => `${BASE_URL}/admin/orders/${orderId}/cancel`,
 
     // Partner cancellation requests (food already being prepared)
     cancelRequests: `${BASE_URL}/admin/cancel-requests`,

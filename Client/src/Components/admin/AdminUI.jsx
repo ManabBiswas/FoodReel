@@ -3,6 +3,7 @@ import {
   AlertCircle, ChevronLeft, ChevronRight, Package,
   ArrowUpRight, TrendingDown
 } from 'lucide-react'
+import ScrambleNumber from '../ScrambleNumber'
 
 export const Spinner = () => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 12 }}>
@@ -62,14 +63,46 @@ export const Confirm = ({ msg, onYes, onNo }) => (
 
 export const ChartTooltip = ({ active, payload, label, prefix = '' }) => {
   if (!active || !payload?.length) return null
+
+  const formatValue = (v) =>
+    typeof v === 'number' ? v.toLocaleString('en-IN') : v
+
+  const formatPercent = (entry, total) => {
+    const value = Number(entry.value) || 0
+    if (entry.percent != null) return ` (${Math.round(entry.percent * 100)}%)`
+    if (total > 0) return ` (${Math.round((value / total) * 100)}%)`
+    return ''
+  }
+
+  const total = payload.reduce((sum, p) => sum + (Number(p.value) || 0), 0)
+  const isPie = payload.length === 1 && payload[0]?.percent != null
+
   return (
-    <div style={{ background: '#ffffff', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', boxShadow: '0 8px 24px rgba(26,18,8,0.12)', minWidth: 130 }}>
-      <p style={{ color: 'var(--text3)', fontSize: 11, marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ fontSize: 14, fontWeight: 700, color: p.color || '#ff6a00', fontFamily: 'var(--font-display)' }}>
-          {prefix}{typeof p.value === 'number' ? p.value.toLocaleString('en-IN') : p.value}
-        </p>
-      ))}
+    <div style={{ background: '#ffffff', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', boxShadow: '0 8px 24px rgba(26,18,8,0.12)', minWidth: 130, maxWidth: 240 }}>
+      {/* Pie tooltips have no `label`; the slice name lives on the entry.
+          Rendering an empty label paragraph is what produced the blank
+          upper half in the hover box. */}
+      {label ? (
+        <p style={{ color: 'var(--text3)', fontSize: 11, marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+      ) : null}
+      {payload.map((p, i) => {
+        const color = p.payload?.fill || p.fill || p.color || '#ff6a00'
+        const showName = p.name && p.name !== p.dataKey
+        const valueText = `${prefix}${formatValue(p.value)}${isPie ? formatPercent(p, total) : ''}`
+        return (
+          <p
+            key={p.dataKey || p.name || i}
+            style={{
+              fontSize: 14, fontWeight: 700, margin: 0, display: 'flex',
+              alignItems: 'center', gap: 8, fontFamily: 'var(--font-display)',
+            }}
+          >
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: color, flexShrink: 0 }} aria-hidden />
+            <span style={{ color: 'var(--text)', fontWeight: 600, fontSize: 12 }}>{showName ? p.name : null}</span>
+            <span style={{ color, marginLeft: 'auto' }}>{valueText}</span>
+          </p>
+        )
+      })}
     </div>
   )
 }
@@ -89,7 +122,7 @@ export const StatCard = ({ title, value, icon: Icon, color, bg, change }) => (
     </div>
     <p style={{ color: 'var(--text3)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{title}</p>
     <p style={{ color: 'var(--text)', fontSize: 26, fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
-      {typeof value === 'number' ? value.toLocaleString() : value}
+      {typeof value === 'number' ? <ScrambleNumber value={value} /> : value}
     </p>
     <div style={{ height: 2, borderRadius: 1, background: `linear-gradient(90deg, ${color}, transparent)`, marginTop: 12, opacity: 0.4 }} />
   </div>

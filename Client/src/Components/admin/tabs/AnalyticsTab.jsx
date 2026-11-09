@@ -7,41 +7,118 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import {
-  Users, Store, CheckCircle, Ban, Activity, TrendingUp, ShoppingBag, BarChart3
+  Users, Store, CheckCircle, Ban, Activity, TrendingUp, ShoppingBag, BarChart3, RefreshCw
 } from 'lucide-react'
 import { Spinner, Empty, StatCard, ChartTooltip } from '../AdminUI'
 import { PALETTE } from '../adminConstants'
 
+const serverMessage = (err) =>
+  err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Network request failed'
+
 const AnalyticsTab = ({ navigate, setError }) => {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
+  // Each endpoint loads independently: one 500 must not blank the whole tab.
+  // Previously a single Promise.all rejection meant every chart disappeared
+  // behind a generic "Failed to load analytics", even when the server had
+  // successfully returned the user/partner counts.
   const fetchAnalytics = useCallback(async () => {
-    try {
-      setLoading(true); setError('')
-      const [revRes, userRes, partnerRes] = await Promise.all([
-        axios.get(API_ENDPOINTS.admin.revenueAnalytics, axiosConfig),
-        axios.get(API_ENDPOINTS.admin.userAnalytics, axiosConfig),
-        axios.get(API_ENDPOINTS.admin.partnerAnalytics, axiosConfig),
-      ])
+    setLoading(true)
+    setError('')
+    setLoadError('')
+
+    const [rev, users, partners] = await Promise.allSettled([
+      axios.get(API_ENDPOINTS.admin.revenueAnalytics, axiosConfig),
+      axios.get(API_ENDPOINTS.admin.userAnalytics, axiosConfig),
+      axios.get(API_ENDPOINTS.admin.partnerAnalytics, axiosConfig),
+    ])
+
+    if ([rev, users, partners].some(
+      (r) => r.status === 'rejected' && r.reason?.response?.status === 401,
+    )) {
+      navigate('/admin-login')
+      setLoading(false)
+      return
+    }
+
+    const failures = []
+    if (rev.status === 'rejected') failures.push(`Revenue: ${serverMessage(rev.reason)}`)
+    if (users.status === 'rejected') failures.push(`Users: ${serverMessage(users.reason)}`)
+    if (partners.status === 'rejected') failures.push(`Partners: ${serverMessage(partners.reason)}`)
+
+    if (failures.length === 3) {
+      setAnalytics(null)
+      const message = `Failed to load analytics — ${failures.join(' · ')}`
+      setLoadError(message)
+      setError(message)
+    } else {
       setAnalytics({
-        revenue: revRes.data.revenueByMonth || [],
-        users: userRes.data.analytics || {},
-        partners: partnerRes.data.analytics || {},
+        revenue: rev.status === 'fulfilled'
+          ? (rev.value.data.revenueByMonth || []).map((row) => ({
+              ...row,
+              _id: row?._id != null ? String(row._id) : '',
+              revenue: Number(row?.revenue) || 0,
+              orders: Number(row?.orders) || 0,
+            }))
+          : [],
+        users: users.status === 'fulfilled' ? users.value.data.analytics || {} : {},
+        partners: partners.status === 'fulfilled' ? partners.value.data.analytics || {} : {},
       })
-    } catch (err) {
-      if (err.response?.status === 401) navigate('/admin-login')
-      else setError('Failed to load analytics')
-    } finally { setLoading(false) }
+      if (failures.length > 0) {
+        // Partial data is still useful: keep the charts on screen and show
+        // the warning inline with a working retry, instead of the shared
+        // error box whose retry only clears the message.
+        setLoadError(`Some analytics failed to load — ${failures.join(' · ')}`)
+      }
+    }
+    setLoading(false)
   }, [navigate, setError])
 
-  useEffect(() => { fetchAnalytics() }, [fetchAnalytics])
+  useEffect(() => { fetchAnalytics() }, [fetchAnalytics, reloadKey])
 
-  if (loading) return <Spinner />
-  if (!analytics) return <Empty text="No analytics data" />
+  if (loading && !analytics) return <Spinner />
+  if (!analytics) {
+    return (
+      <div className="chart-container" style={{ textAlign: 'center', padding: '48px 20px' }}>
+        <Empty text="No analytics data" />
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="btn-primary"
+          style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+        >
+          <RefreshCw style={{ width: 14, height: 14 }} /> Retry
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {loadError && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            padding: '12px 16px', borderRadius: 12, background: 'rgba(255,184,0,0.12)',
+            border: '1px solid rgba(255,184,0,0.4)', color: '#8a5a00', fontSize: 13,
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 200 }}>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            disabled={loading}
+            className="btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          >
+            <RefreshCw style={{ width: 14, height: 14 }} /> Retry
+          </button>
+        </div>
+      )}
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
         <StatCard title="Total Users"       value={analytics.users.totalUsers ?? 0}          icon={Users}       color="#ff6a00" bg="rgba(255,106,0,0.1)" />
@@ -65,7 +142,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,18,8,0.07)" />
               <XAxis dataKey="_id" tick={{ fontSize: 11, fill: 'var(--text3)' }} axisLine={false} tickLine={false} />
               <YAxis yAxisId="rev" orientation="left" tick={{ fontSize: 10, fill: 'var(--text3)' }} axisLine={false} tickLine={false}
-                tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} />
+                tickFormatter={(v) => { const n = Number(v) || 0; return n >= 1000 ? `₹${(n / 1000).toFixed(0)}k` : `₹${n}` }} />
               <YAxis yAxisId="ord" orientation="right" tick={{ fontSize: 10, fill: 'var(--text3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
               <Legend iconType="circle" iconSize={7}
@@ -89,7 +166,7 @@ const AnalyticsTab = ({ navigate, setError }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,18,8,0.07)" />
               <XAxis dataKey="_id" tick={{ fontSize: 11, fill: 'var(--text3)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} axisLine={false} tickLine={false}
-                tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                tickFormatter={(v) => `₹${((Number(v) || 0) / 1000).toFixed(0)}k`} />
               <Tooltip content={<ChartTooltip prefix="₹" />} />
               <Line type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2.5}
                 dot={{ r: 5, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }}

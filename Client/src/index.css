@@ -256,7 +256,7 @@ a:focus-visible {
 
 /* ─── Animations ──────────────────────────────────────────────── */
 @keyframes scaleIn {
-  from { transform: scale(0.8); opacity: 0; }
+  from { transform: scale(0.95); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
 }
 
@@ -287,7 +287,7 @@ a:focus-visible {
   .foodreel-load-bar > div { animation: none; transform: none; width: 100%; }
 }
 
-.animate-scale-in  { animation: scaleIn  0.3s ease-out; }
+.animate-scale-in { animation: scaleIn 220ms var(--ease-out); }
 .animate-fade-in   { animation: fadeIn   0.3s ease-out; }
 .animate-float     { animation: float    3s ease-in-out infinite; }
 .animate-pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
@@ -396,4 +396,13 @@ a:focus-visible {
   .hover-gated:hover:not(:disabled) {
     transform: none;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scale-in, .animate-fade-in { animation: fadeIn 180ms ease both; transform: none; }
+  .animate-float, .animate-pulse-ring { animation: none; }
+  .sk-surface { transition: box-shadow 150ms ease; }
+  .hover-lift:hover:not(:disabled), .hover-lift:active:not(:disabled) { transform: none; }
+  .hover-lift { transition: opacity 150ms ease; }
+  button, [role='button'], a { transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease; }
 }

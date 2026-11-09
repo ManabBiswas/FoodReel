@@ -1,7 +1,10 @@
+import { createElement } from 'react'
+import { CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 // Centralized toast helpers using react-hot-toast (React 19 compatible)
-const successOpts = { duration: 3000, position: 'top-center' }
+const successIcon = createElement(CheckCircle, { className: 'animate-scale-in', size: 20, color: '#16a34a' })
+const successOpts = { duration: 3000, position: 'top-center', icon: successIcon }
 const errorOpts = { duration: 4000, position: 'top-center' }
 const infoOpts = { duration: 3000, position: 'top-center' }
 

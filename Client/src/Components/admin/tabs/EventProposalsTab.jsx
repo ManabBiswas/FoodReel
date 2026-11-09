@@ -4,7 +4,7 @@ import { showSuccess, showError, showWarning } from '../../../utils/toast'
 import { formatDate } from '../../../utils/foodfest'
 import { API_ENDPOINTS } from '../../../config/Api'
 
-const EventProposalsTab = ({ setError }) => {
+const EventProposalsTab = ({ setError, onDataChanged }) => {
   const [proposals, setProposals] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -43,6 +43,7 @@ const EventProposalsTab = ({ setError }) => {
       if (res.data.success) {
         showSuccess(res.data.message)
         fetchProposals()
+        onDataChanged?.()
       } else {
         showError(res.data.message || 'Failed to approve')
         setError(res.data.message || 'Failed to approve')
@@ -66,6 +67,7 @@ const EventProposalsTab = ({ setError }) => {
       if (res.data.success) {
         showWarning('Proposal rejected')
         fetchProposals()
+        onDataChanged?.()
       } else {
         showError('Failed to reject')
         setError('Failed to reject')

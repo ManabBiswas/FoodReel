@@ -52,30 +52,29 @@ const MenuBarBottom = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center py-1 rounded-2xl transition-all duration-300 group relative ${isActive
-                ? 'text-white transform scale-105'
+              className={`flex flex-col items-center py-1 rounded-2xl transition-colors duration-160 group relative ${isActive
+                ? 'text-white'
                 : 'text-gray-600 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400'
                 }`}
             >
               {/* Active background with glassmorphism */}
               {isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-accent-500 to-primary-500 rounded-2xl shadow-glass-orange animate-scale-in"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-accent-500 to-primary-500 rounded-2xl shadow-glass-orange"></div>
               )}
 
               {/* Icon container */}
-              <div className={`relative z-10 transition-all duration-300 ${isActive ? 'transform scale-110 animate-bounce-soft' : 'group-hover:scale-110'
-                }`}>
+              <div className="relative z-10 transition-transform duration-160 ease-out">
                 <span className="text-lg mb-1 block">{item.icon}</span>
               </div>
 
               {/* Label */}
-              <span className="relative z-10 text-[8px] font-medium transition-all duration-300">
+              <span className="relative z-10 text-[8px] font-medium">
                 {item.label}
               </span>
 
               {/* Hover effect */}
               {!isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-accent-100 to-primary-100 dark:from-accent-900 dark:to-primary-900 rounded-2xl opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-accent-100 to-primary-100 dark:from-accent-900 dark:to-primary-900 rounded-2xl opacity-0 group-hover:opacity-50 transition-opacity duration-160"></div>
               )}
             </Link>
           )

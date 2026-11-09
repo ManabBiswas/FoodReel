@@ -80,7 +80,7 @@ const CancelRequestDialog = ({
                 key={reason}
                 type="button"
                 onClick={() => setSelected(reason)}
-                className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm transition-all cursor-pointer ${
+                className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm transition-[background-color,border-color,box-shadow] duration-160 ease-out cursor-pointer ${
                   selected === reason
                     ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
@@ -128,7 +128,7 @@ const CancelRequestDialog = ({
             type="button"
             onClick={() => onSubmit(selected, details.trim())}
             disabled={!canConfirm || submitting}
-            className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-amber-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-[background-color,box-shadow,transform] duration-160 ease-out hover:bg-amber-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Send request

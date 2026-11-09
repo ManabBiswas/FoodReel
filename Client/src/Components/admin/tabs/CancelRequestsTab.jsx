@@ -8,7 +8,7 @@ import { fmtCur } from '../adminConstants'
 /**
  * The review queue for partner cancellation requests.
  */
-const CancelRequestsTab = ({ navigate, setError }) => {
+const CancelRequestsTab = ({ navigate, setError, onDataChanged }) => {
   const [requests, setRequests] = useState([])
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
   const [page, setPage] = useState(1)
@@ -42,10 +42,11 @@ const CancelRequestsTab = ({ navigate, setError }) => {
       setNotes(prev => ({ ...prev, [orderId]: '' }))
       setRequests(prev => prev.filter(r => r.orderId !== orderId))
       fetchRequests(page)
+      onDataChanged?.()
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to record the decision')
     } finally { setDeciding(null) }
-  }, [notes, page, fetchRequests, setError])
+  }, [notes, page, fetchRequests, setError, onDataChanged])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

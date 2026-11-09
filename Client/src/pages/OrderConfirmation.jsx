@@ -123,8 +123,8 @@ const OrderConfirmation = () => {
         <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
 
           {/* ── Success header ────────────────────────────────── */}
-          <header className="mb-8 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: '#DCFCE7' }}>
+          <header className="mb-8 text-center animate-fade-in">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full animate-scale-in" style={{ background: '#DCFCE7' }}>
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <h1 className="font-serif text-4xl font-bold mb-2" style={{ color: 'var(--color-text-base)' }}>Order Confirmed!</h1>

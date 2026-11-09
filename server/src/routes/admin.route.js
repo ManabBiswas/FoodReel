@@ -21,6 +21,10 @@ const messageIdParams = validateParams({
     messageId: { check: isObjectId, message: 'messageId must be a valid id' }
 });
 
+const orderIdParams = validateParams({
+    orderId: { check: isObjectId, message: 'orderId must be a valid id' }
+});
+
 // ============ AUTH ROUTES ============
 // POST /api/admin/login - Admin login (rate-limited: unauthenticated endpoint to stop brute force)
 router.post('/login', adminRateLimiter, adminController.login);
@@ -37,6 +41,9 @@ router.get('/profile', isAdmin, adminController.getAdminProfile);
 // ============ DASHBOARD ROUTES ============
 // GET /api/admin/dashboard - Get dashboard statistics
 router.get('/dashboard', isAdmin, adminRateLimiter, adminController.getDashboardStats);
+
+// Instant-alerts feed for the header bell (tasks + recent activity)
+router.get('/alerts', isAdmin, adminRateLimiter, adminController.getAdminAlerts);
 
 // Live poll target: metadata counters + newest order only (no aggregation)
 router.get('/dashboard/live', isAdmin, adminRateLimiter, adminController.getDashboardLive);
@@ -121,6 +128,10 @@ router.get('/orders', isAdmin, adminController.getAllOrders);
 
 // GET /api/admin/orders/:orderId - Get order details
 router.get('/orders/:orderId', isAdmin, adminController.getOrderDetails);
+
+// POST /api/admin/orders/:orderId/cancel - Admin cancels a live order
+// (stranded orders from blocked partners). Paid orders auto-refund.
+router.post('/orders/:orderId/cancel', isAdmin, adminRateLimiter, orderIdParams, adminController.cancelOrder);
 
 // ============ ANALYTICS & REPORTS ============
 // GET /api/admin/analytics/revenue - Get revenue analytics

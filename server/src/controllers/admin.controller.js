@@ -5,6 +5,7 @@ import foodModel from "../models/food.model.js";
 import orderModel from "../models/order.model.js";
 import reviewModel from "../models/review.model.js";
 import advertisementModel from "../models/advertisement.model.js";
+import eventProposalModel from "../models/EventProposal.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
@@ -12,6 +13,9 @@ import { authCookieOptions } from "../utils/cookies.js";
 import { timingSafeStringEqual } from "../utils/secureCompare.js";
 import { createCache } from "../utils/cache.js";
 import { updateFoodPartnerRatings } from "./review.controller.js";
+import couponService from "../services/coupon.service.js";
+import { decideRefundOnCancellation, OUTCOME } from "../services/refund.policy.js";
+import { initiateClaimedRefund } from "../services/refund.service.js";
 
 // AUTH CONTROLLERS
 
@@ -939,20 +943,162 @@ async function getOrderDetails(req, res) {
     }
 }
 
+/**
+ * POST /api/admin/orders/:orderId/cancel — admin cancels a live order.
+ *
+ * This is the escape hatch for orders that can never move on their own, the
+ * classic case being a blocked partner: the middleware locks them out
+ * (403 on every request), so their `pending` orders would otherwise hang
+ * forever while the customer waits for food that is never coming.
+ * An admin cancellation auto-refunds a settled online payment (refund
+ * policy: "admin cancels → refund automatically"), releases the coupon
+ * redemption, and emails the customer.
+ *
+ * Orders parked in `cancel_requested` are excluded on purpose: those are
+ * decided in the Cancel Requests tab, and cancelling here as well would
+ * give two paths out of the same state.
+ */
+async function cancelOrder(req, res) {
+    try {
+        const { orderId } = req.params;
+        const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 300) : '';
+
+        const order = await orderModel.findById(orderId)
+            .populate('user', 'firstName lastName email mobile')
+            .populate('items.foodItem', 'name price')
+            .populate('items.foodPartner', 'companyName email');
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        if (order.cancellation?.isCancelled || order.status === 'cancelled') {
+            return res.status(400).json({ error: "Order is already cancelled" });
+        }
+
+        if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
+            return res.status(400).json({
+                error: order.status === 'cancel_requested'
+                    ? 'This order is awaiting a cancellation decision — decide it in the Cancel Requests tab'
+                    : `Cannot cancel an order in ${order.status} status`,
+                message: 'Orders can only be cancelled while pending, confirmed, or preparing.',
+            });
+        }
+
+        const refundDecision = decideRefundOnCancellation({ order, actor: 'admin' });
+
+        order.cancellation = {
+            isCancelled: true,
+            cancelledBy: 'admin',
+            cancelledAt: new Date(),
+            reason: reason || 'Cancelled by admin (partner unavailable)',
+            refundStatus: refundDecision.refundStatus,
+            refundAmount: refundDecision.amount,
+        };
+        order.status = 'cancelled';
+        order.statusTimestamps = order.statusTimestamps || {};
+        order.statusTimestamps.cancelledAt = new Date();
+
+        // addedBy has no 'admin' value; the note text records the actor.
+        order.orderNotes.push({
+            note: `Order cancelled by admin${reason ? `: ${reason}` : ''}`,
+            addedBy: 'system',
+        });
+
+        await order.save();
+
+        if (order.coupon?.couponId) {
+            await couponService.releaseCoupon(order);
+        }
+
+        let refundResult = null;
+        if (refundDecision.outcome === OUTCOME.AUTO_REFUND) {
+            const initiated = await initiateClaimedRefund({
+                orderId: order._id,
+                amount: refundDecision.amount,
+                initiatedBy: 'admin',
+                reason: order.cancellation.reason,
+            });
+            if (initiated.ok) {
+                refundResult = initiated.refund;
+            } else {
+                console.error(`[admin] Auto-refund failed for order ${order._id}: ${initiated.code} ${initiated.message}`);
+            }
+        }
+
+        invalidateDashboardCaches();
+
+        if (order.user?.email) {
+            const orderDetails = {
+                orderId: order._id,
+                items: order.items.map((i) => ({
+                    name: i.foodItem?.name || 'Food Item',
+                    quantity: i.quantity,
+                    price: i.priceAtOrder,
+                })),
+                totalAmount: order.pricing?.totalAmount,
+                reason: order.cancellation.reason,
+                cancelledBy: order.cancellation.cancelledBy,
+                cancelledAt: order.cancellation.cancelledAt,
+                refundStatus: order.cancellation.refundStatus,
+                refundAmount: order.cancellation.refundAmount,
+            };
+            emailService.sendOrderCancelledEmail(
+                order.user.email,
+                order.user.firstName,
+                orderDetails,
+            ).catch((err) => console.error('Failed to send order cancelled email:', err.message));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: refundResult ? 'Order cancelled and refund initiated' : 'Order cancelled successfully',
+            order,
+            refundInfo: order.cancellation.refundStatus !== 'not_applicable'
+                ? {
+                    status: order.cancellation.refundStatus,
+                    amount: order.cancellation.refundAmount,
+                    ...(refundResult ? { refundId: refundResult.refundId } : {}),
+                }
+                : null,
+        });
+    } catch (error) {
+        console.error('Admin cancel order error:', error);
+        res.status(500).json({ error: "Failed to cancel order" });
+    }
+}
+
 // ANALYTICS CONTROLLERS
 async function getRevenueAnalytics(req, res) {
     try {
+        // Defensive pipeline: legacy / imported orders can have a missing or
+        // non-Date `createdAt`. `$dateToString` throws on non-Date input, so
+        // filter those documents out first and use IST buckets, matching the
+        // dashboard timeseries. A bad row must never take the tab down.
         const revenueByMonth = await orderModel.aggregate([
             {
+                $match: {
+                    $expr: {
+                        $eq: [{ $type: '$createdAt' }, 'date'],
+                    },
+                },
+            },
+            {
                 $group: {
-                    _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
-                    revenue: { $sum: "$pricing.totalAmount" },
+                    _id: {
+                        $dateToString: {
+                            format: '%Y-%m',
+                            date: '$createdAt',
+                            timezone: 'Asia/Kolkata',
+                        },
+                    },
+                    revenue: { $sum: '$pricing.totalAmount' },
                     orders: { $sum: 1 }
                 }
             },
             { $sort: { _id: 1 } }
         ]);
-        
+
         res.status(200).json({
             revenueByMonth
         });
@@ -1005,6 +1151,139 @@ async function getPartnerAnalytics(req, res) {
     }
 }
 
+/**
+ * Instant-alerts feed for the admin bell.
+ *
+ * One round trip of small indexed counts + bounded latest-row lookups, so the
+ * header can poll it without loading full queues. Every alert maps to an
+ * existing admin tab (`tab`), so acting on an alert is a single click.
+ * Priority is `urgent` (money/decision blocked), `task` (needs review), or
+ * `info` (recent activity that needs no action).
+ */
+async function getAdminAlerts(req, res) {
+    try {
+        const since24h = new Date(Date.now() - DAY_MS);
+        const cancelFilter = { status: 'cancel_requested', 'cancelRequest.status': 'pending' };
+        const reviewFilter = { status: { $in: ['pending', 'flagged'] } };
+        const proposalFilter = { status: 'pending' };
+        const partnerFilter = { verified: { $ne: true }, isActive: { $ne: false }, isBlocked: { $ne: true } };
+
+        const [
+            cancelCount, cancelOldest,
+            reviewCount, reviewLatest,
+            proposalCount, proposalLatest,
+            partnerCount, partnerLatest,
+            latestOrder, orders24h, newUsers24h,
+        ] = await Promise.all([
+            orderModel.countDocuments(cancelFilter),
+            orderModel.findOne(cancelFilter).sort({ 'cancelRequest.requestedAt': 1 }).select('cancelRequest.requestedAt pricing.totalAmount').lean(),
+            reviewModel.countDocuments(reviewFilter),
+            reviewModel.findOne(reviewFilter).sort({ createdAt: -1 }).select('createdAt').lean(),
+            eventProposalModel.countDocuments(proposalFilter),
+            eventProposalModel.findOne(proposalFilter).sort({ createdAt: -1 }).select('name createdAt').lean(),
+            foodPartnerModel.countDocuments(partnerFilter),
+            foodPartnerModel.findOne(partnerFilter).sort({ createdAt: -1 }).select('companyName createdAt').lean(),
+            orderModel.findOne().sort({ createdAt: -1 }).select('_id status createdAt pricing.totalAmount').lean(),
+            orderModel.countDocuments({ createdAt: { $gte: since24h } }),
+            userModel.countDocuments({ createdAt: { $gte: since24h } }),
+        ]);
+
+        const alerts = [];
+
+        if (cancelCount > 0) {
+            alerts.push({
+                id: 'cancelRequests',
+                priority: 'urgent',
+                count: cancelCount,
+                title: 'Cancellation requests',
+                subtitle: 'A partner wants to cancel a prepared order',
+                tab: 'cancels',
+                at: cancelOldest?.cancelRequest?.requestedAt || null,
+            });
+        }
+        if (reviewCount > 0) {
+            alerts.push({
+                id: 'reviews',
+                priority: 'task',
+                count: reviewCount,
+                title: 'Reviews to moderate',
+                subtitle: 'Pending or flagged reviews',
+                tab: 'reviews',
+                at: reviewLatest?.createdAt || null,
+            });
+        }
+        if (proposalCount > 0) {
+            alerts.push({
+                id: 'proposals',
+                priority: 'task',
+                count: proposalCount,
+                title: 'Event proposals',
+                subtitle: proposalLatest?.name ? `“${proposalLatest.name}” awaiting a decision` : 'Proposals awaiting a decision',
+                tab: 'event-proposals',
+                at: proposalLatest?.createdAt || null,
+            });
+        }
+        if (partnerCount > 0) {
+            alerts.push({
+                id: 'partners',
+                priority: 'task',
+                count: partnerCount,
+                title: 'Partners awaiting verification',
+                subtitle: partnerLatest?.companyName ? `“${partnerLatest.companyName}” joined recently` : 'New partners to verify',
+                tab: 'partners',
+                at: partnerLatest?.createdAt || null,
+            });
+        }
+
+        if (latestOrder) {
+            alerts.push({
+                id: 'latestOrder',
+                priority: 'info',
+                count: 0,
+                title: 'Latest order',
+                subtitle: `${latestOrder.status} · ₹${latestOrder.pricing?.totalAmount || 0}`,
+                tab: 'orders',
+                at: latestOrder.createdAt || null,
+            });
+        }
+        if (orders24h > 0) {
+            alerts.push({
+                id: 'orders24h',
+                priority: 'info',
+                count: 0,
+                title: 'Orders in the last 24h',
+                subtitle: `${orders24h} order${orders24h === 1 ? '' : 's'} placed`,
+                tab: 'orders',
+                at: null,
+            });
+        }
+        if (newUsers24h > 0) {
+            alerts.push({
+                id: 'newUsers24h',
+                priority: 'info',
+                count: 0,
+                title: 'New users in the last 24h',
+                subtitle: `${newUsers24h} sign-up${newUsers24h === 1 ? '' : 's'}`,
+                tab: 'users',
+                at: null,
+            });
+        }
+
+        const tasksCount = alerts
+            .filter((alert) => alert.priority !== 'info')
+            .reduce((sum, alert) => sum + alert.count, 0);
+
+        res.status(200).json({
+            alerts,
+            tasksCount,
+            generatedAt: new Date().toISOString(),
+        });
+    } catch (error) {
+        console.error('Admin alerts error:', error);
+        res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+}
+
 // SUPPORT CONTROLLERS
 async function getSupportTickets(req, res) {
     try {
@@ -1038,6 +1317,7 @@ export default {
     toggleAdminActive,
     // Dashboard
     getDashboardStats,
+    getAdminAlerts,
     // Users
     getAllUsers,
     getUserDetails,
@@ -1064,6 +1344,7 @@ export default {
     // Orders
     getAllOrders,
     getOrderDetails,
+    cancelOrder,
     // Analytics
     getRevenueAnalytics,
     getUserAnalytics,

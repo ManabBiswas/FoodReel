@@ -403,11 +403,11 @@ const handlePlaceOrder = async () => {
 
   return (
     <div className="fixed mb-16 inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-hidden flex flex-col panel-enter">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-xl font-bold">Quick Order</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-160 ease-out">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -432,14 +432,14 @@ const handlePlaceOrder = async () => {
                 <button
                   onClick={handleDecrement}
                   disabled={quant <= 1}
-                  className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-160 ease-out"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
                 <span className="text-lg font-bold w-8 text-center">{quant}</span>
                 <button
                   onClick={handleIncrement}
-                  className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-full transition"
+                  className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors duration-160 ease-out"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -468,7 +468,7 @@ const handlePlaceOrder = async () => {
                         <div
                           key={addr._id}
                           onClick={() => handleAddressSelection(addr._id)}
-                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                          className={`p-4 border-2 rounded-xl cursor-pointer transition-[background-color,border-color,box-shadow] duration-160 ease-out ${
                             selectedAddressId === addr._id
                               ? 'border-green-600 bg-green-50'
                               : 'border-gray-200 hover:border-green-300'
@@ -499,7 +499,7 @@ const handlePlaceOrder = async () => {
                       ))}
                       <button
                         onClick={() => setShowNewAddressForm(true)}
-                        className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-green-600 hover:border-green-500 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-green-600 hover:border-green-500 hover:bg-green-50 transition-[background-color,border-color,box-shadow] duration-160 ease-out flex items-center justify-center gap-2"
                       >
                         <Plus className="w-5 h-5" />
                         Add New Address
@@ -636,7 +636,7 @@ const handlePlaceOrder = async () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('razorpay')}
-                    className={`p-4 border-2 rounded-xl transition-all ${
+                    className={`p-4 border-2 rounded-xl transition-[background-color,border-color,box-shadow] duration-160 ease-out ${
                       paymentMethod === 'razorpay'
                         ? 'border-green-600 bg-green-50'
                         : 'border-gray-200 hover:border-green-300'
@@ -651,7 +651,7 @@ const handlePlaceOrder = async () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cod')}
-                    className={`p-4 border-2 rounded-xl transition-all ${
+                    className={`p-4 border-2 rounded-xl transition-[background-color,border-color,box-shadow] duration-160 ease-out ${
                       paymentMethod === 'cod'
                         ? 'border-green-600 bg-green-50'
                         : 'border-gray-200 hover:border-green-300'
@@ -799,13 +799,13 @@ const handlePlaceOrder = async () => {
               <button
                 onClick={handleContinueToPayment}
                 disabled={!isAddressValid()}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all text-sm sm:text-base"
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-[background-color,box-shadow,transform] duration-160 ease-out text-sm sm:text-base"
               >
                 Continue to Payment
               </button>
               <button
                 onClick={handleAddToCart}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-[background-color,box-shadow,transform] duration-160 ease-out text-sm sm:text-base"
               >
                 <ShoppingCart className="w-5 h-5" />
                 Add to Cart
@@ -816,7 +816,7 @@ const handlePlaceOrder = async () => {
               <button
                 onClick={handlePlaceOrder}
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base"
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-[background-color,box-shadow,transform] duration-160 ease-out text-sm sm:text-base"
               >
                 {loading ? (
                   <>
@@ -833,7 +833,7 @@ const handlePlaceOrder = async () => {
               <button
                 onClick={() => setStep(1)}
                 disabled={loading}
-                className="w-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 font-medium py-2 px-6 rounded-xl transition-all text-sm"
+                className="w-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 font-medium py-2 px-6 rounded-xl transition-[background-color,box-shadow,transform] duration-160 ease-out text-sm"
               >
                 Back to Address
               </button>

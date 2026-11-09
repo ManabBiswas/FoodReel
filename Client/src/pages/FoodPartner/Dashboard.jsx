@@ -10,6 +10,7 @@ import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import Navbar from '../../Components/Navbar'
 import CancelOrderDialog from '../../Components/CancelOrderDialog'
 import CancelRequestDialog from '../../Components/CancelRequestDialog'
+import ScrambleNumber from '../../Components/ScrambleNumber'
 import { usePartnerData } from '../../hooks/usePartnerData'
 import {
   Plus, ShoppingBag, Megaphone, TrendingUp, TrendingDown,
@@ -36,7 +37,7 @@ const STATUS_CFG = {
     }
 
 /* ─── KPI Card ───────────────────────────────────────────── */
-const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
+const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend, prefix = '', format }) => (
   <div className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${from} ${to} text-white shadow-md`}>
     <div className="flex items-start justify-between">
       <div className="bg-white/20 rounded-xl p-2.5">
@@ -50,7 +51,9 @@ const KPICard = ({ title, value, subtitle, from, to, icon: Icon, trend }) => (
       )}
     </div>
     <p className="text-white/70 text-xs font-medium mt-4">{title}</p>
-    <p className="text-2xl font-bold mt-0.5 tracking-tight">{value}</p>
+    <p className="text-2xl font-bold mt-0.5 tracking-tight">
+      {typeof value === 'number' ? <ScrambleNumber value={value} prefix={prefix} format={format} /> : value}
+    </p>
     {subtitle && <p className="text-white/60 text-xs mt-1">{subtitle}</p>}
     <div className="absolute -right-5 -bottom-5 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
     <div className="absolute -right-1 -bottom-9 w-16 h-16 rounded-full bg-white/10 pointer-events-none" />
@@ -65,7 +68,9 @@ const MiniStat = ({ icon: Icon, label, value, cls }) => (
     </div>
     <div className="min-w-0">
       <p className="text-xs text-[var(--color-text-muted)] truncate">{label}</p>
-      <p className="text-xl font-bold text-[var(--color-text-base)]">{value}</p>
+      <p className="text-xl font-bold text-[var(--color-text-base)]">
+        {typeof value === 'number' ? <ScrambleNumber value={value} /> : value}
+      </p>
     </div>
   </div>
 )
@@ -651,7 +656,9 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
               <KPICard
                 title="Completed Revenue"
-                value={fmtCur(statistics.orders.revenue)}
+                value={statistics.orders.revenue}
+                prefix="₹"
+                format={fmt}
                 subtitle={`${statistics.orders.completed} completed orders`}
                 from="from-[#ff6a00]" to="to-[#e55a00]"
                 icon={IndianRupee}
@@ -672,10 +679,10 @@ const Dashboard = () => {
               />
               <KPICard
                 title="Engagement"
-                value={fmt(
+                value={
                   statistics.food.totalLikes + statistics.food.totalReviews + statistics.food.totalSaves +
                   statistics.advertisement.totalLikes + statistics.advertisement.totalComments
-                )}
+                }
                 subtitle={`${statistics.advertisement.count} ads running`}
                 from="from-[#ffb800]" to="to-[#ff6a00]"
                 icon={Activity}
@@ -788,8 +795,8 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               <MiniStat icon={ShoppingBag}   label="Food Posts"     value={statistics.food.count}               cls="bg-orange-50 text-orange-600" />
               <MiniStat icon={Megaphone}     label="Ads Running"    value={statistics.advertisement.count}      cls="bg-amber-50 text-amber-700" />
-              <MiniStat icon={Heart}         label="Total Likes"    value={fmt(statistics.food.totalLikes + statistics.advertisement.totalLikes)}  cls="bg-[#f3f1ed] text-[#1a1208]" />
-              <MiniStat icon={MessageCircle} label="Total Comments" value={fmt(statistics.food.totalReviews + statistics.advertisement.totalComments)} cls="bg-[#fff3e0] text-[#e55a00]" />
+              <MiniStat icon={Heart}         label="Total Likes"    value={statistics.food.totalLikes + statistics.advertisement.totalLikes}  cls="bg-[#f3f1ed] text-[#1a1208]" />
+              <MiniStat icon={MessageCircle} label="Total Comments" value={statistics.food.totalReviews + statistics.advertisement.totalComments} cls="bg-[#fff3e0] text-[#e55a00]" />
             </div>
 
             {/* Recent 5 orders */}
