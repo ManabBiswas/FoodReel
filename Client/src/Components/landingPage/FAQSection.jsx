@@ -9,6 +9,12 @@ const FAQS = [
       'FoodReel is food discovery built around short reels. Every reel is tied to a real dish from a real kitchen, so you can go from watching to ordering in a few taps.',
   },
   {
+    question: 'How does FoodFest work?',
+    answer:
+      'FoodFest is FoodReel’s in-person festival format. Guests browse published events, buy a ticket tier, and keep a QR pass in My Tickets. Food partners can apply for a stall with their own dishes, and organizers can propose and run an event from the organizer studio.',
+    link: { to: '/foodfest/about', label: 'Read the full FoodFest guide' },
+  },
+  {
     question: 'Where is FoodReel available?',
     answer:
       "We're live in 50+ cities across India. What you see depends on which partner kitchens are active near you — the feed grows city by city.",
@@ -100,7 +106,7 @@ const FAQSection = () => {
 
         {/* Accordion */}
         <div className="border-t" style={{ borderColor: 'var(--color-border-light)' }}>
-          {FAQS.map(({ question, answer }) => (
+          {FAQS.map(({ question, answer, link }) => (
             <details
               key={question}
               className="group border-b"
@@ -120,12 +126,23 @@ const FAQSection = () => {
                   />
                 </span>
               </summary>
-              <p
-                className="max-w-2xl pb-5 pr-12 font-sans text-sm leading-relaxed"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                {answer}
-              </p>
+              <div className="max-w-2xl pb-5 pr-12">
+                <p
+                  className="font-sans text-sm leading-relaxed"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  {answer}
+                </p>
+                {link ? (
+                  <Link
+                    to={link.to}
+                    className="mt-2 inline-flex items-center gap-1.5 font-sans text-sm font-bold text-[#c2410c] transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c2410c] focus-visible:ring-offset-2"
+                  >
+                    {link.label}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                ) : null}
+              </div>
             </details>
           ))}
         </div>

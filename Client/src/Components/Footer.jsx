@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, ChefHat, Film, Home, LogOut, ShoppingBag, Sparkles, User } from 'lucide-react'
+import { ArrowUpRight, CalendarDays, ChefHat, Film, Home, LogOut, ShoppingBag, Sparkles, User } from 'lucide-react'
 import Logo from '../assets/logo.png'
 import { useAuth } from '../hooks/useAuth'
 
 const EXPLORE = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/reels', label: 'Reels', icon: Film },
+  { to: '/foodfest/about', label: 'How FoodFest works', icon: CalendarDays },
   { to: '/about', label: 'About us', icon: Sparkles },
   { to: '/contact-us', label: 'Contact', icon: ArrowUpRight },
 ]

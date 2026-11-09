@@ -30,6 +30,7 @@ const Dashboard = lazy(() => import('../pages/FoodPartner/Dashboard'))
 const AdminDashboard = lazy(() => import('../pages/Admin/AdminDashboard'))
 const FoodFestEvents = lazy(() => import('../pages/User/FoodFestEvents'))
 const FoodFestEventDetail = lazy(() => import('../pages/User/FoodFestEventDetail'))
+const FoodFestAbout = lazy(() => import('../pages/User/FoodFestAbout'))
 const MyTickets = lazy(() => import('../pages/User/MyTickets'))
 const StallApplications = lazy(() => import('../pages/FoodPartner/StallApplications'))
 const CreateEventProposal = lazy(() => import('../pages/User/CreateEventProposal'))
@@ -125,6 +126,7 @@ const AppRoutes = () => {
           <Route path='/contact-us' element={<Contact />} />
           <Route path='/work' element={<WorkingProgress />} />
           <Route path='/events' element={<FoodFestEvents />} />
+          <Route path='/foodfest/about' element={<FoodFestAbout />} />
           <Route path='/events/:eventId' element={<FoodFestEventDetail />} />
 
           {/* Auth Routes - Redirect if already logged in */}
