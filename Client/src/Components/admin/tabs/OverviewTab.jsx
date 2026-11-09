@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../../../config/Api'
 import {
@@ -9,46 +9,21 @@ import {
   Users, Store, ShoppingBag, Package, IndianRupee, Activity,
   TrendingUp, ArrowUpRight, ArrowRight, RefreshCw, Pause, Play, Radio, AlertTriangle
 } from 'lucide-react'
+import { animate, createDrawable, cubicBezier } from 'animejs'
 import { Spinner, Empty, ChartTooltip } from '../AdminUI'
 import { fmtCur, STATUS_COLORS } from '../adminConstants'
 import { useLiveQuery } from '../../../hooks/useLiveQuery'
+import ScrambleNumber from '../../ScrambleNumber'
 
 /* ═══════════════════════════════════════════════════════
-   ANIMATED NUMBER — eases from its previous value so a
-   dashboard refresh reads as movement, not a flicker.
+   CHART DRAW — the order line draws left to right once per
+   range change. Recharts' own line animation is disabled so
+   the two systems never fight over stroke-dasharray.
    ═══════════════════════════════════════════════════════ */
-const useCountUp = (target, duration = 900) => {
-    const [value, setValue] = useState(target ?? 0)
-    const fromRef = useRef(target ?? 0)
-    const frameRef = useRef(null)
-
-    useEffect(() => {
-        const from = fromRef.current
-        const to = Number(target) || 0
-        if (from === to) return
-
-        const start = performance.now()
-        const tick = (now) => {
-            const p = Math.min((now - start) / duration, 1)
-            const eased = 1 - Math.pow(1 - p, 3)
-            setValue(Math.round(from + (to - from) * eased))
-            if (p < 1) frameRef.current = requestAnimationFrame(tick)
-            else fromRef.current = to
-        }
-        frameRef.current = requestAnimationFrame(tick)
-        return () => {
-            if (frameRef.current) cancelAnimationFrame(frameRef.current)
-            fromRef.current = to
-        }
-    }, [target, duration])
-
-    return value
-}
-
-const AnimatedValue = ({ value, prefix = '', suffix = '' }) => {
-    const n = useCountUp(value)
-    return <>{prefix}{n.toLocaleString('en-IN')}{suffix}</>
-}
+const EASE_IN_OUT = cubicBezier(0.77, 0, 0.175, 1)
+const prefersReducedMotion = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
 /* ═══════════════════════════════════════════════════════
    STAT CARD
@@ -63,7 +38,7 @@ const LiveStat = (props) => {
                 <span className="live-stat-label">{title}</span>
                 <span className="live-stat-icon"><Icon style={{ width: 15, height: 15 }} /></span>
             </div>
-            <p className="live-stat-value"><AnimatedValue value={value} /></p>
+            <p className="live-stat-value"><ScrambleNumber value={value} /></p>
             {sub && <p className="live-stat-sub">{sub}</p>}
         </div>
     )
@@ -130,6 +105,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
     const [liveOn, setLiveOn] = useState(true)
     const [range, setRange] = useState('7d')
     const [series, setSeries] = useState([])
+    const chartRef = useRef(null)
 
     /* ── Heavy aggregates: 30s poll, server-cached 15s ── */
     const statsQuery = useLiveQuery({
@@ -159,6 +135,56 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
     useEffect(() => {
         fetchSeries(range).catch(() => setSeries([]))
     }, [range, fetchSeries])
+
+    /* Draw the order line once per range change. ResponsiveContainer may mount
+       the chart a frame after the data arrives, so wait for the path before
+       starting the draw rather than skipping the animation on first load. */
+    useLayoutEffect(() => {
+        const root = chartRef.current
+        if (!root || series.length === 0 || prefersReducedMotion()) return undefined
+
+        let animation
+        let drawable
+        let frame
+        let attempts = 0
+
+        const start = () => {
+            const path = root.querySelector('.recharts-line-curve')
+            if (!path) return false
+
+            const [nextDrawable] = createDrawable(path, 0, 0)
+            if (!nextDrawable) return false
+            drawable = nextDrawable
+            /* Hide the new path before paint; createDrawable only does this the
+               first time, when it adds the pathLength attribute. */
+            drawable.setAttribute('draw', '0 0')
+
+            animation = animate(drawable, {
+                draw: ['0 0', '0 1'],
+                duration: 1000,
+                easing: EASE_IN_OUT,
+            })
+            return true
+        }
+
+        /* Range changes update an already-mounted chart, so the path exists in
+           this commit and the draw starts before paint. Only the first mount
+           needs to wait for ResponsiveContainer to render the path. */
+        if (!start()) {
+            const poll = () => {
+                if (start()) return
+                attempts += 1
+                if (attempts < 20) frame = requestAnimationFrame(poll)
+            }
+            frame = requestAnimationFrame(poll)
+        }
+
+        return () => {
+            if (frame) cancelAnimationFrame(frame)
+            animation?.pause()
+            drawable?.setAttribute('draw', '0 1')
+        }
+    }, [series])
 
     const stats = statsQuery.data
     const live = liveQuery.data
@@ -233,7 +259,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                             <p style={{ color: '#ffb800', fontSize: 12, fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lifetime Revenue</p>
                         </div>
                         <p style={{ fontSize: 40, fontWeight: 900, fontFamily: 'var(--font-display)', margin: 0, letterSpacing: '-0.03em', color: 'white', lineHeight: 1.1 }}>
-                            {fmtCur(stats?.totalRevenue || 0)}
+                            <ScrambleNumber value={stats?.totalRevenue || 0} prefix="₹" />
                         </p>
                         <p style={{ color: 'rgba(255,184,0,0.8)', fontSize: 12, margin: '8px 0 0' }}>
                             {fmtCur(stats?.paidRevenue || 0)} captured · {fmtCur(stats?.revenue24h || 0)} in the last 24h
@@ -248,7 +274,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                         ].map(m => (
                             <div key={m.label} style={{ flex: '1 1 90px', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)', borderRadius: 12, padding: '11px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <p style={{ fontSize: 20, fontWeight: 900, fontFamily: 'var(--font-display)', color: 'white', margin: 0, lineHeight: 1.2 }}>
-                                    {m.val.toLocaleString('en-IN')}
+                                    <ScrambleNumber value={m.val} />
                                 </p>
                                 <p style={{ fontSize: 10, color: 'rgba(255,184,0,0.75)', margin: '2px 0 0', fontWeight: 600 }}>{m.label}</p>
                             </div>
@@ -308,7 +334,7 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                         ))}
                     </div>
                 </div>
-                <div style={{ padding: '6px 10px 14px', height: 240 }}>
+                <div ref={chartRef} style={{ padding: '6px 10px 14px', height: 240 }}>
                     {series.length === 0 ? <Empty text="No trend data" /> : (
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={series} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
@@ -326,8 +352,8 @@ const OverviewTab = ({ navigate, setError, setActiveTab }) => {
                                 <XAxis dataKey="label" tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={18} />
                                 <YAxis tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
                                 <Tooltip content={<ChartTooltip />} />
-                                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#ff6a00" strokeWidth={2} fill="url(#gradRevenue)" />
-                                <Line type="monotone" dataKey="orders" name="Orders" stroke="#1a1208" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#ff6a00" strokeWidth={2} fill="url(#gradRevenue)" isAnimationActive={false} />
+                                <Line type="monotone" dataKey="orders" name="Orders" stroke="#1a1208" strokeWidth={2} dot={false} isAnimationActive={false} />
                             </AreaChart>
                         </ResponsiveContainer>
                     )}

@@ -10,6 +10,7 @@ import { swrFetcher } from '../../utils/fetcher'
 import { extractApiError, showError, showSuccess } from '../../utils/toast'
 import { formatCurrency, formatDateRange, formatDateTime } from '../../utils/foodfest'
 import { CalendarDays, MapPin, Store, Utensils, Plus, RefreshCw, LoaderCircle, CircleCheck, CircleX, CircleAlert, Check } from 'lucide-react'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 
 const APP_STATUS = {
   pending: { label: 'Pending review', bg: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
@@ -95,6 +96,7 @@ const ApplyModal = ({ event, foods, onClose, onApplied }) => {
           <div className="space-y-2">
             {foods.map((food) => {
               const isSelected = selected.includes(food._id)
+              const thumb = getImageKitThumbnail(food.image || food.video)
 
               return (
                 <label
@@ -113,9 +115,9 @@ const ApplyModal = ({ event, foods, onClose, onApplied }) => {
                     style={{ accentColor: 'var(--color-primary)' }}
                   />
 
-                  {food.image ? (
+                  {thumb ? (
                     <img
-                      src={food.image}
+                      src={thumb}
                       alt={food.name}
                       className="h-12 w-12 shrink-0 rounded-lg object-cover"
                       loading="lazy"

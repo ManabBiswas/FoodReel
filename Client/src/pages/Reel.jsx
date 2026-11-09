@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { showSuccess, showError, showWarning, showInfo } from '../utils/toast'
 import { ChefHat } from 'lucide-react'
+import { getImageKitThumbnail } from '../utils/imagekit.utils'
 import ReelPageHeader from '../Components/ReelPageheader'
 import ReelArea from '../Components/ReelArea'
 import ReelReviewModal from '../Components/ReelReviewModal'
@@ -92,7 +93,7 @@ const Reel = () => {
             mediaUrl: post.video || post.image || '',
             mediaType: post.type || 'image',
             partnerId: post.foodPartner || null,
-            foodImageUrl: post.image || post.video || '',
+            foodImageUrl: post.image || getImageKitThumbnail(post.video) || '', // Fallback to video thumbnail
             foodId: post._id,
             price: (post.price && post.isAvailable !== false) ? post.price : null,
             preparationTime: post.preparationTime || null,
@@ -120,7 +121,7 @@ const Reel = () => {
             postedBy: post.postedBy || null,
             taggedPartner: post.taggedPartner || null,
             taggedFood: post.taggedFood || null,
-            foodImageUrl: post.taggedFood?.image || post.taggedFood?.video || '',
+            foodImageUrl: post.taggedFood?.image || getImageKitThumbnail(post.taggedFood?.video) || '',
             foodId: post.taggedFood?._id || null,
             price: (post.taggedFood?.price && post.taggedFood?.isAvailable !== false) ? post.taggedFood.price : null,
             preparationTime: post.taggedFood?.preparationTime || null,

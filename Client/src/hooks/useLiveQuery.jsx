@@ -23,6 +23,7 @@ export const useLiveQuery = ({
     const [lastUpdated, setLastUpdated] = useState(null)
 
     const inFlight = useRef(false)
+    const pendingManualRef = useRef(false)
     const timer = useRef(null)
     const backoff = useRef(intervalMs)
     const mounted = useRef(true)
@@ -37,7 +38,10 @@ export const useLiveQuery = ({
     }
 
     const run = useCallback(async ({ isManual = false } = {}) => {
-        if (inFlight.current) return
+        if (inFlight.current) {
+            if (isManual) pendingManualRef.current = true
+            return
+        }
         inFlight.current = true
         if (isManual) setLoading(true)
 
@@ -54,7 +58,11 @@ export const useLiveQuery = ({
             backoff.current = Math.min(backoff.current * 2, maxBackoffMs)
         } finally {
             inFlight.current = false
-            if (mounted.current && isManual) setLoading(false)
+            if (mounted.current) setLoading(false)
+            if (pendingManualRef.current && mounted.current) {
+                pendingManualRef.current = false
+                run({ isManual: true })
+            }
         }
     }, [intervalMs, maxBackoffMs])
 

@@ -144,12 +144,6 @@ const AdminAlerts = ({ open, onClose, alerts = [], tasksCount = 0, loading = fal
         transformOrigin: 'top right',
       }}
     >
-      {/* Tail pointing at the bell */}
-      <span aria-hidden style={{
-        position: 'absolute', top: -6, right: 25, width: 12, height: 12, zIndex: 2,
-        background: '#1a1208', transform: 'rotate(45deg)', borderTop: '1px solid rgba(255,184,0,0.3)', borderLeft: '1px solid rgba(255,184,0,0.3)',
-      }} />
-
       {/* Header — dark editorial banner */}
       <div style={{
         position: 'relative', overflow: 'hidden', padding: '18px 18px 16px',
@@ -283,7 +277,7 @@ const AdminAlerts = ({ open, onClose, alerts = [], tasksCount = 0, loading = fal
 
       {/* Footer */}
       <div style={{
-        padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--surface2)',
+        padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'white',
         borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
       }}>

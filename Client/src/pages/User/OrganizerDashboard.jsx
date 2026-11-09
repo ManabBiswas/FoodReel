@@ -25,6 +25,7 @@ import {
 import Navbar from '../../Components/Navbar'
 import Footer from '../../Components/Footer'
 import ErrorBoundary from '../../Components/ErrorBoundary'
+import ScrambleNumber from '../../Components/ScrambleNumber'
 import TierManager from '../../Components/organizer/TierManager'
 import ZoneManager from '../../Components/organizer/ZoneManager'
 import EventSettingsForm from '../../Components/organizer/EventSettingsForm'
@@ -63,7 +64,7 @@ const TICKET_FILTERS = [
   { value: 'expired', label: 'Expired' }
 ]
 
-const StatCard = ({ icon, label, value, accent }) => (
+const StatCard = ({ icon, label, value, accent, prefix = '' }) => (
   <div
     className="org-stat-card rounded-2xl p-4"
     style={{
@@ -86,7 +87,7 @@ const StatCard = ({ icon, label, value, accent }) => (
       </span>
     </div>
     <p className="mt-2 font-serif text-2xl font-black tracking-[-0.02em]" style={{ color: 'var(--color-text-base)' }}>
-      {value}
+      {typeof value === 'number' ? <ScrambleNumber value={value} prefix={prefix} /> : value}
     </p>
   </div>
 )
@@ -598,7 +599,7 @@ const OrganizerDashboard = () => {
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           <StatCard icon={TicketCheck} label="Sold" value={summary.sold ?? 0} accent />
-                          <StatCard icon={IndianRupee} label="Revenue" value={formatCurrency(summary.revenue ?? 0)} accent />
+                          <StatCard icon={IndianRupee} label="Revenue" value={summary.revenue ?? 0} prefix="₹" accent />
                           <StatCard icon={Users} label="Checked in" value={summary.checkedIn ?? 0} />
                           <StatCard icon={Ticket} label="Capacity" value={summary.capacity ?? 0} />
                         </div>

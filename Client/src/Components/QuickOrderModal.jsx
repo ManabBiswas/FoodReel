@@ -6,6 +6,7 @@ import { API_ENDPOINTS, axiosConfig } from '../config/Api'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { newIdempotencyKey } from '../utils/idempotencyKey'
+import { getImageKitThumbnail } from '../utils/imagekit.utils'
 
 const QuickOrderModal = ({ food, isOpen, onClose }) => {
   const navigate = useNavigate()
@@ -417,7 +418,7 @@ const handlePlaceOrder = async () => {
           {/* Food Summary */}
           <div className="flex gap-3 mb-6 p-3 bg-gray-50 rounded-xl">
             <img
-              src={food.foodImageUrl || food.mediaUrl || food.video}
+              src={getImageKitThumbnail(food.foodImageUrl || food.mediaUrl || food.video) || undefined}
               alt={food.title || food.name}
               className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg flex-shrink-0"
             />

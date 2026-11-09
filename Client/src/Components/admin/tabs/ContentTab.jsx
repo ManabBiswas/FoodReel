@@ -4,6 +4,7 @@ import { API_ENDPOINTS, axiosConfig } from '../../../config/Api'
 import { Megaphone, Trash2 } from 'lucide-react'
 import { Spinner, Empty, Pagination } from '../AdminUI'
 import { fmtCur } from '../adminConstants'
+import { getImageKitThumbnail } from '../../../utils/imagekit.utils'
 
 const ContentTab = ({ navigate, setError, setConfirmAction }) => {
   const [subTab, setSubTab] = useState('food')
@@ -96,7 +97,7 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
                 <div key={f._id} className="food-card">
                   {(f.image || f.video) && (
                     <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(26,18,8,0.05)' }}>
-                      {f.video ? <video src={f.video} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      {f.video ? <video src={f.video} poster={getImageKitThumbnail(f.video) || undefined} preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                         : <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                     </div>
                   )}
@@ -137,7 +138,7 @@ const ContentTab = ({ navigate, setError, setConfirmAction }) => {
                 <div key={a._id} className="food-card">
                   {a.file && (
                     <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(26,18,8,0.05)' }}>
-                      {a.type === 'video' ? <video src={a.file} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      {a.type === 'video' ? <video src={a.file} poster={getImageKitThumbnail(a.file) || undefined} preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                         : <img src={a.file} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                     </div>
                   )}

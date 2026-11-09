@@ -4,7 +4,7 @@ import { API_ENDPOINTS, axiosConfig } from '../../../config/Api'
 import { Star, Trash2 } from 'lucide-react'
 import { Spinner, Empty, Pagination } from '../AdminUI'
 
-const ReviewsTab = ({ navigate, setError, setConfirmAction }) => {
+const ReviewsTab = ({ navigate, setError, setConfirmAction, onDataChanged }) => {
   const [reviews, setReviews] = useState([])
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
   const [page, setPage] = useState(1)
@@ -28,6 +28,7 @@ const ReviewsTab = ({ navigate, setError, setConfirmAction }) => {
     try {
       await axios.delete(API_ENDPOINTS.admin.deleteReview(id), axiosConfig)
       setReviews(prev => prev.filter(r => r._id !== id))
+      onDataChanged?.()
     } catch { setError('Failed to delete review') }
   }
 

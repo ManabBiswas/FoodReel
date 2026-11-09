@@ -218,8 +218,8 @@ const HeroSection = () => {
 
           {/* Floating notification card */}
           <div
-            className="absolute -left-6 top-1/3 z-20 hidden lg:flex items-center gap-3 rounded-2xl bg-white px-4 py-3 font-sans"
-            style={{ boxShadow: 'var(--shadow-xl)', animation: 'float 3s ease-in-out infinite 1s' }}
+            className="absolute -left-6 top-1/3 z-20 hidden lg:flex items-center gap-3 rounded-2xl bg-white px-4 py-3 font-sans animate-float motion-reduce:animate-none"
+            style={{ boxShadow: 'var(--shadow-xl)', animationDelay: '1s' }}
           >
             <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -234,8 +234,8 @@ const HeroSection = () => {
 
           {/* Floating rating card */}
           <div
-            className="absolute -right-4 bottom-1/4 z-20 hidden lg:flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-sans"
-            style={{ boxShadow: 'var(--shadow-xl)', animation: 'float 3s ease-in-out infinite 0.5s' }}
+            className="absolute -right-4 bottom-1/4 z-20 hidden lg:flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-sans animate-float motion-reduce:animate-none"
+            style={{ boxShadow: 'var(--shadow-xl)', animationDelay: '0.5s' }}
           >
             <span className="text-xl">⭐</span>
             <div>

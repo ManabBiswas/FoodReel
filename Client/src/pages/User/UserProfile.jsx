@@ -379,6 +379,8 @@ const UserProfile = () => {
                       {post.type === 'video' ? (
                         <video
                           src={post.video}
+                          poster={getImageKitThumbnail(post.video) || undefined}
+                          preload="metadata"
                           className="h-full w-full object-cover"
                         />
                       ) : (

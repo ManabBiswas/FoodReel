@@ -9,6 +9,7 @@ import Navbar from '../../Components/Navbar'
 import FoodPartnersReviews from '../../Components/FoodPartnersReviews'
 import FoodDetailModal from '../../Components/FoodDetailModal'
 import { Building2, MapPin, Phone, Mail, Loader2, LogOut, Settings, Plus, Grid3X3, Star, Tag, CheckCircle, Video, Image, Play, MessageCircle, UtensilsCrossed, Heart, Megaphone, ShoppingBag } from 'lucide-react'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 
 const PartnerProfile = () => {
   const navigate = useNavigate()
@@ -370,6 +371,8 @@ const PartnerProfile = () => {
                         {item.type === 'video' && item.video ? (
                           <video
                             src={item.video}
+                            poster={getImageKitThumbnail(item.video) || undefined}
+                            preload="metadata"
                             className="w-full h-full object-cover"
                             muted
                             playsInline

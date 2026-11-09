@@ -4,7 +4,7 @@ import { API_ENDPOINTS, axiosConfig } from '../../../config/Api'
 import { Search, Store, CheckCircle, Shield, ShieldOff, Ban, Trash2 } from 'lucide-react'
 import { Spinner, Empty, Pagination } from '../AdminUI'
 
-const PartnersTab = ({ navigate, setError, setConfirmAction }) => {
+const PartnersTab = ({ navigate, setError, setConfirmAction, onDataChanged }) => {
   const [partners, setPartners] = useState([])
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
   const [page, setPage] = useState(1)
@@ -31,6 +31,7 @@ const PartnersTab = ({ navigate, setError, setConfirmAction }) => {
     try {
       await axios.put(API_ENDPOINTS.admin.togglePartnerVerify(id), {}, axiosConfig)
       setPartners(prev => prev.map(p => p._id === id ? { ...p, verified: !p.verified } : p))
+      onDataChanged?.()
     } catch { setError('Failed to update partner') }
   }
 
@@ -38,6 +39,7 @@ const PartnersTab = ({ navigate, setError, setConfirmAction }) => {
     try {
       await axios.put(API_ENDPOINTS.admin.togglePartnerBlock(id), {}, axiosConfig)
       setPartners(prev => prev.map(p => p._id === id ? { ...p, isBlocked: !p.isBlocked } : p))
+      onDataChanged?.()
     } catch { setError('Failed to update partner') }
   }
 
@@ -45,6 +47,7 @@ const PartnersTab = ({ navigate, setError, setConfirmAction }) => {
     try {
       await axios.delete(API_ENDPOINTS.admin.deletePartner(id), axiosConfig)
       setPartners(prev => prev.filter(p => p._id !== id))
+      onDataChanged?.()
     } catch { setError('Failed to delete partner') }
   }
 

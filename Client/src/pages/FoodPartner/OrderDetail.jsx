@@ -21,6 +21,7 @@ import {
 import Navbar from '../../Components/Navbar'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { showSuccess, showError } from '../../utils/toast'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 import CancelOrderDialog from '../../Components/CancelOrderDialog'
 import CancelRequestDialog from '../../Components/CancelRequestDialog'
 
@@ -390,9 +391,9 @@ const OrderDetail = () => {
               <div className="space-y-4">
                 {order.items?.map((item, index) => (
                   <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-                    {item.foodItem?.image && (
+                    {(item.foodItem?.image || item.foodItem?.video) && (
                       <img
-                        src={item.foodItem.image}
+                        src={getImageKitThumbnail(item.foodItem.image || item.foodItem.video)}
                         alt={item.foodItem.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />

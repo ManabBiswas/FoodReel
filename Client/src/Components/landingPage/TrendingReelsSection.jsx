@@ -3,6 +3,7 @@ import axios from 'axios'
 import { Link } from 'react-router-dom'
 import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { ArrowRight, Pause, Play } from 'lucide-react'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 
 const FALLBACK_GRADIENTS = [
   'linear-gradient(135deg,#FF6B35,#F7931E)',
@@ -235,7 +236,7 @@ const TrendingReelsSection = () => {
           const formatted = (data.foods ?? []).slice(0, 5).map((food) => ({
             id: food._id,
             name: food.name,
-            image: food.image ?? null,
+            image: food.image || getImageKitThumbnail(food.video) || null,
             video: food.video ?? null,
             type: food.type,
           }))

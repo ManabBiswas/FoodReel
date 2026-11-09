@@ -20,6 +20,7 @@ import {
   Star, Trash2, Edit3, Eye, Send, FileText, ChevronLeft, ChevronRight, Tag
 } from 'lucide-react'
 import PromoCodeManager from './PromoCodeManager'
+import { getImageKitThumbnail } from '../../utils/imagekit.utils'
 
 /* ─── helpers ────────────────────────────────────────────── */
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)
@@ -966,7 +967,7 @@ const Dashboard = () => {
                     {/* Thumbnail */}
                     <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--color-surface-muted)]">
                       {item.video ? (
-                        <video src={item.video} className="w-full h-full object-cover" muted />
+                        <video src={item.video} poster={getImageKitThumbnail(item.video) || undefined} preload="metadata" className="w-full h-full object-cover" muted />
                       ) : item.image ? (
                         <img src={item.image} alt="" className="w-full h-full object-cover" />
                       ) : (

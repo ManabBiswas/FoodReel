@@ -8,6 +8,7 @@ import { API_ENDPOINTS, axiosConfig } from '../../config/Api'
 import { showError, showSuccess, showWarning } from '../../utils/toast'
 import { copyText } from '../../utils/clipboard'
 import ModalShell from '../../Components/foodfest/ModalShell'
+import ScrambleNumber from '../../Components/ScrambleNumber'
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(n) || 0)
 const fmtCur = (n) => `₹${fmt(n)}`
@@ -37,10 +38,14 @@ const EMPTY_FORM = {
   validUntil: ''
 }
 
-const StatCard = ({ label, value }) => (
+const StatCard = ({ label, value, prefix = '', format }) => (
   <div className="rounded-2xl border border-[var(--color-border-light)] bg-white p-4 shadow-sm">
     <p className="text-xs font-medium text-[var(--color-text-muted)]">{label}</p>
-    <p className="mt-0.5 text-xl font-bold tracking-tight text-[var(--color-text-base)]">{value}</p>
+    <p className="mt-0.5 text-xl font-bold tracking-tight text-[var(--color-text-base)]">
+      {typeof value === 'number'
+        ? <ScrambleNumber value={value} prefix={prefix} format={format} />
+        : value}
+    </p>
   </div>
 )
 
@@ -310,10 +315,10 @@ const PromoCodeManager = () => {
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total codes" value={fmt(totals.codes)} />
-        <StatCard label="Active codes" value={fmt(totals.active)} />
-        <StatCard label="Redemptions" value={fmt(totals.redemptions)} />
-        <StatCard label="Discount given" value={fmtCur(totals.discountGiven)} />
+        <StatCard label="Total codes" value={totals.codes} />
+        <StatCard label="Active codes" value={totals.active} />
+        <StatCard label="Redemptions" value={totals.redemptions} />
+        <StatCard label="Discount given" value={totals.discountGiven} prefix="₹" format={fmt} />
       </div>
 
       {error && (
