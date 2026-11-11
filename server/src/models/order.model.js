@@ -70,6 +70,8 @@ const orderSchema = new mongoose.Schema({
         },
         razorpayOrderId: String,
         razorpayPaymentId: String,
+        // One-time claim when a webhook reports a second capture: set to the extra payment id so a retry cannot refund it twice.
+        duplicateRefundPaymentId: String,
         razorpaySignature: String,
         razorpayAmount: Number,
         razorpayOrderCreatedAt: Date,

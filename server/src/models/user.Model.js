@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
         default: 0
     },
     profileImage: {
-        type: Buffer,
+        type: String,
     },
     bio: {
         type: String,

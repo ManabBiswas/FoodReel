@@ -36,11 +36,11 @@ export const sweepOnce = () => expirePendingTickets();
 const expirePendingTickets = async () => {
     const expiryThreshold = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
 
-    // Find tickets stuck in pending_payment older than 15 mins
+    // Find tickets stuck in pending_payment older than 15 mins. Bounded so a post-outage backlog cannot block the sweeper for minutes.
     const staleTickets = await FoodFestTicket.find({
         status: 'pending_payment',
         createdAt: { $lt: expiryThreshold }
-    }).select('_id tierId');
+    }).select('_id tierId').limit(100);
 
     if (staleTickets.length === 0) return { expired: 0 };
 

@@ -295,15 +295,24 @@ export const consumeCoupon = async (order) => {
     const couponId = order?.coupon?.couponId;
     if (!couponId) return { ok: true, skipped: true };
 
-    const claimed = await orderModel.findOneAndUpdate(
-        {
-            _id: order._id,
-            "coupon.couponId": couponId,
-            "coupon.consumedAt": { $exists: false }
-        },
-        { $set: { "coupon.consumedAt": new Date() } },
-        { new: true }
-    );
+    let claimed;
+    try {
+        claimed = await orderModel.findOneAndUpdate(
+            {
+                _id: order._id,
+                "coupon.couponId": couponId,
+                "coupon.consumedAt": { $exists: false }
+            },
+            { $set: { "coupon.consumedAt": new Date() } },
+            { new: true }
+        );
+    } catch (err) {
+        // Defensive: a unique index on { coupon.couponId, user } (if one is ever added) rejected the claim — the per-user limit was reached.
+        if (err?.code === 11000) {
+            return { ok: false, code: "COUPON_USER_LIMIT_REACHED", honoured: false };
+        }
+        throw err;
+    }
 
     if (!claimed) {
         return { ok: true, alreadyConsumed: true };
@@ -323,12 +332,17 @@ export const consumeCoupon = async (order) => {
     const userId = order.user?._id || order.user;
     const perUserLimit = Number(coupon.perUserLimit) || 1;
     if (userId && perUserLimit > 0) {
+        // Count only redemptions claimed strictly BEFORE this one, ordering claims by (consumedAt, _id). Concurrent checkouts each see the ones ahead of them, so exactly the first `perUserLimit` claims win even when two land in the same millisecond.
+        const claimedAt = claimed.coupon.consumedAt;
         const priorUses = await orderModel.countDocuments({
             _id: { $ne: order._id },
             user: userId,
             "coupon.couponId": couponId,
-            "coupon.consumedAt": { $exists: true },
-            status: { $ne: "cancelled" }
+            status: { $ne: "cancelled" },
+            $or: [
+                { "coupon.consumedAt": { $lt: claimedAt } },
+                { "coupon.consumedAt": claimedAt, _id: { $lt: order._id } },
+            ],
         });
         if (priorUses >= perUserLimit) {
             await orderModel.updateOne(
