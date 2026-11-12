@@ -1,9 +1,11 @@
 import userModel from "../models/user.Model.js";
+import orderModel from "../models/order.model.js";
 import adminModel from "../models/admin.model.js";
 import bcrypt from "bcrypt";
 import { hashPassword as hashNewPassword, verifyPassword } from "../utils/password.js";
 import jwt from "jsonwebtoken";
 import emailService from "../services/email.service.js";
+import storageService from "../services/storage.service.js";
 import { authCookieOptions } from "../utils/cookies.js";
 import { timingSafeStringEqual } from "../utils/secureCompare.js";
 import { serverFail, serverError } from "../utils/apiError.js";
@@ -37,15 +39,27 @@ async function register(req, res) {
             mobile
         };
 
-        // Handle profile image if uploaded
-        if (req.file) {
-            userData.profileImage = req.file.buffer;
-        }
-
         const user = await userModel.create(userData);
 
+        // Handle profile image if uploaded — store an ImageKit URL, not a
+        // 2 MB Buffer inside the MongoDB document.
+        if (req.file) {
+            try {
+                const uploaded = await storageService.uploadFile(
+                    req.file.buffer,
+                    `profile-${user._id}`,
+                    req.file.mimetype
+                );
+                await userModel.findByIdAndUpdate(user._id, { profileImage: uploaded.url });
+                user.profileImage = uploaded.url;
+            } catch (err) {
+                console.error('Profile image upload failed:', err.message);
+                // Continue without the image rather than failing registration.
+            }
+        }
+
         const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("token", token, authCookieOptions());
+        res.cookie("userToken", token, authCookieOptions());
 
         res.status(201).json({
             message: "User created successfully",
@@ -55,7 +69,7 @@ async function register(req, res) {
                 lastName: user.lastName,
                 email: user.email,
                 mobile: user.mobile,
-                profileImage: user.profileImage ? `data:image/jpeg;base64,${user.profileImage.toString('base64')}` : null
+                profileImage: user.profileImage || null
             }
         });
 
@@ -105,7 +119,7 @@ async function login(req, res) {
 
         if (isPasswordMatched) {
             const token = jwt.sign({ id: user._id, email: user.email, tv: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
-            res.cookie('token', token, authCookieOptions());
+            res.cookie('userToken', token, authCookieOptions());
 
             res.status(200).json({
                 message: "User logged in successfully",
@@ -163,7 +177,7 @@ async function getProfile(req, res) {
             preferences: user.preferences,
             isEmailVerified: user.isEmailVerified,
             isMobileVerified: user.isMobileVerified,
-            profileImage: user.profileImage ? `data:image/jpeg;base64,${user.profileImage.toString('base64')}` : null,
+            profileImage: user.profileImage || null,
             savedFoods: user.savedFoods || [],
             savedPosts: user.savedPosts || [],
             followersCount: user.followersCount || 0,
@@ -186,11 +200,20 @@ async function updateProfile(req, res) {
         if (firstName) updateData.firstName = firstName;
         if (lastName) updateData.lastName = lastName;
         if (mobile) updateData.mobile = mobile;
-        if (bio !== undefined) updateData.bio = bio.substring(0, 150); // Limit to 150 chars
+        if (bio !== undefined) updateData.bio = String(bio ?? '').slice(0, 150); // Limit to 150 chars
 
-        // Handle profile image if uploaded
+        // Handle profile image if uploaded — store an ImageKit URL, not a Buffer.
         if (req.file) {
-            updateData.profileImage = req.file.buffer;
+            try {
+                const uploaded = await storageService.uploadFile(
+                    req.file.buffer,
+                    `profile-${userId}`,
+                    req.file.mimetype
+                );
+                updateData.profileImage = uploaded.url;
+            } catch (err) {
+                console.error('Profile image upload failed:', err.message);
+            }
         }
 
         const updatedUser = await userModel.findByIdAndUpdate(
@@ -212,7 +235,7 @@ async function updateProfile(req, res) {
                 email: updatedUser.email,
                 mobile: updatedUser.mobile,
                 bio: updatedUser.bio || '',
-                profileImage: updatedUser.profileImage ? `data:image/jpeg;base64,${updatedUser.profileImage.toString('base64')}` : null,
+                profileImage: updatedUser.profileImage || null,
                 updatedAt: updatedUser.updatedAt
             }
         });
@@ -282,11 +305,22 @@ async function deleteAccount(req, res) {
             return res.status(400).json({ error: "Incorrect password" });
         }
 
+        // Block deletion when live orders exist (orphaned orders / revenue drift)
+        const liveOrders = await orderModel.countDocuments({
+            user: userId,
+            status: { $in: ['pending', 'confirmed', 'preparing'] },
+        });
+        if (liveOrders > 0) {
+            return res.status(409).json({
+                error: 'Cannot delete account with pending or active orders. Cancel or complete them first.',
+            });
+        }
+
         // Delete user account
         await userModel.findByIdAndDelete(userId);
 
         // Clear cookie
-        res.clearCookie('token', authCookieOptions(0));
+        res.clearCookie('userToken', authCookieOptions(0));
 
         res.status(200).json({ message: "Account deleted successfully" });
 
@@ -296,7 +330,7 @@ async function deleteAccount(req, res) {
 }
 
 async function logout(req, res) {
-    res.clearCookie('token', authCookieOptions(0));
+    res.clearCookie('userToken', authCookieOptions(0));
     res.status(200).json({ message: "User logged out successfully" });
 
 }
@@ -354,7 +388,7 @@ async function adminLogin(req, res) {
         }
 
         const token = jwt.sign({ id: admin._id, email: admin.email, tv: admin.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie('token', token, authCookieOptions());
+        res.cookie('adminToken', token, authCookieOptions());
         
         res.status(200).json({ 
             message: "Admin login successful",
@@ -374,7 +408,7 @@ async function adminLogin(req, res) {
 
 async function adminLogout(req, res) {
     try {
-        res.clearCookie('token', authCookieOptions(0));
+        res.clearCookie('adminToken', authCookieOptions(0));
         res.status(200).json({ message: "Admin logout successful" });
     } catch (error) {
         console.error('Admin logout error:', error);
@@ -384,7 +418,7 @@ async function adminLogout(req, res) {
 
 async function adminVerify(req, res) {
     try {
-        const token = req.cookies.token;
+        const token = req.cookies.adminToken;
         if (!token) {
             return res.status(401).json({
                 isAuthenticated: false,
@@ -429,7 +463,7 @@ async function adminVerify(req, res) {
 
 async function adminProfile(req, res) {
     try {
-        const token = req.cookies.token;
+        const token = req.cookies.adminToken;
         if (!token) {
             return res.status(401).json({
                 error: "Not authenticated"

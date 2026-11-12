@@ -57,7 +57,7 @@ async function login(req, res) {
         }
 
         const token = jwt.sign({ id: admin._id, email: admin.email, tv: admin.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie('token', token, authCookieOptions());
+        res.cookie('adminToken', token, authCookieOptions());
         res.status(200).json({ 
             message: "Login successful",
             admin: {
@@ -76,7 +76,7 @@ async function login(req, res) {
 
 async function logout(req, res) {
     try {
-        res.clearCookie('token', authCookieOptions(0));
+        res.clearCookie('adminToken', authCookieOptions(0));
         res.status(200).json({ message: "Logout successful" });
     } catch (error) {
         console.error('Admin logout error:', error);

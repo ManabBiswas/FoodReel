@@ -462,8 +462,9 @@ const updateOrderStatus = async (req, res) => {
             return res.status(400).json({ error: "Valid status is required" });
         }
 
-        // Find order that contains items from this food partner
-        const order = await orderModel.findOne({
+        // Find order that contains items from this food partner.
+        // `let` because the atomic claim below reassigns it to the claimed doc.
+        let order = await orderModel.findOne({
             _id: orderId,
             'items.foodPartner': req.foodPartner._id
         });
@@ -514,38 +515,45 @@ const updateOrderStatus = async (req, res) => {
             });
         }
 
-        // Update status
-        order.status = status;
+        // Atomic status transition: claim the order only if it is still in a
+        // state that allows this move. Last-write-wins save() previously let a
+        // concurrent cancel resurrect a cancelled order.
+        const allowedFrom = validTransitions[order.status] ?? [];
+        const claimed = await orderModel.findOneAndUpdate(
+            {
+                _id: orderId,
+                'items.foodPartner': req.foodPartner._id,
+                status: order.status, // precondition: must match what we read
+            },
+            {
+                $set: { status },
+                $push: {
+                    orderNotes: {
+                        note: note || `Order status updated to ${status}`,
+                        addedBy: 'partner',
+                    },
+                },
+                ...(status === 'confirmed'
+                    ? { 'statusTimestamps.confirmedAt': new Date() }
+                    : status === 'delivered'
+                        ? { 'statusTimestamps.deliveredAt': new Date() }
+                        : {}),
+            },
+            { new: true }
+        );
 
-        // Add timestamp for specific statuses
-        if (status === 'confirmed') {
-            order.statusTimestamps = order.statusTimestamps || {};
-            order.statusTimestamps.confirmedAt = new Date();
-        } else if (status === 'delivered') {
-            order.statusTimestamps = order.statusTimestamps || {};
-            order.statusTimestamps.deliveredAt = new Date();
+        if (!claimed) {
+            return res.status(409).json({
+                error: 'Order status changed by another request. Please refresh and retry.',
+            });
         }
 
-        // Add status note
-        if (note) {
-            order.orderNotes.push({
-                note: note,
-                addedBy: 'partner'
-            });
-        } else {
-            order.orderNotes.push({
-                note: `Order status updated to ${status}`,
-                addedBy: 'partner'
-            });
-        }
-
-        await order.save();
-
-        await order.populate([
+        await claimed.populate([
             { path: 'user', select: 'firstName lastName email mobile' },
             { path: 'items.foodItem', select: 'name description image video price currency' },
             { path: 'items.foodPartner', select: 'companyName email mobile' }
         ]);
+        order = claimed;
 
         // Send email notification when order is ready (fire-and-forget)
         if (status === 'ready' && order.user?.email) {
@@ -703,7 +711,8 @@ const cancelOrder = async (req, res) => {
         const { orderId } = req.params;
         const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 300) : '';
 
-        const order = await orderModel.findById(orderId)
+        // `let` because the atomic claim below reassigns it to the claimed doc.
+        let order = await orderModel.findById(orderId)
             .populate('user', 'firstName lastName email mobile')
             .populate('items.foodItem', 'name price')
             .populate('items.foodPartner', 'companyName email');
@@ -742,8 +751,10 @@ const cancelOrder = async (req, res) => {
         // or an unpaid order.
         const refundDecision = decideRefundOnCancellation({ order, actor: 'user' });
 
-        // Update cancellation info
-        order.cancellation = {
+        // Build the cancellation payload in memory first, then claim it
+        // atomically so a concurrent status change cannot resurrect a
+        // cancelled order (last-write-wins save() previously did exactly that).
+        const cancellation = {
             isCancelled: true,
             cancelledBy: 'user',
             cancelledAt: new Date(),
@@ -751,26 +762,52 @@ const cancelOrder = async (req, res) => {
             refundStatus: refundDecision.refundStatus,
             refundAmount: refundDecision.amount
         };
-        order.status = 'cancelled';
 
-        // The customer cancelled while the partner's request was still waiting
-        // for review. Close the request out so the admin queue does not keep
-        // showing an order that is already cancelled. No admin decided this,
-        // so the closer is recorded as 'system' — the note explains why.
-        if (order.cancelRequest?.status === 'pending') {
-            order.cancelRequest.status = 'rejected';
-            order.cancelRequest.decidedAt = new Date();
-            order.cancelRequest.decidedBy = 'system';
-            order.cancelRequest.decisionNote = 'Order was cancelled by the customer before the request was reviewed';
+        const update = {
+            $set: {
+                status: 'cancelled',
+                cancellation,
+                ...(order.cancelRequest?.status === 'pending'
+                    ? {
+                        'cancelRequest.status': 'rejected',
+                        'cancelRequest.decidedAt': new Date(),
+                        'cancelRequest.decidedBy': 'system',
+                        'cancelRequest.decisionNote':
+                            'Order was cancelled by the customer before the request was reviewed',
+                    }
+                    : {}),
+            },
+            $push: {
+                orderNotes: {
+                    note: `Order cancelled by customer. Reason: ${reason || 'Customer requested cancellation'}`,
+                    addedBy: 'user',
+                },
+            },
+        };
+
+        const saved = await orderModel.findOneAndUpdate(
+            {
+                _id: orderId,
+                status: { $in: ['pending', 'confirmed', 'preparing', 'cancel_requested'] },
+            },
+            update,
+            { new: true }
+        );
+
+        if (!saved) {
+            return res.status(409).json({
+                error: 'Order was modified by another request. Please refresh and retry.',
+            });
         }
 
-        // Add cancellation note
-        order.orderNotes.push({
-            note: `Order cancelled by customer. Reason: ${reason || 'Customer requested cancellation'}`,
-            addedBy: 'user'
-        });
-
-        await order.save();
+        // The claim returns an unpopulated doc; repopulate so the response
+        // keeps the same shape as the initial fetch above.
+        await saved.populate([
+            { path: 'user', select: 'firstName lastName email mobile' },
+            { path: 'items.foodItem', select: 'name price' },
+            { path: 'items.foodPartner', select: 'companyName email' },
+        ]);
+        order = saved;
 
         // The order will not be fulfilled, so the redemption returns to the coupon's pool. Idempotent: a repeated cancel cannot double-release.
         if (order.coupon?.couponId) {
@@ -880,8 +917,9 @@ const partnerCancelOrder = async (req, res) => {
         // and waits for a human. Only an admin should release that money.
         const refundDecision = decideRefundOnCancellation({ order, actor: 'partner' });
 
-        // Update cancellation info
-        order.cancellation = {
+        // Atomic claim: only cancel if still in a cancellable state, so a
+        // concurrent customer cancel or status advance cannot resurrect it.
+        const cancellation = {
             isCancelled: true,
             cancelledBy: 'partner',
             cancelledAt: new Date(),
@@ -889,17 +927,35 @@ const partnerCancelOrder = async (req, res) => {
             refundStatus: refundDecision.refundStatus,
             refundAmount: refundDecision.amount
         };
-        order.status = 'cancelled';
 
-        // Add cancellation note
-        order.orderNotes.push({
-            note: refundDecision.outcome === OUTCOME.AWAIT_APPROVAL
-                ? `Order cancelled by partner. Refund of ₹${refundDecision.amount} requires approval. Reason: ${reason || 'Cancelled by food partner'}`
-                : `Order cancelled by partner. Reason: ${reason || 'Cancelled by food partner'}`,
-            addedBy: 'partner'
-        });
+        const saved = await orderModel.findOneAndUpdate(
+            {
+                _id: orderId,
+                'items.foodPartner': req.foodPartner._id,
+                status: { $in: ['pending', 'confirmed'] },
+            },
+            {
+                $set: { status: 'cancelled', cancellation },
+                $push: {
+                    orderNotes: {
+                        note:
+                            refundDecision.outcome === OUTCOME.AWAIT_APPROVAL
+                                ? `Order cancelled by partner. Refund of ₹${refundDecision.amount} requires approval. Reason: ${reason || 'Cancelled by food partner'}`
+                                : `Order cancelled by partner. Reason: ${reason || 'Cancelled by food partner'}`,
+                        addedBy: 'partner',
+                    },
+                },
+            },
+            { new: true }
+        );
 
-        await order.save();
+        if (!saved) {
+            return res.status(409).json({
+                error: 'Order was modified by another request. Please refresh and retry.',
+            });
+        }
+
+        order = saved;
 
         // Return the coupon redemption to the pool.
         if (order.coupon?.couponId) {

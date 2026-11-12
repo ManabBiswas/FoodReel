@@ -2,7 +2,7 @@ import foodPartnerModel from "../models/foodPartner.Model.js";
 import jwt from 'jsonwebtoken';
 
 async function isFoodPartnerLoggedin(req, res, next) {
-    const token = req.cookies.token;
+    const token = req.cookies.partnerToken;
     if (!token) {
        return res.status(401).json({ 
            isAuthenticated: false,

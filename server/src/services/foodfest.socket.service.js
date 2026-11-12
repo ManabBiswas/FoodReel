@@ -20,7 +20,7 @@ export const initSocketIO = (httpServer) => {
         try {
             // Auth via cookie
             const cookies = parseCookie(socket.handshake.headers.cookie || '');
-            const token = cookies.token;
+            const token = cookies.userToken || cookies.partnerToken || cookies.adminToken;
             if (!token) return next(new Error("Authentication required"));
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);

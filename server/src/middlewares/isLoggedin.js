@@ -2,7 +2,7 @@ import userModel from "../models/user.Model.js";
 import jwt from "jsonwebtoken";
 
 async function isLoggedin(req, res, next) {
-    const token = req.cookies.token;
+    const token = req.cookies.userToken;
     if (!token) {
         return res.status(401).json({ 
             isAuthenticated: false,

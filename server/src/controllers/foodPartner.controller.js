@@ -42,7 +42,7 @@ async function register(req,res) {
                 // profileImage will be added later via profile update
             })
             const token = jwt.sign({id: foodPartner._id,email: foodPartner.email,tv: foodPartner.tokenVersion ?? 0},process.env.JWT_SECRET, { expiresIn: "7d" });
-            res.cookie('token', token, authCookieOptions());
+            res.cookie('partnerToken', token, authCookieOptions());
             res.status(201).json({
                 message: "FoodPartner created successfully",
                 _id: foodPartner._id,
@@ -93,7 +93,7 @@ async function login(req,res){
         
         if(isPasswordMatched){
             const token = jwt.sign({ id: foodPartner._id, email: foodPartner.email, tv: foodPartner.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: "7d" });
-            res.cookie('token', token, authCookieOptions());
+            res.cookie('partnerToken', token, authCookieOptions());
             res.status(200).json({
                 message: "FoodPartner logged in successfully",
                 foodPartner: {
@@ -115,7 +115,7 @@ async function login(req,res){
 }
 
 async function logout(req, res) {
-    res.clearCookie('token', authCookieOptions(0));
+    res.clearCookie('partnerToken', authCookieOptions(0));
     res.status(200).json({message: "food partner logout successfully"})
 }
 

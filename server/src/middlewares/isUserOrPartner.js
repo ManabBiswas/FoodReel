@@ -2,10 +2,10 @@ import userModel from "../models/user.Model.js";
 import foodPartnerModel from "../models/foodPartner.Model.js";
 import jwt from "jsonwebtoken";
 
-// Accept EITHER a user or a food-partner session (shared 'token' cookie).
+// Accept EITHER a user or a food-partner session (one cookie per role).
 // Sets req.user and req.userType ('User' | 'FoodPartner').
 async function isUserOrPartner(req, res, next) {
-    const token = req.cookies.token;
+    const token = req.cookies.userToken || req.cookies.partnerToken;
     if (!token) {
         return res.status(401).json({
             isAuthenticated: false,

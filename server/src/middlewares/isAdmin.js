@@ -2,7 +2,7 @@ import adminModel from "../models/admin.model.js";
 import jwt from "jsonwebtoken";
 
 async function isAdmin(req, res, next) {
-    const token = req.cookies.token;
+    const token = req.cookies.adminToken;
     if (!token) {
         return res.status(401).json({
             isAuthenticated: false,
