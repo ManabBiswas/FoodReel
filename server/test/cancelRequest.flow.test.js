@@ -259,7 +259,7 @@ describe('the customer cancelling first', () => {
         );
         assert.match(
             fn,
-            /order\.cancelRequest\.status = 'rejected'/,
+            /'cancelRequest\.status': 'rejected'/,
             'the request must be closed out'
         );
     });
@@ -274,7 +274,7 @@ describe('the customer cancelling first', () => {
             /decidedBy = 'admin'/,
             'the customer path must not forge an admin decision'
         );
-        assert.match(fn, /decidedBy = 'system'/, 'the closer must be recorded as system');
+        assert.match(fn, /'cancelRequest\.decidedBy': 'system'/, 'the closer must be recorded as system');
     });
 });
 

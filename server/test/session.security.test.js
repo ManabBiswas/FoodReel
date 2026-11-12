@@ -34,7 +34,7 @@ const sign = (tv) =>
 const run = async (token) => {
     const res = fakeRes();
     let nexted = false;
-    await isLoggedin({ cookies: { token } }, res, () => { nexted = true; });
+    await isLoggedin({ cookies: { userToken: token } }, res, () => { nexted = true; });
     return { nexted, res };
 };
 

@@ -50,7 +50,7 @@ after(() => {
 
 test('isAdmin lets an active admin through', async () => {
     adminModel.findById = async () => ({ _id: 'admin-1', email: 'a@b.c', isActive: true });
-    const req = { cookies: { token: tokenFor() } };
+    const req = { cookies: { adminToken: tokenFor() } };
     const res = fakeRes();
     let nexted = false;
 
@@ -62,7 +62,7 @@ test('isAdmin lets an active admin through', async () => {
 
 test('isAdmin refuses a deactivated admin with 403 (the kill switch)', async () => {
     adminModel.findById = async () => ({ _id: 'admin-1', email: 'a@b.c', isActive: false });
-    const req = { cookies: { token: tokenFor() } };
+    const req = { cookies: { adminToken: tokenFor() } };
     const res = fakeRes();
     let nexted = false;
 
@@ -77,7 +77,7 @@ test('isAdmin treats a legacy admin document with no isActive field as active', 
     // Documents created before the field existed have isActive === undefined.
     // A truthiness check (!admin.isActive) would lock every existing admin out.
     adminModel.findById = async () => ({ _id: 'legacy', email: 'old@b.c' });
-    const req = { cookies: { token: tokenFor('legacy') } };
+    const req = { cookies: { adminToken: tokenFor('legacy') } };
     const res = fakeRes();
     let nexted = false;
 
@@ -88,7 +88,7 @@ test('isAdmin treats a legacy admin document with no isActive field as active', 
 
 test('isAdmin still 401s when the admin no longer exists', async () => {
     adminModel.findById = async () => null;
-    const req = { cookies: { token: tokenFor() } };
+    const req = { cookies: { adminToken: tokenFor() } };
     const res = fakeRes();
     let nexted = false;
 

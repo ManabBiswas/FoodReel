@@ -137,7 +137,7 @@ test('isLoggedin rejects a mismatched version and treats a missing tv as 0', asy
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' });
         const res = fakeRes();
         let nexted = false;
-        await isLoggedin({ cookies: { token } }, res, () => { nexted = true; });
+        await isLoggedin({ cookies: { userToken: token } }, res, () => { nexted = true; });
         return nexted;
     };
 
@@ -236,7 +236,7 @@ test('isAdmin rejects a stale tokenVersion', async () => {
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' });
         const res = fakeRes();
         let nexted = false;
-        await isAdmin({ cookies: { token } }, res, () => { nexted = true; });
+        await isAdmin({ cookies: { adminToken: token } }, res, () => { nexted = true; });
         return nexted;
     };
 
@@ -252,7 +252,7 @@ test('partner auth rejects a stale tokenVersion', async () => {
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' });
         const res = fakeRes();
         let nexted = false;
-        await isFoodPartnerLoggedin({ cookies: { token } }, res, () => { nexted = true; });
+        await isFoodPartnerLoggedin({ cookies: { partnerToken: token } }, res, () => { nexted = true; });
         return nexted;
     };
 

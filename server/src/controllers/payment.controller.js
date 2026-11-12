@@ -6,8 +6,9 @@ import mongoose from 'mongoose';
 import emailService from '../services/email.service.js';
 import { finalizeTicketPayment } from '../services/foodfest.ticket.service.js';
 import { verifyOrderBinding, verifyPaymentBinding, toPaise } from '../services/payment.verification.js';
+import { initiateClaimedRefund } from '../services/refund.service.js';
 import { decideWebhookAction, resolveOrderKey, ACTION } from '../services/webhook.handler.js';
-import { isGatewayOrderReusable } from '../services/gatewayOrderReuse.js';
+import { isGatewayOrderReusable, GATEWAY_ORDER_REUSE_WINDOW_MS } from '../services/gatewayOrderReuse.js';
 import paymentWebhookEventModel from '../models/paymentWebhookEvent.model.js';
 
 export const createPaymentOrder = async (req, res) => {
@@ -51,20 +52,59 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
-    if (isGatewayOrderReusable(order)) {
-      console.log(`[req:${req.id}] Reusing existing gateway order for order ${order._id}`);
-      return res.status(200).json({
-        success: true,
-        reused: true,
-        razorpayOrderId: order.paymentDetails.razorpayOrderId,
-        amount: (order.paymentDetails.razorpayAmount ?? toPaise(order.pricing.totalAmount)) / 100,
-        currency: order.currency,
-        keyId: paymentService.getKeyId(),
-        order: {
-          id: order._id,
-          totalAmount: order.pricing.totalAmount
+    // Claim the gateway-order slot atomically before calling Razorpay, so a
+    // double-click cannot mint two gateway orders.
+    const claimed = await orderModel.findOneAndUpdate(
+        {
+            _id: orderId,
+            user: userId,
+            'paymentDetails.razorpayOrderId': { $exists: false },
+            status: { $nin: ['cancelled', 'cancel_requested'] },
+            // A concurrent request may have claimed the slot but not yet written the gateway order id.
+            // If the slot is already in-flight, Only claim when the slot is untouched, or the in-flight claim has gone stale (crashed process) — otherwise the second click mints a second order.
+            $or: [
+                { 'paymentDetails.status': { $ne: 'processing' } },
+                { 'paymentDetails.razorpayOrderCreatedAt': { $exists: false } },
+                { 'paymentDetails.razorpayOrderCreatedAt': { $lt: new Date(Date.now() - GATEWAY_ORDER_REUSE_WINDOW_MS) } },
+            ],
+        },
+        {
+            $set: {
+                'paymentDetails.status': 'processing',
+                'paymentDetails.razorpayOrderCreatedAt': new Date(),
+            },
+        },
+        { new: true }
+    );
+
+    if (!claimed) {
+        // Someone else claimed the slot (or it is cancelled). If a gateway
+        // order id now exists, reuse it; otherwise the order cannot be paid.
+        const current = await orderModel
+            .findById(orderId)
+            .select('paymentDetails status pricing')
+            .lean();
+        if (current?.paymentDetails?.razorpayOrderId) {
+            return res.status(200).json({
+                success: true,
+                reused: true,
+                razorpayOrderId: current.paymentDetails.razorpayOrderId,
+                amount:
+                    (current.paymentDetails.razorpayAmount ??
+                        toPaise(current.pricing?.totalAmount ?? 0)) /
+                    100,
+                currency: order.currency,
+                keyId: paymentService.getKeyId(),
+                order: {
+                    id: order._id,
+                    totalAmount: current.pricing?.totalAmount ?? order.pricing.totalAmount,
+                },
+            });
         }
-      });
+        return res.status(409).json({
+            success: false,
+            message: 'This order cannot be paid (already cancelled or being processed).',
+        });
     }
 
     // Create Razorpay order
@@ -79,22 +119,35 @@ export const createPaymentOrder = async (req, res) => {
     );
 
     if (!razorpayOrder.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to create Razorpay order',
-        error: razorpayOrder.error
-      });
+        // Release the claim so a retry can re-enter.
+        await orderModel.updateOne(
+            { _id: orderId },
+            {
+                $unset: { 'paymentDetails.razorpayOrderCreatedAt': '' },
+                $set: { 'paymentDetails.status': 'pending' },
+            }
+        );
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create Razorpay order',
+          error: razorpayOrder.error
+        });
     }
 
-    // Update order with Razorpay order ID (note: service returns order_id in snake_case).
-   
-    order.paymentDetails.razorpayOrderId = razorpayOrder.order_id;
-    order.paymentDetails.razorpayAmount = Number.isInteger(razorpayOrder.amount)
+    // Write the gateway order id onto the claimed slot.
+    const razorpayAmount = Number.isInteger(razorpayOrder.amount)
       ? razorpayOrder.amount
       : toPaise(order.pricing.totalAmount);
-    order.paymentDetails.razorpayOrderCreatedAt = new Date();
-    order.paymentDetails.status = 'processing';
-    await order.save();
+
+    await orderModel.updateOne(
+        { _id: orderId },
+        {
+            $set: {
+                'paymentDetails.razorpayOrderId': razorpayOrder.order_id,
+                'paymentDetails.razorpayAmount': razorpayAmount,
+            },
+        }
+    );
 
     res.status(200).json({
       success: true,
@@ -511,7 +564,110 @@ export const razorpayWebhook = async (req, res) => {
             break;
 
         case ACTION.REJECT:
-            // The event is authentic but contradicts our records. Acknowledge it —
+            // The capture is HMAC-authentic and money really moved, so hand it
+            // back instead of only logging. Two shapes:
+            //  - we never recorded this capture (cancelled order, verify never
+            //    ran): record it, then run the standard guarded refund;
+            //  - a second payment against an order already settled by another:
+            //    refund THAT payment — never the one that settled the order.
+            if (
+                order &&
+                (decision.code === 'ORDER_CANCELLED' || decision.code === 'DUPLICATE_CAPTURE') &&
+                order.paymentDetails?.status !== 'refunded'
+            ) {
+                const capturedId = typeof entity?.id === 'string' ? entity.id : null;
+                const capturedPaise =
+                    Number.isInteger(entity?.amount) && entity.amount > 0 ? entity.amount : null;
+                const storedId = order.paymentDetails?.razorpayPaymentId || null;
+
+                if (storedId && capturedId && storedId !== capturedId) {
+                    // Duplicate capture -> one-time claim  
+                    const claimedExtra = await orderModel.findOneAndUpdate(
+                        {
+                            _id: order._id,
+                            'paymentDetails.duplicateRefundPaymentId': { $exists: false },
+                        },
+                        { $set: { 'paymentDetails.duplicateRefundPaymentId': capturedId } },
+                        { new: true }
+                    );
+                    if (claimedExtra && capturedPaise) {
+                        // refundPayment takes RUPEES (it multiplies by 100 for
+                        // the gateway) and rethrows gateway errors, so the
+                        // one-time claim must be released from a catch too.
+                        try {
+                            const result = await paymentService.refundPayment(capturedId, capturedPaise / 100, {
+                                orderId: String(order._id),
+                                reason: `Webhook ${decision.code}: ${decision.message}`,
+                            });
+                            if (result?.success) {
+                                await orderModel.updateOne(
+                                    { _id: order._id },
+                                    {
+                                        $push: {
+                                            orderNotes: {
+                                                note: `Refund of duplicate payment ${capturedId} initiated (₹${capturedPaise / 100})`,
+                                                addedBy: 'system',
+                                            },
+                                        },
+                                    }
+                                );
+                            } else {
+                                throw new Error(result?.error || 'unknown error');
+                            }
+                        } catch (err) {
+                            await orderModel.updateOne(
+                                { _id: order._id, 'paymentDetails.duplicateRefundPaymentId': capturedId },
+                                { $unset: { 'paymentDetails.duplicateRefundPaymentId': '' } }
+                            );
+                            console.error(
+                                `[req:${req.id}] Duplicate-capture refund failed for ${capturedId}:`,
+                                err?.message || 'unknown error'
+                            );
+                        }
+                    }
+                } else {
+                    // Capture we never recorded: write it onto the order (the
+                    // webhook is authentic), then the standard claim+refund
+                    // path owns the money movement and its idempotency.
+                    const marked = await orderModel.findOneAndUpdate(
+                        {
+                            _id: order._id,
+                            'paymentDetails.status': { $nin: ['completed', 'refunded'] },
+                        },
+                        {
+                            $set: {
+                                'paymentDetails.razorpayPaymentId': storedId || capturedId,
+                                'paymentDetails.status': 'completed',
+                                ...(capturedPaise
+                                    ? { 'paymentDetails.razorpayAmount': capturedPaise }
+                                    : {}),
+                            },
+                        },
+                        { new: true }
+                    );
+                    if (marked) {
+                        // initiateClaimedRefund takes rupees, not paise —
+                        // refundPayment multiplies by 100 before the gateway call.
+                        const refundAmount = capturedPaise
+                            ? capturedPaise / 100
+                            : Number(marked.pricing?.totalAmount) || 0;
+                        if (refundAmount > 0) {
+                            const claimed = await initiateClaimedRefund({
+                                orderId: order._id,
+                                amount: refundAmount,
+                                initiatedBy: 'system',
+                                reason: `Webhook ${decision.code}: ${decision.message}`,
+                            });
+                            if (!claimed?.ok) {
+                                console.error(
+                                    `[req:${req.id}] Webhook refund not started for order ${order._id}: ${claimed?.code || 'unknown'}`
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            // Acknowledge regardless — retrying will not fix bad data.
             console.error(
                 `[req:${req.id}] Webhook REJECTED ${event}:`,
                 JSON.stringify({
