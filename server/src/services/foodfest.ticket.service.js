@@ -6,6 +6,7 @@ import qrService from "../services/foodfest.qr.service.js";
 import emailService from "../services/email.service.js";
 import paymentService from "./payment.service.js";
 import { supportsTransactions } from "./transactionSupport.js";
+import { emitTicketSold } from "./foodfest.socket.service.js";
 
 /**
  * Turn a paid FoodFest ticket into a valid one.
@@ -137,6 +138,9 @@ export const finalizeTicketPayment = async (razorpayOrderId, paymentId, signatur
 
         // 4. Confirmation email is non-blocking and OUTSIDE the transaction
         sendTicketConfirmation(ticket, event, qrImageUrl);
+
+        // Live inventory push, same non-blocking treatment as the email: a failed socket write must never turn a paid ticket into an error.
+        emitTicketSold(event._id, { tierId: ticket.tierId });
 
         return { success: true, ticket };
     } catch (error) {

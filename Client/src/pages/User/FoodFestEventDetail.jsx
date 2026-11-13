@@ -7,6 +7,7 @@ import PurchaseModal from '../../Components/foodfest/PurchaseModal'
 import { API_ENDPOINTS } from '../../config/Api'
 import { useAuth } from '../../hooks/useAuth'
 import { useNow } from '../../hooks/useNow'
+import { useEventSocket } from '../../hooks/useEventSocket'
 import { swrFetcher } from '../../utils/fetcher'
 import { showWarning } from '../../utils/toast'
 import {
@@ -120,6 +121,12 @@ const FoodFestEventDetail = () => {
   const tiers = data?.tiers ?? []
   const eventSales = getEventSalesState(event, now)
   const notFound = error?.response?.status === 404
+
+  useEventSocket({
+    eventId,
+    enabled: isAuthenticated,
+    events: { 'ticket.sold': () => mutate() },
+  })
 
   const handleBuy = (tier) => {
     if (!isAuthenticated) {

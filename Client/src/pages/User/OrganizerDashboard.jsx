@@ -37,6 +37,7 @@ import {
   getTicketStatusMeta
 } from '../../utils/foodfest'
 import { API_ENDPOINTS } from '../../config/Api'
+import { useEventSocket } from '../../hooks/useEventSocket'
 
 const EVENT_STATUS_META = {
   draft: { label: 'Draft', bg: 'rgba(148,163,184,0.18)', color: '#475569' },
@@ -165,10 +166,13 @@ const OrganizerDashboard = () => {
     }
   }, [])
 
-  const loadDetail = useCallback(async (eventId) => {
+  // `silent` refreshes without the skeleton: a live socket push must not blank
+  // a dashboard the organizer is already reading, and a failed silent refresh
+  // keeps the last good data on screen instead of erroring on every push.
+  const loadDetail = useCallback(async (eventId, { silent = false } = {}) => {
     if (!eventId) return
 
-    setDetailLoading(true)
+    if (!silent) setDetailLoading(true)
     try {
       const res = await axios.get(API_ENDPOINTS.foodfest.organizerEvent(eventId), {
         withCredentials: true
@@ -183,10 +187,11 @@ const OrganizerDashboard = () => {
       }
     } catch (err) {
       console.error('Failed to load event detail:', err)
+      if (silent) return
       setDetail(null)
       showError(err?.response?.data?.message || 'Could not load this event')
     } finally {
-      setDetailLoading(false)
+      if (!silent) setDetailLoading(false)
     }
   }, [])
 
@@ -231,6 +236,23 @@ const OrganizerDashboard = () => {
     }
     loadDetail(selectedId)
   }, [selectedId, hasAccess, loadDetail])
+
+  // Gate scans and capacity crossings push straight in, so the zone counts the organizer is watching never wait for a manual refresh
+  useEventSocket({
+    eventId: selectedId,
+    enabled: hasAccess,
+    events: {
+      'zone.update': () => loadDetail(selectedId, { silent: true }),
+      'zone.alert': (payload) => {
+        showWarning(
+          payload?.level === 'critical'
+            ? 'A zone just reached full capacity'
+            : 'A zone is approaching capacity'
+        )
+        loadDetail(selectedId, { silent: true })
+      },
+    },
+  })
 
   useEffect(() => {
     if (!selectedId || !hasAccess || activeSection !== 'attendees') return
