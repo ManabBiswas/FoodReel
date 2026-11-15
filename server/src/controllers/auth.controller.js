@@ -1,6 +1,7 @@
 import userModel from "../models/user.Model.js";
 import orderModel from "../models/order.model.js";
 import adminModel from "../models/admin.model.js";
+import foodPartnerModel from "../models/foodPartner.Model.js";
 import bcrypt from "bcrypt";
 import { hashPassword as hashNewPassword, verifyPassword } from "../utils/password.js";
 import jwt from "jsonwebtoken";
@@ -285,6 +286,80 @@ async function changePassword(req, res) {
     }
 }
 
+const RESET_LINK_TTL = "10m";
+
+async function forgotPassword(req, res) {
+    try {
+        const email = String(req.body?.email ?? "").trim().toLowerCase();
+        const user = await userModel.findOne({ email });
+        const partner = user ? null : await foodPartnerModel.findOne({ email });
+        const account = user || partner;
+
+        if (account) {
+            const token = jwt.sign(
+                {
+                    id: account._id,
+                    kind: user ? "user" : "partner",
+                    purpose: "reset",
+                    tv: account.tokenVersion ?? 0
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: RESET_LINK_TTL }
+            );
+            const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(token)}`;
+            const name = user ? user.firstName : account.companyName;
+            await emailService.sendPasswordResetEmail(account.email, name, resetLink)
+                .catch((error) => console.error("Password reset email failed:", error.message));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "If that address has an account, a reset link is on its way."
+        });
+    } catch (error) {
+        serverError(res, error, "Could not start the password reset");
+    }
+}
+
+async function resetPassword(req, res) {
+    try {
+        const { token, password } = req.body;
+
+        if (typeof password !== "string" || password.length < 6 || password.length > 128) {
+            return res.status(400).json({ error: "Password must be at least 6 characters long" });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(String(token ?? ""), process.env.JWT_SECRET);
+        } catch {
+            return res.status(400).json({ error: "This reset link is invalid or has expired" });
+        }
+
+        if (decoded.purpose !== "reset" || (decoded.kind !== "user" && decoded.kind !== "partner")) {
+            return res.status(400).json({ error: "This reset link is invalid or has expired" });
+        }
+
+        const model = decoded.kind === "user" ? userModel : foodPartnerModel;
+        const account = await model.findById(decoded.id);
+        if (!account || (account.tokenVersion ?? 0) !== (decoded.tv ?? 0)) {
+            return res.status(400).json({ error: "This reset link is invalid or has expired" });
+        }
+
+        await model.updateOne(
+            { _id: account._id },
+            { $set: { password: await hashNewPassword(password) }, $inc: { tokenVersion: 1 } }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Password updated. You can sign in now."
+        });
+    } catch (error) {
+        serverError(res, error, "Could not reset the password");
+    }
+}
+
 async function deleteAccount(req, res) {
     try {
         const userId = req.user._id;
@@ -505,6 +580,8 @@ export default {
     getProfile,
     updateProfile,
     changePassword,
+    forgotPassword,
+    resetPassword,
     deleteAccount,
     adminLogin,
     adminLogout,

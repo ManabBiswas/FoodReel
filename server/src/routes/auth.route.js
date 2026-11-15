@@ -34,6 +34,19 @@ router.delete('/user/account', isLoggedin, authController.deleteAccount);
 
 router.post('/user/logout', authController.logout);
 
+
+router.post('/forgot-password', authRateLimiter,
+    validateBody({
+        email: { check: isEmail, message: 'A valid email is required' }
+    }),
+    authController.forgotPassword);
+router.post('/reset-password', authRateLimiter,
+    validateBody({
+        token: { check: isNonEmptyString, message: 'Reset link is required' },
+        password: { check: (v) => typeof v === 'string' && v.length >= 6 && v.length <= 128, message: 'Password must be at least 6 characters' }
+    }),
+    authController.resetPassword);
+
 // Auth verification endpoint
 router.get('/verify', isLoggedin, authController.verify);
 
