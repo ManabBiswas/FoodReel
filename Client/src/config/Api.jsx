@@ -33,6 +33,9 @@ export const API_ENDPOINTS = {
     adminLogout: `${BASE_URL}/auth/admin/logout`,
     adminVerify: `${BASE_URL}/auth/admin/verify`,
     adminProfile: `${BASE_URL}/auth/admin/profile`,
+    // Password reset — one pair serves both users and partners
+    forgotPassword: `${BASE_URL}/auth/forgot-password`,
+    resetPassword: `${BASE_URL}/auth/reset-password`,
   },
 
   // Admin endpoints

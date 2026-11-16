@@ -5,6 +5,8 @@ import UserRegister from '../pages/User/UserRegister'
 import UserLogin from '../pages/User/UserLogin'
 import PartnerRegister from '../pages/FoodPartner/PartnerRegister'
 import PartnerLogin from '../pages/FoodPartner/PartnerLogin'
+import ForgotPassword from '../pages/ForgotPassword'
+import ResetPassword from '../pages/ResetPassword'
 import PartnerProfile from '../pages/FoodPartner/PartnerProfile'
 import CreateFood from '../pages/FoodPartner/CreateFood'
 import OrderDetail from '../pages/FoodPartner/OrderDetail'
@@ -134,6 +136,8 @@ const AppRoutes = () => {
           <Route path='/login' element={<ProtectedRoute><UserLogin /></ProtectedRoute>} />
           <Route path='/partner-register' element={<ProtectedRoute><PartnerRegister /></ProtectedRoute>} />
           <Route path='/partner-login' element={<ProtectedRoute><PartnerLogin /></ProtectedRoute>} />
+          <Route path='/forgot-password' element={<ProtectedRoute><ForgotPassword /></ProtectedRoute>} />
+          <Route path='/reset-password' element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />
 
           {/* User Protected Routes */}
           <Route path='/create-post' element={<ProtectedRoute requireAuth allowedType="user"><CreatePost /></ProtectedRoute>} />

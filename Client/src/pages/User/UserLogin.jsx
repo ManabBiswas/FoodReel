@@ -118,6 +118,15 @@ const UserLogin = () => {
           error={errors.password}
         />
 
+        <div className="-mt-2 text-right">
+          <Link
+            to="/forgot-password"
+            className="font-sans text-[13px] font-semibold text-[#9a3412] underline decoration-[#ffb800] decoration-2 underline-offset-4 transition-colors hover:text-[#1a1208]"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
