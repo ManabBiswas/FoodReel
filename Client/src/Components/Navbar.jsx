@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle, Plus, ShoppingCart, CalendarDays, Ticket, Store, Sparkles } from 'lucide-react'
+import { Menu, X, User, LogOut, ChefHat, Home, Film, ShoppingBag, UserCircle, Plus, ShoppingCart, CalendarDays, Ticket, Store, Sparkles, Search } from 'lucide-react'
 import Logo from '../assets/logo.png'
 
 const Navbar = () => {
@@ -77,6 +77,7 @@ const Navbar = () => {
             <NavLink to="/"       icon={<Home         className="w-4 h-4" />} label="Home"   isActive={isActive('/')} />
             <NavLink to="/reels"  icon={<Film         className="w-4 h-4" />} label="Reels"  isActive={isActive('/reels')} />
             <NavLink to="/events" icon={<CalendarDays className="w-4 h-4" />} label="Events" isActive={isActive('/events')} />
+            <NavLink to="/search" icon={<Search       className="w-4 h-4" />} label="Search" isActive={isActive('/search')} />
 
             {/* Partner links */}
             {partner && (
@@ -167,6 +168,7 @@ const Navbar = () => {
             <MobileLink to="/"       icon={<Home         className="w-5 h-5" />} label="Home"    isActive={isActive('/')} />
             <MobileLink to="/reels"  icon={<Film         className="w-5 h-5" />} label="Reels"   isActive={isActive('/reels')} />
             <MobileLink to="/events" icon={<CalendarDays className="w-5 h-5" />} label="Events"  isActive={isActive('/events')} />
+            <MobileLink to="/search" icon={<Search       className="w-5 h-5" />} label="Search"  isActive={isActive('/search')} />
 
             {partner && (
               <>

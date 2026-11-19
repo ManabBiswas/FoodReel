@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Home from '../pages/Home'
+import Search from '../pages/Search'
 import UserRegister from '../pages/User/UserRegister'
 import UserLogin from '../pages/User/UserLogin'
 import PartnerRegister from '../pages/FoodPartner/PartnerRegister'
@@ -124,6 +125,7 @@ const AppRoutes = () => {
         <Routes>
           {/* Public Routes */}
           <Route path='/' element={<Home />} />
+          <Route path='/search' element={<Search />} />
           <Route path='/about' element={<About />} />
           <Route path='/contact-us' element={<Contact />} />
           <Route path='/work' element={<WorkingProgress />} />

@@ -358,10 +358,16 @@ const getTrendingFoods = async (req, res) => {
 
 const getAllFoods = async (req, res) => {
     try {
-        const { postType, limit = 50, page = 1, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+        const { postType, limit = 50, page = 1, sortBy = 'createdAt', sortOrder = 'desc', q = '' } = req.query;
 
         const filter = { isActive: true, isAvailable: { $ne: false } };
         if (postType && ['food', 'advertisement'].includes(postType)) filter.postType = postType;
+
+        const term = String(q).trim().slice(0, 80);
+        if (term) {
+            const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            filter.$or = [{ name: pattern }, { description: pattern }];
+        }
 
         const validLimit = Math.min(parseInt(limit), 100);
         const skip = (parseInt(page) - 1) * validLimit;
