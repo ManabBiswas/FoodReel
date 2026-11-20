@@ -15,7 +15,9 @@ import {
     getMyEventSummary,
     publishMyEvent,
     goLiveMyEvent,
-    completeMyEvent
+    completeMyEvent,
+    listMyStalls,
+    decideMyStall
 } from '../../controllers/foodfest/organizer.controller.js';
 import isLoggedin from '../../middlewares/isLoggedin.js';
 
@@ -45,6 +47,10 @@ router.delete('/zones/:zoneId', deleteMyZone);
 
 // Ticket sales / attendees
 router.get('/events/:eventId/tickets', listMyEventTickets);
+
+// Stall applications for this event
+router.get('/events/:eventId/stalls', listMyStalls);
+router.post('/events/:eventId/stalls/:appId/decision', decideMyStall);
 
 // Lifecycle
 router.patch('/events/:eventId/publish', publishMyEvent);

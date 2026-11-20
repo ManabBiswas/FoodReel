@@ -84,6 +84,10 @@ const protectedRoutes = [
   { method: 'GET', path: '/api/follow/suggestions' },
   { method: 'POST', path: '/api/foodfest/user/tickets/purchase' },
   { method: 'GET', path: '/api/foodfest/user/my-tickets' },
+  { method: 'POST', path: `/api/foodfest/user/stalls/${ID}/upvote` },
+  { method: 'POST', path: `/api/foodfest/user/stalls/${ID}/reviews` },
+  { method: 'GET', path: `/api/foodfest/organizer/events/${ID}/stalls` },
+  { method: 'POST', path: `/api/foodfest/organizer/events/${ID}/stalls/${ID}/decision` },
   { method: 'POST', path: '/api/advertisement' },
 
   // --- partner session (isFoodPartnerLoggedin) ---

@@ -4,6 +4,8 @@ import FoodFestTier from "../../models/FoodFestTier.model.js";
 import FoodFestZone from "../../models/FoodFestZone.model.js";
 import FoodFestTicket from "../../models/FoodFestTicket.model.js";
 import FoodFestCheckIn from "../../models/FoodFestCheckIn.model.js";
+import FoodFestStallApplication from "../../models/FoodFestStallApplication.model.js";
+import { decideApplication } from "./application.admin.controller.js";
 import "../../models/user.Model.js";
 import { serverFail } from "../../utils/apiError.js";
 import { validateEventWindow } from "../../utils/eventDates.js";
@@ -573,6 +575,65 @@ export const completeMyEvent = async (req, res) => {
         await event.save();
 
         res.status(200).json({ success: true, message: "Event marked as completed", event });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+// GET /api/foodfest/organizer/events/:eventId/stalls — applications for this organizer's event, with the aggregates the review screen shows.
+export const listMyStalls = async (req, res) => {
+    try {
+        const access = await findOwnedEvent(req.user._id, req.params.eventId);
+        if (access.status) {
+            return res.status(access.status).json({ success: false, message: access.message });
+        }
+
+        const stalls = await FoodFestStallApplication.find({ eventId: access.event._id })
+            .populate('foodPartner', 'companyName email mobile profileImage')
+            .sort({ appliedAt: -1 });
+
+        res.status(200).json({ success: true, stalls });
+    } catch (error) {
+        serverFail(res, error);
+    }
+};
+
+// POST /api/foodfest/organizer/events/:eventId/stalls/:appId/decision
+// body: { decision: 'approved' | 'rejected', reason? } — same shared helper the admin endpoints use, so both paths behave identically.
+export const decideMyStall = async (req, res) => {
+    try {
+        const access = await findOwnedEvent(req.user._id, req.params.eventId);
+        if (access.status) {
+            return res.status(access.status).json({ success: false, message: access.message });
+        }
+
+        const { appId } = req.params;
+        if (!mongoose.isValidObjectId(appId)) {
+            return res.status(404).json({ success: false, message: "Application not found" });
+        }
+        // Scope the application to this event so an organizer can't decide
+        // another event's application by guessing its id.
+        const exists = await FoodFestStallApplication.exists({ _id: appId, eventId: access.event._id });
+        if (!exists) {
+            return res.status(404).json({ success: false, message: "Application not found" });
+        }
+
+        const decision = req.body?.decision;
+        if (!['approved', 'rejected'].includes(decision)) {
+            return res.status(400).json({ success: false, message: "decision must be 'approved' or 'rejected'" });
+        }
+
+        const result = await decideApplication({
+            appId,
+            decision,
+            actorId: req.user._id,
+            reason: req.body?.reason
+        });
+        if (result.status !== 200) {
+            return res.status(result.status).json({ success: false, message: result.message });
+        }
+
+        res.status(200).json({ success: true, message: result.message, application: result.application });
     } catch (error) {
         serverFail(res, error);
     }

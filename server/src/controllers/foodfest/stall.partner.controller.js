@@ -26,11 +26,33 @@ export const applyForStall = async (req, res) => {
     try {
 
         const { eventId } = req.params;
-        const { proposedItems } = req.body;
+        // Display fields are optional — the stall still renders from
+        // proposedItems (name, price, image) without them.
+        const { proposedItems, position, timings, conditions, image } = req.body;
         const partnerId = req.foodPartner._id;
 
         if (!eventId || !proposedItems || !Array.isArray(proposedItems)) {
             return res.status(400).json({ success: false, message: "proposedItems (array) is required" });
+        }
+
+        const trim = (v) => (typeof v === 'string' ? v.trim() : undefined);
+        const display = {
+            position: trim(position),
+            timings: trim(timings),
+            conditions: trim(conditions),
+            image: trim(image)
+        };
+
+        // Length caps enforced here so an oversized value is a 400, not a
+        // Mongoose ValidationError escaping as a 500 (house rule).
+        const LIMITS = { position: 120, timings: 120, conditions: 300, image: 500 };
+        for (const [key, max] of Object.entries(LIMITS)) {
+            if (display[key] && display[key].length > max) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${key} must be ${max} characters or fewer`
+                });
+            }
         }
 
         // Applications are only valid against a real, published event
@@ -54,7 +76,9 @@ export const applyForStall = async (req, res) => {
             eventId,
             foodPartner: partnerId,
             proposedItems,
-            status: 'pending'
+            status: 'pending',
+            // undefined keys are ignored by Mongoose, so omitted fields stay unset
+            ...display
         });
 
         res.status(201).json({ success: true, message: "Application submitted successfully", application });

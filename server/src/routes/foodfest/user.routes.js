@@ -7,10 +7,17 @@ import {
   getMyTickets
 } from '../../controllers/foodfest/ticket.user.controller.js';
 import { createUserProposal, getMyProposals } from '../../controllers/foodfest/proposal.controller.js';
+import {
+    listEventStalls,
+    toggleUpvote,
+    listStallReviews,
+    createStallReview
+} from '../../controllers/foodfest/stall.public.controller.js';
 import isLoggedin from '../../middlewares/isLoggedin.js';
+import optionalAuth from '../../middlewares/optionalAuth.js';
 import { rateLimiter } from '../../middlewares/rateLimiter.js';
 import { withIdempotency } from '../../services/idempotency.js';
-import { validateBody, isObjectId } from '../../utils/validate.js';
+import { validateBody, validateParams, isObjectId, isNonEmptyString, isIntInRange } from '../../utils/validate.js';
 
 const router = express.Router();
 
@@ -38,5 +45,27 @@ router.post('/tickets/verify', isLoggedin, rateLimiter, verifyTicketPayment);
 
 // GET /api/foodfest/my-tickets - for a user's getMyTickets
 router.get('/my-tickets', isLoggedin, getMyTickets);
+
+// Stall discovery — public, optionalAuth only flags the caller's own upvote.
+router.get('/events/:eventId/stalls', optionalAuth, listEventStalls);
+router.get('/stalls/:stallId/reviews', listStallReviews);
+router.post(
+    '/stalls/:stallId/upvote',
+    isLoggedin,
+    validateParams({ stallId: { check: isObjectId, message: 'stallId must be a valid id' } }),
+    toggleUpvote
+);
+// Reviews require a paid ticket to the stall's event (checked in the handler).
+router.post(
+    '/stalls/:stallId/reviews',
+    isLoggedin,
+    rateLimiter,
+    validateParams({ stallId: { check: isObjectId, message: 'stallId must be a valid id' } }),
+    validateBody({
+        rating: { check: (v) => isIntInRange(v, 1, 5), message: 'rating must be an integer from 1 to 5' },
+        comment: { check: (v) => isNonEmptyString(v, 1000), message: 'comment must be 1-1000 characters' }
+    }),
+    createStallReview
+);
 
 export default router;
