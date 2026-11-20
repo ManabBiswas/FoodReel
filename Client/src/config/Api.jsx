@@ -238,6 +238,10 @@ export const API_ENDPOINTS = {
     myTickets: `${BASE_URL}/foodfest/user/my-tickets`,
     proposals: `${BASE_URL}/foodfest/user/proposals`,
     myProposals: `${BASE_URL}/foodfest/user/my-proposals`,
+    // Stalls (public reads; upvote/review need a user session)
+    stalls: (eventId) => `${BASE_URL}/foodfest/user/events/${eventId}/stalls`,
+    stallUpvote: (stallId) => `${BASE_URL}/foodfest/user/stalls/${stallId}/upvote`,
+    stallReviews: (stallId) => `${BASE_URL}/foodfest/user/stalls/${stallId}/reviews`,
 
     // Admin
     adminEventsList: `${BASE_URL}/foodfest/admin/events`,
@@ -273,6 +277,8 @@ export const API_ENDPOINTS = {
     organizerPublish: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/publish`,
     organizerGoLive: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/go-live`,
     organizerComplete: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/complete`,
+    organizerEventStalls: (eventId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/stalls`,
+    organizerStallDecision: (eventId, appId) => `${BASE_URL}/foodfest/organizer/events/${eventId}/stalls/${appId}/decision`,
 
     // Partner
     partnerAvailableEvents: `${BASE_URL}/foodfest/partner/available-events`,

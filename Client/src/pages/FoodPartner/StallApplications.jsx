@@ -28,6 +28,11 @@ const ApplyModal = ({ event, foods, onClose, onApplied }) => {
   const [selected, setSelected] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  // Optional public display details — blank fields are simply not sent.
+  const [display, setDisplay] = useState({ position: '', timings: '', conditions: '', image: '' })
+
+  const setDisplayField = (field) => (e) =>
+    setDisplay((current) => ({ ...current, [field]: e.target.value }))
 
   const toggleItem = (foodId) => {
     setSelected((current) =>
@@ -45,9 +50,14 @@ const ApplyModal = ({ event, foods, onClose, onApplied }) => {
     setError('')
 
     try {
+      const payload = { proposedItems: selected }
+      for (const [key, value] of Object.entries(display)) {
+        const trimmed = value.trim()
+        if (trimmed) payload[key] = trimmed
+      }
       await axios.post(
         API_ENDPOINTS.foodfest.partnerApply(event._id),
-        { proposedItems: selected },
+        payload,
         axiosConfig
       )
       showSuccess('Stall application submitted.')
@@ -156,6 +166,92 @@ const ApplyModal = ({ event, foods, onClose, onApplied }) => {
             })}
           </div>
         )}
+
+        <div>
+          <h3 className="font-serif text-lg font-bold" style={{ color: 'var(--color-text-base)' }}>
+            Stall details <span className="text-sm font-normal font-sans" style={{ color: 'var(--color-text-faint)' }}>(optional)</span>
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed font-sans" style={{ color: 'var(--color-text-muted)' }}>
+            Shown on the public event page once your application is approved.
+          </p>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest font-sans"
+                style={{ color: 'var(--color-text-muted)' }}
+                htmlFor="stall-position"
+              >
+                Position at the venue
+              </label>
+              <input
+                id="stall-position"
+                value={display.position}
+                onChange={setDisplayField('position')}
+                maxLength={120}
+                placeholder="Gate 2, first row"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-sans outline-none"
+                style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-background-white)', color: 'var(--color-text-base)' }}
+              />
+            </div>
+            <div>
+              <label
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest font-sans"
+                style={{ color: 'var(--color-text-muted)' }}
+                htmlFor="stall-timings"
+              >
+                Serving timings
+              </label>
+              <input
+                id="stall-timings"
+                value={display.timings}
+                onChange={setDisplayField('timings')}
+                maxLength={120}
+                placeholder="10:00 - 22:00"
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-sans outline-none"
+                style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-background-white)', color: 'var(--color-text-base)' }}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest font-sans"
+                style={{ color: 'var(--color-text-muted)' }}
+                htmlFor="stall-conditions"
+              >
+                Good to know
+              </label>
+              <input
+                id="stall-conditions"
+                value={display.conditions}
+                onChange={setDisplayField('conditions')}
+                maxLength={300}
+                placeholder="Jain options available, outdoor seating..."
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-sans outline-none"
+                style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-background-white)', color: 'var(--color-text-base)' }}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest font-sans"
+                style={{ color: 'var(--color-text-muted)' }}
+                htmlFor="stall-image"
+              >
+                Stall photo URL
+              </label>
+              <input
+                id="stall-image"
+                type="url"
+                value={display.image}
+                onChange={setDisplayField('image')}
+                maxLength={500}
+                placeholder="https://..."
+                className="w-full rounded-xl border px-3.5 py-2.5 text-sm font-sans outline-none"
+                style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-background-white)', color: 'var(--color-text-base)' }}
+              />
+              {/* shortcut: a pasted URL only — wiring a real upload needs a multipart apply endpoint */}
+            </div>
+          </div>
+        </div>
 
         {error ? (
           <div

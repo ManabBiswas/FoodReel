@@ -20,7 +20,8 @@ import {
   TicketCheck,
   DoorOpen,
   PlayCircle,
-  Flag
+  Flag,
+  Store
 } from 'lucide-react'
 import Navbar from '../../Components/Navbar'
 import Footer from '../../Components/Footer'
@@ -28,6 +29,7 @@ import ErrorBoundary from '../../Components/ErrorBoundary'
 import ScrambleNumber from '../../Components/ScrambleNumber'
 import TierManager from '../../Components/organizer/TierManager'
 import ZoneManager from '../../Components/organizer/ZoneManager'
+import StallManager from '../../Components/organizer/StallManager'
 import EventSettingsForm from '../../Components/organizer/EventSettingsForm'
 import { showSuccess, showError, showWarning } from '../../utils/toast'
 import {
@@ -51,6 +53,7 @@ const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'tickets', label: 'Ticket tiers', icon: Ticket },
   { id: 'zones', label: 'Zones', icon: DoorOpen },
+  { id: 'stalls', label: 'Stalls', icon: Store },
   { id: 'attendees', label: 'Attendees', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings }
 ]
@@ -718,6 +721,10 @@ const OrganizerDashboard = () => {
                         onChanged={() => loadDetail(selectedId)}
                         disabled={false}
                       />
+                    )}
+
+                    {activeSection === 'stalls' && (
+                      <StallManager eventId={detail.event._id} />
                     )}
 
                     {activeSection === 'attendees' && (

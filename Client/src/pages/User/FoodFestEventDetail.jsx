@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import Navbar from '../../Components/Navbar'
 import Footer from '../../Components/Footer'
 import PurchaseModal from '../../Components/foodfest/PurchaseModal'
+import StallsSection from '../../Components/foodfest/StallsSection'
 import { API_ENDPOINTS } from '../../config/Api'
 import { useAuth } from '../../hooks/useAuth'
 import { useNow } from '../../hooks/useNow'
@@ -354,6 +355,8 @@ const FoodFestEventDetail = () => {
                 </p>
               ) : null}
             </section>
+
+            <StallsSection eventId={eventId} />
           </>
         ) : null}
       </main>
