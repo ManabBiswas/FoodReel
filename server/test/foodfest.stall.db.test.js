@@ -227,6 +227,27 @@ test('upvotes toggle for any signed-in user', needsDb, async () => {
     assert.deepEqual({ upvoted: res.payload.upvoted, count: res.payload.upvoteCount }, { upvoted: true, count: 1 });
 });
 
+test('concurrent toggles from two users both land (no lost update)', needsDb, async () => {
+    await makeStall({ _id: stallId });
+    const params = { stallId: String(stallId) };
+
+    // Fire both at once: the old read-modify-write save() had the second
+    // write clobber the first user's upvote entirely.
+    const [a, b] = await Promise.all([
+        call(publicCtrl.toggleUpvote, { user: { _id: userId }, params }),
+        call(publicCtrl.toggleUpvote, { user: { _id: otherUserId }, params })
+    ]);
+
+    assert.equal(a.statusCode, 200);
+    assert.equal(b.statusCode, 200);
+
+    const stall = await FoodFestStallApplication.findById(stallId).select('upvotes');
+    assert.equal(stall.upvotes.length, 2, 'both users upvoted');
+    // The response reports post-write DB state, so the highest count returned
+    // must already include both.
+    assert.equal(Math.max(a.payload.upvoteCount, b.payload.upvoteCount), 2);
+});
+
 test('reviews are refused without a ticket to the event', needsDb, async () => {
     await makeStall({ _id: stallId });
 

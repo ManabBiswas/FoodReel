@@ -62,20 +62,28 @@ export const toggleUpvote = async (req, res) => {
         const { stallId } = req.params;
         const userId = req.user._id;
 
-        const stall = await FoodFestStallApplication.findOne({ _id: stallId, status: 'approved' });
-        if (!stall) return res.status(404).json({ success: false, message: "Stall not found" });
+        // Atomic two-step toggle
+        const removed = await FoodFestStallApplication.updateOne(
+            { _id: stallId, status: 'approved', upvotes: userId },
+            { $pull: { upvotes: userId } }
+        );
 
-        const already = stall.upvotes.some((id) => id.toString() === userId.toString());
-        if (already) {
-            stall.upvotes.pull(userId);
-        } else {
-            stall.upvotes.push(userId);
+        if (removed.matchedCount === 0) {
+            await FoodFestStallApplication.updateOne(
+                { _id: stallId, status: 'approved', upvotes: { $ne: userId } },
+                { $addToSet: { upvotes: userId } }
+            );
         }
-        await stall.save();
+
+        const stall = await FoodFestStallApplication.findOne({ _id: stallId, status: 'approved' })
+            .select('upvotes');
+        if (!stall) {
+            return res.status(404).json({ success: false, message: "Stall not found" });
+        }
 
         res.status(200).json({
             success: true,
-            upvoted: !already,
+            upvoted: stall.upvotes.some((id) => id.toString() === userId.toString()),
             upvoteCount: stall.upvotes.length
         });
     } catch (error) {
