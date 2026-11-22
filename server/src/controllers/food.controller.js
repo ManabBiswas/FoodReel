@@ -1,6 +1,7 @@
 import foodModel from "../models/food.model.js";
 import { serverError } from "../utils/apiError.js";
 import { resolveSort, FOOD_SORT_FIELDS } from '../utils/sortQuery.js';
+import { publicPost, publicPosts } from '../utils/publicPost.js';
 import storageService from "../services/storage.service.js";
 import { updateFoodPartnerRatings } from "./review.controller.js";
 import { v4 as uuid } from "uuid";
@@ -212,7 +213,7 @@ const getActiveAdvertisements = async (req, res) => {
         res.status(200).json({
             message: "Active advertisements retrieved successfully",
             count: advertisements.length,
-            advertisements
+            advertisements: publicPosts(advertisements, req.user?._id)
         });
     } catch (error) {
         console.error("Error getting active advertisements:", error);
@@ -247,7 +248,7 @@ const getFoodItemsWithPricing = async (req, res) => {
             message: "Food items with pricing retrieved successfully",
             count: foodItems.length,
             filters: { minPrice: minPrice || 'none', maxPrice: maxPrice || 'none', currency },
-            foodItems
+            foodItems: publicPosts(foodItems, req.user?._id)
         });
     } catch (error) {
         console.error("Error getting food items with pricing:", error);
@@ -394,7 +395,7 @@ const getAllFoods = async (req, res) => {
                 hasNextPage: parseInt(page) < totalPages,
                 hasPrevPage: parseInt(page) > 1
             },
-            data: foods
+            data: publicPosts(foods, req.user?._id)
         });
     } catch (error) {
         console.error("Error getting all foods:", error);
@@ -423,7 +424,7 @@ const getFoodById = async (req, res) => {
 
         res.status(200).json({
             message: "Post retrieved successfully",
-            data: food
+            data: publicPost(food, req.user?._id)
         });
     } catch (error) {
         console.error("Error getting food by id:", error);

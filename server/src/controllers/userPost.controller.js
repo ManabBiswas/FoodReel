@@ -6,6 +6,7 @@ import FoodPartner from '../models/foodPartner.Model.js'
 import mongoose from 'mongoose'
 import { v4 as uuid } from 'uuid'
 import { resolveSort, POST_SORT_FIELDS } from '../utils/sortQuery.js'
+import { publicPosts } from '../utils/publicPost.js'
 
 const createUserPost = async (req, res) => {
   try {
@@ -116,7 +117,7 @@ const getAllUserPosts = async (req, res) => {
         hasNextPage: parseInt(page) < Math.ceil(totalCount / validLimit),
         hasPrevPage: parseInt(page) > 1
       },
-      data: posts
+      data: publicPosts(posts, req.user?._id)
     })
   } catch (error) {
     console.error('Error getting user posts:', error)
@@ -137,7 +138,7 @@ const getUserPostsByUserId = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean()
 
-    res.status(200).json({ message: 'User posts retrieved successfully', count: posts.length, data: posts })
+    res.status(200).json({ message: 'User posts retrieved successfully', count: posts.length, data: publicPosts(posts, req.user?._id) })
   } catch (error) {
     console.error('Error getting user posts by ID:', error)
     serverError(res, error)

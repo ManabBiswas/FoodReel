@@ -1,12 +1,29 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { parseCookie } from "cookie";
 import userModel from "../models/user.Model.js";
 import foodPartnerModel from "../models/foodPartner.Model.js";
 import adminModel from "../models/admin.model.js";
+import FoodFestEvent from "../models/FoodFestEvent.model.js";
+import FoodFestTicket from "../models/FoodFestTicket.model.js";
 
 let io = null;
-const eventRooms = new Map(); // eventId -> Set of socketIds
+
+/** Only the event's organizer, an admin, or a ticket holder may listen in. */
+export const canJoinEventRoom = async ({ user, eventId }) => {
+    if (!user || !mongoose.isValidObjectId(eventId)) return false;
+    const event = await FoodFestEvent.findById(eventId).select('organizer organizerType');
+    if (!event) return false;
+    if (user.type === 'admin') return true;
+    if (user.type !== 'user') return false;
+    if (event.organizerType === 'user' && String(event.organizer) === String(user.id)) return true;
+    return Boolean(await FoodFestTicket.exists({
+        eventId,
+        user: user.id,
+        status: { $in: ['valid', 'used'] }
+    }));
+};
 
 export const initSocketIO = (httpServer) => {
     io = new Server(httpServer, {
@@ -58,9 +75,18 @@ export const initSocketIO = (httpServer) => {
     io.on('connection', (socket) => {
         console.log(`Socket connected: ${socket.id} (User: ${socket.user.id})`);
 
-        socket.on('joinEvent', (eventId) => {
-            socket.join(`event:${eventId}`);
-            console.log(`Socket ${socket.id} joined event:${eventId}`);
+        socket.on('joinEvent', async (eventId) => {
+            try {
+                if (!(await canJoinEventRoom({ user: socket.user, eventId }))) {
+                    socket.emit('event:error', { message: 'You cannot join this event room' });
+                    return;
+                }
+                socket.join(`event:${eventId}`);
+                console.log(`Socket ${socket.id} joined event:${eventId}`);
+            } catch (error) {
+                console.error(`Socket ${socket.id} join failed:`, error.message);
+                socket.emit('event:error', { message: 'Could not join this event room' });
+            }
         });
 
         socket.on('leaveEvent', (eventId) => {

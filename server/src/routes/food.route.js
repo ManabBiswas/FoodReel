@@ -3,6 +3,7 @@ import multer from 'multer';
 import foodController from '../controllers/food.controller.js';
 import isFoodPartnerLoggedin from '../middlewares/isFoodPartnerLoggedin.js';
 import isLoggedin from '../middlewares/isLoggedin.js';
+import optionalAuth from '../middlewares/optionalAuth.js'; // to identify the caller but never blocks the request
 import { sanitizeMultipart } from '../middlewares/sanitization.js';
 import { uploadMedia, enforceMediaSize, verifyFileSignature } from '../middlewares/fileUpload.js';
 import { validateParams, isObjectId } from '../utils/validate.js';
@@ -45,12 +46,12 @@ router.post('/',
 
 // GET /api/food - Get all posts (public endpoint for home feed)
 router.get('/',
-    foodController.getAllFoods
+    optionalAuth, foodController.getAllFoods
 );
 
 // GET /api/food/trending - Get trending posts
 router.get('/trending',
-    foodController.getTrendingFoods
+    optionalAuth, foodController.getTrendingFoods
 );
 
 // GET /api/food/my-posts - Get partner's own posts
@@ -61,12 +62,12 @@ router.get('/my-posts',
 
 // GET /api/food/advertisements - Get active advertisements
 router.get('/advertisements',
-    foodController.getActiveAdvertisements
+    optionalAuth, foodController.getActiveAdvertisements
 );
 
 // GET /api/food/menu - Get food items with pricing (for ordering)
 router.get('/menu',
-    foodController.getFoodItemsWithPricing
+    optionalAuth, foodController.getFoodItemsWithPricing
 );
 
 // GET /api/food/statistics - Get post statistics for partners
@@ -77,7 +78,7 @@ router.get('/statistics',
 
 // GET /api/food/:id - Single post detail (public, like the feed).
 router.get('/:id',
-    foodController.getFoodById
+    optionalAuth, foodController.getFoodById
 );
 
 // Malformed :id segments used to reach Mongoose as CastError -> 500.

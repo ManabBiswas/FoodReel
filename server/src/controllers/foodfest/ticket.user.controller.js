@@ -31,7 +31,10 @@ export const getEventDetails = async (req, res) => {
             _id: eventId,
             // A live event must stay reachable so ticket holders can open it.
             status: { $in: ['published', 'live'] } // $in is a shortcut for { $or: [ { status: 'published' }, { status: 'live' } ] }            
-        });
+        })
+        // Public detail must not expose organizer notes, admin grant audit, internal revenue stats or GPS coordinates.
+        .select('name description venue.address venue.city bannerImage startTime endTime salesStart salesEnd status')
+        .lean();
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
 
         const tiers = await FoodFestTier.find({ eventId, active: true });
