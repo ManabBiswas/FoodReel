@@ -14,7 +14,7 @@ import paymentWebhookEventModel from '../models/paymentWebhookEvent.model.js';
 export const createPaymentOrder = async (req, res) => {
   try {
     const { orderId } = req.body;
-
+    
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -275,38 +275,84 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Update order
-    order.paymentDetails.razorpayPaymentId = razorpay_payment_id;
-    order.paymentDetails.razorpaySignature = razorpay_signature;
-    order.paymentDetails.status = 'completed';
-    order.paymentDetails.paidAt = new Date();
-    order.paymentDetails.transactionId = razorpay_payment_id;
-    order.status = 'confirmed';
-    order.statusTimestamps.confirmedAt = new Date();
+    // paid and update 
+    const paidAt = new Date();  //
+    const updated = await orderModel.findOneAndUpdate(
+      {
+        _id: order._id,
+        user: userId,
+        'paymentDetails.razorpayOrderId': razorpay_order_id,
+        'paymentDetails.status': order.paymentDetails.status,
+        status: order.status,
+        'cancellation.isCancelled': { $ne: true }
+      },
+      {
+        $set: {
+          'paymentDetails.razorpayPaymentId': razorpay_payment_id,
+          'paymentDetails.razorpaySignature': razorpay_signature,
+          'paymentDetails.status': 'completed',
+          'paymentDetails.paidAt': paidAt,
+          'paymentDetails.transactionId': razorpay_payment_id,
+          status: 'confirmed',
+          'statusTimestamps.confirmedAt': paidAt
+        },
+        $push: {
+          orderNotes: {
+            note: `Payment successful via ${gatewayPayment.method}`,
+            addedBy: 'system'
+          }
+        }
+      },
+      { new: true }
+    );
 
-    order.orderNotes.push({
-      note: `Payment successful via ${gatewayPayment.method}`,
-      addedBy: 'system'
-    });
+    if (!updated) {
+      // Someone else wrote first. A settled order means the payment went
+      // through (this request or a webhook); never force the stale copy on top.
+      const current = await orderModel
+        .findById(order._id)
+        .select('paymentDetails status coupon user')
+        .lean();
 
-    await order.save();
+      if (current?.paymentDetails?.status === 'completed') {
+        if (current.coupon?.couponId) await couponService.consumeCoupon(current);
+        return res.status(200).json({
+          success: true,
+          message: 'Payment already verified',
+          order: {
+            id: current._id,
+            status: current.status,
+            paymentStatus: current.paymentDetails.status
+          }
+        });
+      }
+
+      console.error(
+        `[req:${req.id}] Payment verified but order ${order._id} changed to ` +
+        `${current?.status}/${current?.paymentDetails?.status}; not applied`
+      );
+      return res.status(409).json({
+        success: false,
+        code: 'ORDER_STATE_CHANGED',
+        message: 'Order changed while the payment was being verified. Please contact support.'
+      });
+    }
 
     // Count the redemption exactly once. The order-level `consumedAt` claim in the service makes this safe even when the webhook lands at the same time.
-    if (order.coupon?.couponId) {
-      const consumed = await couponService.consumeCoupon(order);
+    if (updated.coupon?.couponId) {
+      const consumed = await couponService.consumeCoupon(updated);
       if (!consumed.ok) {
-        console.error(`[req:${req.id}] Coupon consume failed for order ${order._id}: ${consumed.code}`);
+        console.error(`[req:${req.id}] Coupon consume failed for order ${updated._id}: ${consumed.code}`);
       }
     }
 
     res.status(200).json({
-
       success: true,
       message: 'Payment verified successfully',
       order: {
-        id: order._id,
-        status: order.status,
-        paymentStatus: order.paymentDetails.status
+        id: updated._id,
+        status: updated.status,
+        paymentStatus: updated.paymentDetails.status
       }
     });
 
