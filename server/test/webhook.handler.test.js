@@ -245,11 +245,23 @@ describe('order.paid', () => {
     test('applies a clean order.paid', () => {
         const result = decideWebhookAction({
             event: 'order.paid',
-            entity: { id: 'order_ABC', notes: { orderId: 'o1' } },
+            entity: { id: 'order_ABC', amount: 200000, amount_paid: 200000, notes: { orderId: 'o1' } },
             order: freshOrder(),
         });
         assert.equal(result.action, ACTION.APPLY);
         assert.equal(result.changes.paymentStatus, 'completed');
+    });
+
+    test('refuses a paid amount smaller than the order total', () => {
+        const result = decideWebhookAction({
+            event: 'order.paid',
+            entity: { id: 'order_ABC', amount: 200000, amount_paid: 199900, notes: { orderId: 'o1' } },
+            order: freshOrder(),
+        });
+        assert.equal(result.action, ACTION.REJECT);
+        assert.equal(result.code, 'AMOUNT_MISMATCH');
+        assert.equal(result.expectedAmount, 200000);
+        assert.equal(result.receivedAmount, 199900);
     });
 
     test('refuses order.paid for an order that is cancelled', () => {

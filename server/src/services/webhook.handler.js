@@ -153,6 +153,16 @@ const decideOrderPaid = (entity, order) => {
     if (order.paymentDetails?.razorpayOrderId && order.paymentDetails.razorpayOrderId !== entity?.id) {
         return reject('PAYMENT_ORDER_MISMATCH', 'order.paid for a different gateway order');
     }
+    // Same amount guard as payment.captured: a smaller paid amount must not settle the full order.
+    const expected = expectedPaise(order);
+    if (expected === null) return reject('MALFORMED_INPUT', 'Order has no comparable amount');
+    const paid = Number.isInteger(entity?.amount_paid) ? entity.amount_paid : entity?.amount;
+    if (paid !== undefined && paid !== expected) {
+        return reject('AMOUNT_MISMATCH', 'order.paid amount does not match the order total', {
+            expectedAmount: expected,
+            receivedAmount: paid,
+        });
+    }
     return apply({ paymentStatus: 'completed', orderStatus: 'confirmed' }, { note: 'Order marked as paid via webhook' });
 };
 
